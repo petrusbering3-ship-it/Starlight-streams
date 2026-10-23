@@ -6,6 +6,7 @@ import { setContextMenu } from "../context_menu"
 import { showNotification } from "../notification"
 import { showMessage } from "../modal/index"
 import { buildUrl } from "../../config_"
+import { getPreferredDisplay, HOST_CARD_DISPLAYS, setPreferredDisplay } from "../../stream/display"
 import { HOST_IMAGE, HOST_OVERLAY_LOCK, HOST_OVERLAY_NONE, HOST_OVERLAY_OFFLINE } from "../../resources/index"
 
 export type HostEventListener = (event: ComponentEvent<Host>) => void
@@ -22,8 +23,11 @@ export class Host implements Component {
     private imageElement: HTMLImageElement = document.createElement("img")
     private imageOverlayElement: HTMLImageElement = document.createElement("img")
     private nameElement: HTMLElement = document.createElement("p")
+    private statusElement: HTMLElement = document.createElement("p")
+    private displaysElement: HTMLDivElement = document.createElement("div")
+    private displayBoxes: Array<HTMLDivElement> = []
+    private streamButtons: Array<HTMLButtonElement> = []
     private powerElement: HTMLDivElement = document.createElement("div")
-    private powerOnButton: HTMLButtonElement = document.createElement("button")
     private powerOffButton: HTMLButtonElement = document.createElement("button")
 
     constructor(api: Api, hostId: number, host: UndetailedHost | DetailedHost | null) {
@@ -47,22 +51,50 @@ export class Host implements Component {
         this.divElement.appendChild(this.imageOverlayElement)
         this.divElement.appendChild(this.nameElement)
 
-        // Configure power buttons
+        this.statusElement.classList.add("host-status")
+        this.divElement.appendChild(this.statusElement)
+
+        // Display boxes, each with a stream button (Starlight Streams)
         const i = getTranslations(getCurrentLanguage()).host
+        this.displaysElement.classList.add("host-displays")
+        for (let display = 1; display <= HOST_CARD_DISPLAYS; display++) {
+            const box = document.createElement("div")
+            box.classList.add("host-display")
+
+            const screen = document.createElement("div")
+            screen.classList.add("host-display-screen")
+            screen.innerText = `${display}`
+            box.appendChild(screen)
+
+            const label = document.createElement("p")
+            label.classList.add("host-display-label")
+            label.innerText = i.displayName(display)
+            box.appendChild(label)
+
+            const streamButton = document.createElement("button")
+            streamButton.classList.add("host-stream-button")
+            streamButton.innerText = `▶ ${i.stream}`
+            streamButton.addEventListener("click", (event) => {
+                event.stopPropagation()
+                this.powerOnAndPlay(display)
+            })
+            box.appendChild(streamButton)
+
+            this.displaysElement.appendChild(box)
+            this.displayBoxes.push(box)
+            this.streamButtons.push(streamButton)
+        }
+        this.divElement.appendChild(this.displaysElement)
+        this.updateDisplayBoxes()
+
+        // Power off
         this.powerElement.classList.add("host-power")
-        this.powerOnButton.classList.add("host-power-button", "host-power-on")
-        this.powerOnButton.innerText = `⏻ ${i.powerOn}`
-        this.powerOnButton.addEventListener("click", (event) => {
-            event.stopPropagation()
-            this.powerOnAndPlay()
-        })
         this.powerOffButton.classList.add("host-power-button", "host-power-off")
         this.powerOffButton.innerText = `⏻ ${i.powerOff}`
         this.powerOffButton.addEventListener("click", (event) => {
             event.stopPropagation()
             this.shutDown()
         })
-        this.powerElement.appendChild(this.powerOnButton)
         this.powerElement.appendChild(this.powerOffButton)
         this.divElement.appendChild(this.powerElement)
 
@@ -257,15 +289,26 @@ export class Host implements Component {
         this.powerOffButton.style.display = isGuest ? "none" : ""
     }
 
+    private updateDisplayBoxes() {
+        const preferred = getPreferredDisplay(this.hostId)
+        this.displayBoxes.forEach((box, index) => {
+            box.classList.toggle("host-display-last", index + 1 == preferred)
+        })
+    }
+
     private poweringOn = false
 
-    /// Starlight Streams: wakes the pc, waits until it's online and then starts the last played game
-    private async powerOnAndPlay() {
+    /// Starlight Streams: wakes the pc, waits until it's online and then starts the last played game on the chosen display
+    private async powerOnAndPlay(display: number) {
         const i = getTranslations(getCurrentLanguage()).host
         if (this.poweringOn) {
             return
         }
         this.poweringOn = true
+
+        setPreferredDisplay(this.hostId, display)
+        this.updateDisplayBoxes()
+        const button = this.streamButtons[display - 1]
 
         try {
             await this.forceFetch().catch(() => { })
@@ -285,7 +328,7 @@ export class Host implements Component {
                         await showMessage(i.startTimeout)
                         return
                     }
-                    this.powerOnButton.innerText = `⏻ ${i.startingUp(seconds)}`
+                    button.innerText = i.startingUp(seconds)
 
                     await new Promise(resolve => setTimeout(resolve, 3000))
                     await this.forceFetch().catch(() => { })
@@ -313,7 +356,7 @@ export class Host implements Component {
             }
         } finally {
             this.poweringOn = false
-            this.powerOnButton.innerText = `⏻ ${i.powerOn}`
+            button.innerText = `▶ ${i.stream}`
         }
     }
 
@@ -405,10 +448,16 @@ export class Host implements Component {
 
         if (this.cache.server_state == null) {
             this.imageOverlayElement.src = HOST_OVERLAY_OFFLINE
+            this.statusElement.innerText = `○ ${i.statusOff}`
+            this.statusElement.dataset.state = "off"
         } else if (this.cache.paired != "Paired") {
             this.imageOverlayElement.src = HOST_OVERLAY_LOCK
+            this.statusElement.innerText = `🔒 ${i.statusNotPaired}`
+            this.statusElement.dataset.state = "locked"
         } else {
             this.imageOverlayElement.src = HOST_OVERLAY_NONE
+            this.statusElement.innerText = `● ${i.statusReady}`
+            this.statusElement.dataset.state = "ready"
         }
     }
 

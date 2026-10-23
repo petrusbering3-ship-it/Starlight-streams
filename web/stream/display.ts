@@ -21,6 +21,37 @@ function sendSwitchShortcut(input: StreamInput, display: number) {
     input.sendKey(false, StreamKeys.VK_CONTROL, emptyKeyModifiers())
 }
 
+/// Number of display boxes shown on the host card
+export const HOST_CARD_DISPLAYS = 2
+
+function storageKey(hostId: number): string {
+    return `starlight-display-${hostId}`
+}
+
+/// The display that will be streamed when a stream starts (1 if never chosen)
+export function getPreferredDisplay(hostId: number): number {
+    try {
+        const saved = JSON.parse(localStorage.getItem(storageKey(hostId)) ?? "null")
+        if (saved && typeof saved.current == "number") {
+            return saved.current
+        }
+    } catch (e) {
+        // storage might be unavailable
+    }
+    return 1
+}
+
+/// Chooses the display that is streamed when the next stream starts
+export function setPreferredDisplay(hostId: number, display: number) {
+    const current = getPreferredDisplay(hostId)
+    const previous = display != current ? current : (display == 1 ? 2 : 1)
+    try {
+        localStorage.setItem(storageKey(hostId), JSON.stringify({ current: display, previous }))
+    } catch (e) {
+        // storage might be unavailable
+    }
+}
+
 /// Remembers the chosen display per host, and the one before it for the quick switch hotkey
 export class DisplaySwitcher {
     private storageKey: string
@@ -28,7 +59,7 @@ export class DisplaySwitcher {
     private previous: number = 2
 
     constructor(hostId: number) {
-        this.storageKey = `starlight-display-${hostId}`
+        this.storageKey = storageKey(hostId)
 
         try {
             const saved = JSON.parse(localStorage.getItem(this.storageKey) ?? "null")

@@ -1,14 +1,14 @@
 :root {
     /* Colors - Dark Theme */
-    --bg-0: #000f1f;
-    --bg-1: #001a2e;
-    --bg-2: #000d18;
-    --bg-3: #001a2e;
-    --text-1: #a8e6ff;
+    --bg-0: #0b0b0f;
+    --bg-1: #16161c;
+    --bg-2: #0b0b0f;
+    --bg-3: #16161c;
+    --text-1: #e6e6ee;
     --text-2: #ffffff;
-    --accent-cyan: #00a3cc;
-    --accent-cyan-2: #00d4ff;
-    --accent-cyan-light: #00ffff;
+    --accent-cyan: #ff2d55;
+    --accent-cyan-2: #ff2d55;
+    --accent-cyan-light: #ff5577;
     --muted: rgba(255, 255, 255, 0.06);
     --error: #ff8c42;
     --error-light: #ffb399;
@@ -34,9 +34,9 @@
     --shadow-1: 0 4px 12px rgba(0, 0, 0, 0.6);
     --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.7);
     --shadow-3: 0 12px 36px rgba(0, 0, 0, 0.8);
-    --shadow-button: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 212, 255, 0.12);
-    --glow-cyan: 0 0 20px rgba(0, 163, 204, 0.18);
-    --glow-cyan-bright: 0 0 30px rgba(0, 212, 255, 0.3), 0 0 60px rgba(0, 212, 255, 0.15);
+    --shadow-button: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 45, 85, 0.12);
+    --glow-cyan: 0 0 20px rgba(255, 45, 85, 0.18);
+    --glow-cyan-bright: 0 0 30px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.15);
 
     /* Animation durations */
     --dur-fast: 0.18s;
@@ -132,11 +132,11 @@ label {
 /** Button */
 .file-button,
 button {
-    background-color: #003d7a;
+    background-color: #1f1f27;
     background-size: 60px;
     background-position: center;
     background-repeat: no-repeat;
-    border: 2px solid #00d4ff;
+    border: 2px solid #ff2d55;
     border-radius: var(--radius-md);
     padding: var(--space-sm);
     margin: var(--space-sm);
@@ -152,9 +152,9 @@ button {
 .file-button:hover:not(:disabled),
 button:hover:not(:disabled) {
     transition: all var(--dur-med) ease;
-    box-shadow: 0 0 30px rgba(0, 212, 255, 0.6), 0 0 60px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 30px rgba(255, 45, 85, 0.6), 0 0 60px rgba(255, 45, 85, 0.4);
     transform: translateY(-3px) scale(1.05);
-    background-color: #0052a3;
+    background-color: #ff2d55;
     border-color: var(--accent-cyan-light);
 }
 
@@ -170,7 +170,7 @@ button,
 .admin-button,
 .sidebar-button,
 .user-button {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 212, 255, 0.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 45, 85, 0.12);
 }
 
 /* Disable all fancy effects when the button is disabled */
@@ -186,19 +186,19 @@ input[type="checkbox"] {
     vertical-align: middle;
     width: 24px;
     height: 24px;
-    border: 2px solid #00d4ff;
+    border: 2px solid #ff2d55;
     border-radius: 6px;
     cursor: pointer;
     position: relative;
     display: inline-block;
-    background: rgba(0, 30, 50, 0.8);
+    background: rgba(31, 31, 39, 0.8);
     transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3) inset;
+    box-shadow: 0 0 10px rgba(255, 45, 85, 0.3) inset;
 }
 
 input[type="checkbox"]:hover {
-    border-color: #00ffff;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5) inset;
+    border-color: #ff5577;
+    box-shadow: 0 0 15px rgba(255, 45, 85, 0.5) inset;
 }
 
 input[type="checkbox"]::after {
@@ -216,9 +216,9 @@ input[type="checkbox"]::after {
 
 input[type="checkbox"]:checked {
     /* box fill */
-    background: linear-gradient(135deg, #00a3cc 0%, #0080b3 100%);
-    border-color: #00ffff;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.4);
+    background: linear-gradient(135deg, #ff2d55 0%, #c41e45 100%);
+    border-color: #ff5577;
+    box-shadow: 0 0 15px rgba(255, 45, 85, 0.6), 0 0 20px rgba(255, 85, 119, 0.4);
 }
 
 input[type="checkbox"]:checked::after {
@@ -235,7 +235,7 @@ input[type="checkbox"]:disabled {
 
 /** Slider */
 input[type="range"] {
-    accent-color: #00f5ff;
+    accent-color: #ff2d55;
 
     width: 200px;
     height: 32px;
@@ -263,7 +263,7 @@ input[type=number] {
     color: #ffffff;
     font-size: 1.2rem;
     margin: 5px;
-    background-color: rgba(0, 30, 50, 0.7);
+    background-color: rgba(31, 31, 39, 0.7);
     border-radius: 8px;
     border: 1.5px solid #ffffff;
     /* multiline */
@@ -272,7 +272,7 @@ input[type=number] {
     white-space: pre-wrap;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) inset;
+    box-shadow: 0 0 10px rgba(255, 45, 85, 0.2) inset;
 
     max-height: max-content;
 }
@@ -285,9 +285,9 @@ input[type=text]:hover:enabled,
 input[type=password]:hover:enabled,
 input[type="number"]:hover:enabled {
     transition: all 0.3s ease;
-    background-color: rgba(0, 50, 80, 0.9);
-    border-color: #00ffff;
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3) inset;
+    background-color: rgba(42, 42, 52, 0.9);
+    border-color: #ff5577;
+    box-shadow: 0 0 20px rgba(255, 45, 85, 0.3) inset;
 }
 
 textarea:disabled,
@@ -304,8 +304,8 @@ input[type=range]:disabled {
 }
 
 select option {
-    background-color: #001a2e;
-    color: #00f5ff;
+    background-color: #16161c;
+    color: #ff2d55;
 }
 
 /** Hide the number up down thingy on number inputs */
@@ -401,14 +401,14 @@ input[type=number] {
 .modal-content {
     position: relative;
     z-index: 5001;
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.95) 0%, rgba(0, 15, 30, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.95) 0%, rgba(22, 22, 28, 0.95) 100%);
     backdrop-filter: blur(15px);
     margin: 10% auto;
     padding: 20px;
-    border: 2px solid #00a3cc;
+    border: 2px solid #ff2d55;
     border-radius: 16px;
-    box-shadow: 0 0 30px rgba(0, 212, 255, 0.3), 0 0 60px rgba(0, 212, 255, 0.15);
-    color: #a8e6ff;
+    box-shadow: 0 0 30px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.15);
+    color: #e6e6ee;
     width: 80%;
     max-height: 60%;
     overflow-y: auto;
@@ -428,10 +428,10 @@ input[type=number] {
     position: fixed;
     z-index: 1;
     border-radius: 12px;
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.98) 0%, rgba(0, 15, 30, 0.98) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.98) 0%, rgba(22, 22, 28, 0.98) 100%);
     backdrop-filter: blur(15px);
-    border: 2px solid #00a3cc;
-    box-shadow: 0 0 30px rgba(0, 212, 255, 0.3), 0 0 60px rgba(0, 212, 255, 0.15);
+    border: 2px solid #ff2d55;
+    box-shadow: 0 0 30px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.15);
     /** animation */
     scale: 1;
     opacity: 1;
@@ -452,15 +452,15 @@ input[type=number] {
     /** animation */
     transition: all 0.2s ease;
     background-color: rgba(255, 255, 255, 0);
-    color: #a8e6ff;
+    color: #e6e6ee;
 }
 
 .context-menu-element:hover {
     /** animation */
     transition: all 0.2s ease;
-    background: linear-gradient(135deg, rgba(0, 163, 204, 0.3) 0%, rgba(0, 212, 255, 0.2) 100%);
+    background: linear-gradient(135deg, rgba(255, 45, 85, 0.3) 0%, rgba(255, 45, 85, 0.2) 100%);
     transform: translateX(6px);
-    border-left: 3px solid #00ffff;
+    border-left: 3px solid #ff5577;
     padding-left: 7px;
 }
 
@@ -605,14 +605,14 @@ input[type=number] {
 
 
 .sidebar-content {
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.95) 0%, rgba(0, 15, 30, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.95) 0%, rgba(22, 22, 28, 0.95) 100%);
     backdrop-filter: blur(15px);
     border-radius: 12px;
     padding: 10px 10px 10px 10px;
     display: flex;
     flex-direction: column;
-    border: 2px solid #00a3cc;
-    box-shadow: 0 0 25px rgba(0, 212, 255, 0.3), 0 0 50px rgba(0, 212, 255, 0.15);
+    border: 2px solid #ff2d55;
+    box-shadow: 0 0 25px rgba(255, 45, 85, 0.3), 0 0 50px rgba(255, 45, 85, 0.15);
 }
 
 /** Notification */
@@ -640,7 +640,7 @@ input[type=number] {
     padding-bottom: 0.2cm;
     margin-bottom: 0.5cm;
 
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.95) 0%, rgba(40, 20, 0, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.95) 0%, rgba(40, 20, 0, 0.95) 100%);
     backdrop-filter: blur(10px);
     border-radius: 8px;
     border-left: 4px solid #ff8c42;
@@ -689,8 +689,8 @@ input[type=number] {
     width: 50px;
     height: 50px;
     padding: var(--space-xs);
-    background: rgba(0, 212, 255, 0.1);
-    border: 2px solid rgba(0, 212, 255, 0.3);
+    background: rgba(255, 45, 85, 0.1);
+    border: 2px solid rgba(255, 45, 85, 0.3);
     border-radius: 50%;
     cursor: pointer;
     display: flex;
@@ -701,9 +701,9 @@ input[type=number] {
 }
 
 .theme-toggle:hover {
-    background: rgba(0, 212, 255, 0.2);
+    background: rgba(255, 45, 85, 0.2);
     border-color: var(--accent-cyan-2);
-    box-shadow: 0 0 16px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 16px rgba(255, 45, 85, 0.4);
     transform: rotate(180deg) scale(1.1);
 }
 
@@ -716,8 +716,8 @@ input[type=number] {
 .host-search {
     width: 250px;
     padding: var(--space-sm) var(--space-md);
-    background: rgba(0, 30, 50, 0.7);
-    border: 2px solid rgba(0, 212, 255, 0.3);
+    background: rgba(31, 31, 39, 0.7);
+    border: 2px solid rgba(255, 45, 85, 0.3);
     border-radius: var(--radius-md);
     color: var(--text-1);
     font-size: 0.95rem;
@@ -726,12 +726,12 @@ input[type=number] {
 
 .host-search:focus {
     border-color: var(--accent-cyan-2);
-    background: rgba(0, 50, 80, 0.8);
-    box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
+    background: rgba(42, 42, 52, 0.8);
+    box-shadow: 0 0 16px rgba(255, 45, 85, 0.3);
 }
 
 .host-search::placeholder {
-    color: rgba(168, 230, 255, 0.5);
+    color: rgba(230, 230, 238, 0.5);
 }
 
 .host-highlight {
@@ -828,8 +828,8 @@ input[type=number] {
     padding: var(--space-xs);
     font-size: 0.8rem;
     border-radius: var(--radius-sm);
-    background: rgba(0, 212, 255, 0.15);
-    border: 1px solid rgba(0, 212, 255, 0.4);
+    background: rgba(255, 45, 85, 0.15);
+    border: 1px solid rgba(255, 45, 85, 0.4);
     color: var(--accent-cyan-2);
     cursor: pointer;
     transition: all var(--dur-fast) ease;
@@ -839,9 +839,9 @@ input[type=number] {
 }
 
 .host-action-button:hover {
-    background: rgba(0, 212, 255, 0.3);
+    background: rgba(255, 45, 85, 0.3);
     border-color: var(--accent-cyan-2);
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 12px rgba(255, 45, 85, 0.4);
 }
 
 .host-action-button.danger {
@@ -875,7 +875,7 @@ input[type=number] {
     min-width: 280px;
     max-width: 400px;
     padding: var(--space-md) var(--space-lg);
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.95) 0%, rgba(0, 15, 30, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.95) 0%, rgba(22, 22, 28, 0.95) 100%);
     border: 2px solid var(--accent-cyan);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-2), var(--glow-cyan-bright);
@@ -968,9 +968,9 @@ input[type=number] {
     cursor: pointer;
     margin: var(--space-sm);
     padding: var(--space-md) var(--space-md);
-    border: 2px solid rgba(0, 212, 255, 0.25);
+    border: 2px solid rgba(255, 45, 85, 0.25);
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, rgba(0, 30, 50, 0.4) 0%, rgba(0, 15, 30, 0.4) 100%);
+    background: linear-gradient(135deg, rgba(31, 31, 39, 0.4) 0%, rgba(22, 22, 28, 0.4) 100%);
     box-shadow: var(--shadow-2), var(--glow-cyan);
     transition: transform var(--dur-med) ease, box-shadow var(--dur-med) ease, background-color var(--dur-med) ease, border-color var(--dur-med) ease;
     display: flex;
@@ -983,8 +983,8 @@ input[type=number] {
 .host-element:hover {
     transform: translateY(-6px);
     box-shadow: var(--shadow-3), var(--glow-cyan-bright);
-    background: linear-gradient(135deg, rgba(0, 50, 80, 0.6) 0%, rgba(0, 30, 60, 0.6) 100%);
-    border-color: rgba(0, 212, 255, 0.6);
+    background: linear-gradient(135deg, rgba(42, 42, 52, 0.6) 0%, rgba(31, 31, 39, 0.6) 100%);
+    border-color: rgba(255, 45, 85, 0.6);
 }
 
 .host-element:focus-visible {
@@ -1001,7 +1001,7 @@ input[type=number] {
 
 .host-element:hover .host-image {
     transform: scale(1.08);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(255, 45, 85, 0.4);
 }
 
 .host-name {
@@ -1101,7 +1101,7 @@ input[type=number] {
 
 .app-active .app-image {
     border-style: solid;
-    border-color: #00f5ff;
+    border-color: #ff2d55;
     border-width: 4px;
     border-radius: 4px;
     box-shadow: 0 0 20px rgba(0, 245, 255, 0.6);
@@ -1164,10 +1164,10 @@ input[type=number] {
     height: 28px;
     margin: -14px 0 0 -14px;
     border-radius: 50%;
-    border: 3px solid #00d4ff;
+    border: 3px solid #ff2d55;
     border-top-color: rgba(0, 0, 0, 0);
     animation: moonlight-spin 1s linear infinite;
-    box-shadow: 0 0 12px #00d4ff;
+    box-shadow: 0 0 12px #ff2d55;
 }
 
 /* Loading Overlay */
@@ -1189,7 +1189,7 @@ input[type=number] {
 .host-loading-spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid rgba(0, 212, 255, 0.2);
+    border: 3px solid rgba(255, 45, 85, 0.2);
     border-top-color: var(--accent-cyan-2);
     border-radius: 50%;
     animation: moonlight-spin 0.8s linear infinite;
@@ -1258,7 +1258,7 @@ canvas.video-stream {
     cursor: default;
     pointer-events: none;
 
-    color: #00f7ff;
+    color: #ff5577;
     text-shadow: 0 0 4px black, 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black;
 
     position: relative;
@@ -1342,8 +1342,8 @@ canvas.video-stream {
     background: rgba(0, 13, 24, 0.98);
     backdrop-filter: blur(15px);
     border-radius: 12px;
-    border: 2px solid rgba(0, 163, 204, 0.4);
-    box-shadow: 0 0 25px rgba(0, 212, 255, 0.3), 0 0 50px rgba(0, 212, 255, 0.15);
+    border: 2px solid rgba(255, 45, 85, 0.4);
+    box-shadow: 0 0 25px rgba(255, 45, 85, 0.3), 0 0 50px rgba(255, 45, 85, 0.15);
 }
 
 .stream-keyboard-simulated.hidden {
@@ -1369,10 +1369,10 @@ canvas.video-stream {
     min-width: 0;
     margin: 3px;
     padding: 12px 4px;
-    background: #001a2e;
+    background: #16161c;
     /* Matches --bg-1 */
     color: var(--text-1);
-    border: 1px solid rgba(0, 163, 204, 0.3);
+    border: 1px solid rgba(255, 45, 85, 0.3);
     border-radius: 4px;
     box-shadow: none;
     font-size: 1rem;
@@ -1386,24 +1386,24 @@ canvas.video-stream {
 }
 
 .stream-keyboard-simulated-key:hover {
-    background: rgba(0, 212, 255, 0.18);
+    background: rgba(255, 45, 85, 0.18);
     border-color: var(--accent-cyan);
     box-shadow: none;
     transform: none;
 }
 
 .stream-keyboard-simulated-key:active {
-    background: #00334a;
+    background: #2a2a34;
     border-color: var(--accent-cyan-2);
     box-shadow: none;
     transform: none;
 }
 
 .stream-keyboard-simulated-key.toggle-on {
-    background: #003d52;
+    background: #33333f;
     color: var(--accent-cyan-2);
     border-color: var(--accent-cyan);
-    box-shadow: inset 0 0 8px rgba(0, 212, 255, 0.12);
+    box-shadow: inset 0 0 8px rgba(255, 45, 85, 0.12);
 }
 
 /* Prevent starting animation for elements */
@@ -1473,36 +1473,6 @@ canvas.video-stream {
 .role-info-delete {
     background-color: red;
 }
-/** Starlight Streams: power buttons */
-.host-power {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 4px;
-}
-
-.host-power-button {
-    padding: 4px 10px;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.host-power-on {
-    background-color: #2e9e4f;
-}
-
-.host-power-off {
-    background-color: #c0392b;
-}
-
-.host-power-button:hover {
-    filter: brightness(1.15);
-}
-
 /** Starlight Streams: display selection */
 .sidebar-stream-displays p {
     margin: 6px 0;
@@ -1519,11 +1489,317 @@ canvas.video-stream {
 }
 
 .sidebar-stream-display-buttons button.sidebar-stream-display-active {
-    outline: 2px solid #00d4ff;
+    outline: 2px solid #ff2d55;
     font-weight: 700;
 }
 
 .sidebar-stream-display-hint {
     font-size: 0.8rem;
     opacity: 0.7;
+}
+
+/* ==========================================================================
+   Starlight Streams theme (inspired by the "Climax" streaming UI kit):
+   near black, bold white type, hot pink/red accent, green stream buttons
+   ========================================================================== */
+:root {
+    --sl-bg: #0b0b0f;
+    --sl-surface: #16161c;
+    --sl-surface-2: #1f1f27;
+    --sl-border: #2a2a33;
+    --sl-accent: #ff2d55;
+    --sl-accent-2: #ff5577;
+    --sl-green: #22c55e;
+    --sl-green-2: #16a34a;
+    --sl-text: #ffffff;
+    --sl-muted: #9a9aa8;
+}
+
+body {
+    color: var(--sl-text);
+    text-shadow: none;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+}
+
+body::before {
+    background:
+        radial-gradient(900px 500px at 100% 0%, rgba(255, 45, 85, 0.22), transparent 60%),
+        radial-gradient(700px 400px at 0% 100%, rgba(255, 45, 85, 0.08), transparent 60%),
+        var(--sl-bg);
+}
+
+h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+h2,
+h3 {
+    text-shadow: none;
+    font-weight: 800;
+}
+
+/* Buttons */
+.file-button,
+button {
+    background-color: var(--sl-surface-2);
+    border: 1px solid var(--sl-border);
+    border-radius: 14px;
+    color: var(--sl-text);
+    font-weight: 600;
+}
+
+button,
+.file-button,
+.logout-button,
+.login-button,
+.admin-button,
+.sidebar-button,
+.user-button {
+    box-shadow: none;
+}
+
+.file-button:hover:not(:disabled),
+button:hover:not(:disabled) {
+    background-color: var(--sl-accent);
+    border-color: var(--sl-accent);
+    box-shadow: 0 8px 24px rgba(255, 45, 85, 0.35);
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    background-color: #2a2a30;
+    border-color: #2a2a30;
+    color: #666;
+}
+
+.logout-button,
+.admin-button {
+    background-color: var(--sl-surface-2);
+    background-size: 40px;
+    width: 56px;
+    height: 56px;
+}
+
+.login-button,
+.open-settings,
+.host-add {
+    background-size: 40px;
+    width: 56px;
+    height: 56px;
+}
+
+.guest-link-button {
+    background-color: var(--sl-accent);
+    border-color: var(--sl-accent);
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/* Inputs */
+input[type=text],
+input[type=password],
+input[type=number],
+input:not([type]),
+select {
+    background: var(--sl-surface-2);
+    color: var(--sl-text);
+    border: 1px solid var(--sl-border);
+    border-radius: 10px;
+    padding: 6px 10px;
+}
+
+input[type="checkbox"]:checked {
+    background-color: var(--sl-accent);
+    border-color: var(--sl-accent);
+}
+
+/* Modal, context menu, sidebar */
+.modal-background {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.modal-content,
+.context-menu-background,
+.sidebar-content {
+    background: var(--sl-surface);
+    border: 1px solid var(--sl-border);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    color: var(--sl-text);
+}
+
+.context-menu-element {
+    color: var(--sl-text);
+}
+
+.context-menu-element:hover {
+    background: var(--sl-surface-2);
+    border-left: 3px solid var(--sl-accent);
+}
+
+.context-menu-element-red {
+    color: var(--sl-accent-2);
+}
+
+/* Host cards */
+.host-list {
+    gap: 20px;
+    padding: 8px;
+}
+
+.host-element {
+    background: var(--sl-surface);
+    border: 1px solid var(--sl-border);
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    padding: 20px;
+    align-items: stretch;
+    min-width: 300px;
+}
+
+.host-element:hover {
+    transform: translateY(-4px);
+    background: var(--sl-surface);
+    border-color: var(--sl-accent);
+    box-shadow: 0 16px 50px rgba(255, 45, 85, 0.18);
+}
+
+/* The display boxes replace the big monitor picture */
+.host-element .host-image,
+.host-element .host-image-overlay {
+    display: none;
+}
+
+.host-name {
+    margin: 0;
+    color: var(--sl-text);
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-align: left;
+    text-shadow: none;
+    letter-spacing: -0.3px;
+}
+
+/* Host status, display boxes and the green stream buttons */
+.host-status {
+    margin: 2px 0 14px;
+    font-size: 0.9rem;
+    color: var(--sl-muted);
+}
+
+.host-status[data-state="ready"] {
+    color: var(--sl-green);
+}
+
+.host-status[data-state="locked"] {
+    color: #f5b301;
+}
+
+.host-displays {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.host-display {
+    background: #0f0f14;
+    border: 1px solid var(--sl-border);
+    border-radius: 18px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.host-display.host-display-last {
+    border-color: var(--sl-accent);
+}
+
+.host-display-screen {
+    height: 64px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2a2a35, #1a1a22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff55;
+}
+
+.host-display.host-display-last .host-display-screen {
+    background: linear-gradient(135deg, var(--sl-accent), #8b1d3a);
+    color: #fff;
+}
+
+.host-display-label {
+    margin: 8px 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.host-element button.host-stream-button {
+    margin: 0;
+    background: var(--sl-green);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: 800;
+    font-size: 1rem;
+    padding: 10px;
+}
+
+.host-element button.host-stream-button:hover:not(:disabled) {
+    background: var(--sl-green-2);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+}
+
+.host-power {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.host-element button.host-power-off {
+    margin: 0;
+    background: transparent;
+    border: 1px solid var(--sl-border);
+    border-radius: 10px;
+    color: var(--sl-accent-2);
+    font-size: 0.85rem;
+    padding: 6px 12px;
+}
+
+.host-element button.host-power-off:hover:not(:disabled) {
+    background: var(--sl-accent);
+    border-color: var(--sl-accent);
+    color: #fff;
+}
+
+/* Games */
+.app-element {
+    border-radius: 16px;
+}
+
+.app-element:hover {
+    background-color: var(--sl-surface-2);
+}
+
+.app-image {
+    border-radius: 12px;
+}
+
+/* Stream sidebar display buttons */
+.sidebar-stream-display-buttons button.sidebar-stream-display-active {
+    outline: none;
+    background: var(--sl-accent);
+    border-color: var(--sl-accent);
+}
+
+.top-line-actions {
+    align-items: center;
 }
