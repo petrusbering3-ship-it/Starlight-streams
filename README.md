@@ -265,6 +265,15 @@ The easiest free way to use Starlight Streams over the internet: no port forward
 2. On the server machine run `tailscale serve --bg 8080`. It prints an address like `https://my-server.tailXXXX.ts.net`.
 3. Open that address on your laptop, from anywhere. It is https, so controllers and keyboard lock work too.
 
+### Without installing anything on the laptop (Tailscale Funnel)
+Tailscale Funnel makes the server reachable from any browser on the internet, still for free.
+1. Install Tailscale only on the server machine.
+2. Run `tailscale funnel --bg 8080` (the first time it shows a link to allow Funnel for your account).
+3. Open the printed `https://my-server.tailXXXX.ts.net` address in any browser, on any laptop.
+4. In Starlight Streams settings set `Data Transport` to `Web Sockets`. Funnel only forwards https, so the stream must go over Web Sockets instead of WebRTC.
+
+The page is now public on the internet: use a strong password for every user.
+
 Power On also works from anywhere, as long as the Starlight Streams server runs on an always-on device on the same local network as the gaming pc (e.g. another pc or a Raspberry Pi), because that device sends the Wake-on-LAN packet.
 
 ## Power On / Power Off
