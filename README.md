@@ -265,6 +265,7 @@ Power On sends a Wake-on-LAN packet to the pc. It works after the pc has been pa
 2. On Windows: Device Manager -> your network adapter -> Properties -> Power Management -> enable "Allow this device to wake the computer" and "Only allow a magic packet to wake the computer".
 3. Use a cable (Ethernet). Wake-on-LAN usually does not work over Wi-Fi.
 4. The Starlight Streams server must be on the same local network as the pc.
+5. To be able to turn the pc on again after **Power Off**: disable "ErP" / "Deep Sleep" in the BIOS, and on Windows turn off "Fast startup" (Control Panel -> Power Options -> Choose what the power buttons do).
 
 ### Power Off (Starlight power agent)
 Sunshine can't turn the pc off by itself, so a tiny program, the power agent, runs on the pc.
