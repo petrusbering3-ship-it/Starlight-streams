@@ -3,7 +3,21 @@
 Starlight Streams is a fork of [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) by MrCreativ3001 (GPL-3.0).
 It has all the features of Moonlight Web, plus **Power On / Power Off buttons** so you can turn your streaming pc on and off from the browser.
 
-See [Power On / Power Off](#power-on--power-off) for setup.
+## Windows installer (easiest)
+You need two Windows computers on the same home network:
+- **The gaming pc**, the one you stream from.
+- **An always-on computer**, e.g. an old laptop, which runs the Starlight Streams server. It sends the Power On signal, so it must stay on.
+
+1. Download `Starlight-Streams-Laptop.zip` and `Starlight-Streams-PC.zip` from the [latest release](../../releases/latest).
+2. On the always-on laptop: unzip `Starlight-Streams-Laptop.zip` and double click `Install.bat`.
+   Pick a power-off password. The installer sets up the server, autostart and [Tailscale Funnel](#without-installing-anything-on-the-laptop-tailscale-funnel) and prints your https address.
+3. On the gaming pc: unzip `Starlight-Streams-PC.zip` and double click `Install.bat`. Type the same password.
+   The installer sets up Sunshine, the power-off agent and Wake-on-LAN.
+4. Open the https address in any browser, log in (the first login creates the admin account), add the gaming pc and pair it.
+
+Each zip also contains an `Uninstall.bat`.
+
+See [Power On / Power Off](#power-on--power-off) for details.
 
 ---
 
@@ -288,13 +302,10 @@ Power On sends a Wake-on-LAN packet to the pc. It works after the pc has been pa
 5. To be able to turn the pc on again after **Power Off**: disable "ErP" / "Deep Sleep" in the BIOS, and on Windows turn off "Fast startup" (Control Panel -> Power Options -> Choose what the power buttons do).
 
 ### Power Off (Starlight power agent)
-Sunshine can't turn the pc off by itself, so a tiny program, the power agent, runs on the pc.
-1. Install [Python 3](https://www.python.org/downloads/) on the pc (tick "Add python to PATH").
-2. Copy the [power-agent](power-agent) folder to the pc.
-3. Pick a secret password and put it into `start_power_agent.bat` (replace `MY_SECRET`).
-4. Run `start_power_agent.bat` and allow it through the Windows firewall (port `47900`).
-   To start it with Windows: press `Win + R`, type `shell:startup` and put a shortcut to `start_power_agent.bat` in that folder.
-5. In the Starlight Streams `server/config.json` set the same password:
+Sunshine can't turn the pc off by itself, so a tiny program, `starlight-power-agent.exe`, runs on the pc.
+The Windows installer (`Starlight-Streams-PC.zip`) sets it up for you. Manually:
+1. Start it on the pc: `starlight-power-agent --token MY_SECRET` (port `47900`, allow it in the firewall).
+2. In the Starlight Streams `server/config.json` set the same password:
 ```json
 {
     "moonlight": {
@@ -303,9 +314,7 @@ Sunshine can't turn the pc off by itself, so a tiny program, the power agent, ru
     }
 }
 ```
-6. Restart the Starlight Streams server. Clicking **Power Off** now asks for confirmation and shuts the pc down.
-
-On Linux the agent runs `systemctl poweroff`: `python3 starlight_power_agent.py --token MY_SECRET`.
+3. Restart the Starlight Streams server. Clicking **Power Off** now asks for confirmation and shuts the pc down.
 
 ## Config
 The config file is under `server/config.json` relative to the executable.
