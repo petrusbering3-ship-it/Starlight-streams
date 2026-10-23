@@ -2,6 +2,8 @@ name: Windows Installer
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -88,10 +90,13 @@ jobs:
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
 
+      # Every push to main publishes a new release, so the latest release always has the newest installers
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
           generate_release_notes: true
           files: |
             out/Starlight-Streams-Laptop.zip
