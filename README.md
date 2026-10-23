@@ -1,668 +1,164 @@
-
 # Starlight Streams
-Starlight Streams is a fork of [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) by MrCreativ3001 (GPL-3.0).
-It has all the features of Moonlight Web, plus:
-- **Power On & Play**: one click wakes the pc, waits until it's ready and starts the game you played last.
-- **Power Off**: turn the pc off from the browser.
-- **Auto power off**: the pc turns off when nobody streamed for 30 minutes (configurable). It shows a 2 minute warning on the pc first, `shutdown /a` cancels it.
-- **Guest links** (admins): a link that lets a friend play for a few hours. Guests can't turn your pc off and are deleted automatically when the link expires.
-- **Silent at home**: by default the pc's own speakers are muted while streaming, the sound plays on your laptop (setting `Play Audio Local`).
 
-## Windows installer (easiest)
-You need two Windows computers on the same home network:
-- **The gaming pc**, the one you stream from.
-- **An always-on computer**, e.g. an old laptop, which runs the Starlight Streams server. It sends the Power On signal, so it must stay on.
+Stream spil fra din gaming PC til en hvilken som helst browser, derhjemme eller ude. Du kan også tænde og slukke PC'en med en knap.
 
-1. Download `Starlight-Streams-Laptop.zip` and `Starlight-Streams-PC.zip` from the [latest release](../../releases/latest).
-2. On the always-on laptop: unzip `Starlight-Streams-Laptop.zip` and double click `Install.bat`.
-   Pick a power-off password. The installer sets up the server, autostart and [Tailscale Funnel](#without-installing-anything-on-the-laptop-tailscale-funnel) and prints your https address.
-3. On the gaming pc: unzip `Starlight-Streams-PC.zip` and double click `Install.bat`. Type the same password.
-   The installer sets up Sunshine, the power-off agent and Wake-on-LAN.
-4. Open the https address in any browser, log in (the first login creates the admin account), add the gaming pc and pair it.
+Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) af MrCreativ3001 (GPL-3.0). Den har alle funktionerne fra Moonlight Web, og derudover:
 
-Each zip also contains an `Uninstall.bat`.
-
-See [Power On / Power Off](#power-on--power-off) for details.
+- **Display 1 / Display 2:** Vælg hvilken skærm du vil streame, direkte på forsiden. Under streamen skifter **Ctrl+Shift+D** mellem dine to skærme.
+- **Stream-knappen tænder PC'en:** Er PC'en slukket, bliver den tændt. Når den er klar, starter det spil du spillede sidst.
+- **Sluk-knap:** Sluk PC'en fra browseren.
+- **Auto-sluk:** PC'en slukker selv, når ingen har streamet i 30 minutter. Den viser først en advarsel på 2 minutter på PC'en.
+- **Gæste-link:** Lad en ven spille i nogle timer via et link. Linket udløber af sig selv, og gæster kan ikke slukke din PC.
+- **Lydløs derhjemme:** PC'ens højttalere er tavse, mens du streamer. Lyden kommer i fuld styrke på laptoppen.
 
 ---
 
-An unofficial [Moonlight Client](https://moonlight-stream.org/) allowing you to stream your pc to the Web.
-It hosts a Web Server which will forward [Sunshine](https://docs.lizardbyte.dev/projects/sunshine/latest/) traffic to a Browser using the [WebRTC Api](https://webrtc.org/).
+## Guide: fra nul til spil
 
-![An image displaying: PC with sunshine and moonlight web installed, a browser making requests to it](/readme/structure.png)
+### Det skal du bruge
 
-## Overview
+| Maskine | Hvad den gør |
+|---|---|
+| **Gaming PC** (Windows) | Den du spiller *fra*. Den kører Sunshine og Starlights sluk-program. |
+| **Server-laptop** (Windows, fx en gammel laptop) | Kører Starlight Streams og sender tænd-signalet. Skal altid være tændt og stå på samme hjemmenetværk som gaming PC'en. |
+| **Den du spiller på** | Hvilken som helst computer med en browser (Chrome eller Edge anbefales). Der skal ikke installeres noget. |
 
-- [Limitations](#limitations)
-- [Installation](#installation)
-  - [Manual Installation](#install-manually)
-  - [Docker Installation](docker/README.md)
-- [Setup](#setup)
-  - [Streaming over the Internet](#streaming-over-the-internet)
-  - [Configuring https](#configuring-https)
-  - [Proxying via Apache 2](#proxying-via-apache-2)
-  - [Authentication with a Reverse Proxy](#authentication-using-a-reverse-proxy)
-  - [Using Web Socket Transport](#using-websocket-transport)
-- [Free access from anywhere (Tailscale)](#free-access-from-anywhere-tailscale)
-- [Power On / Power Off](#power-on--power-off)
-- [Config](#config)
-- [Migrating to v2](#migrating-to-v2)
-- [Migrating to v3](#migrating-to-v3)
-- [Contributors](#contributors)
-- [Building](#building)
-
-## Limitations
-- Features that only work in a [Secure Context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts#:~:text=They%20must%20be,be%20considered%20deprecated.) -> [How to configure a Secure Context / https](#configuring-https)
-  - Controllers: [Gamepad API](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API)
-  - Keyboard Lock (allows to capture almost all keys also OS Keys): [Experimental Keyboard Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Keyboard_API)
-  - Web Socket Transport because of the [Web Codecs Api](https://developer.mozilla.org/en-US/docs/Web/API/VideoDecoder)
-
-## Installation
-
-You can install it [manually](#install-manually) or with [docker](docker/README.md)
-
-### Install Manually
-
-1. Install [Sunshine](https://github.com/LizardByte/Sunshine/blob/v2025.628.4510/docs/getting_started.md)
-
-2. Download the [compressed archive](https://github.com/MrCreativ3001/moonlight-web-stream/releases/latest) for your platform and uncompress it or [build it yourself](#building)
-
-3. Run the "web-server" executable
-
-4. Go to `localhost:8080` and view the web interface. You can also the change [bind address](#bind-address).
-
-> **NOTE**
-> A `config.json` file is **not generated automatically on first startup**.
-> If you plan to follow the configuration guides below, you will need to create a config.json with `./web-server config generate`
-
-## Setup
-
-1. Add a new user by typing in your name and password. The first user to login will be created and will be the admin.
-
-2. Add a new pc (<img src="web/resources/ic_add_to_queue_white_48px.svg" alt="icon" style="height:1em; vertical-align:middle;">) with the address as `localhost` and leave the port empty (if you've got the default port)
-
-2. Pair your pc by clicking on the host (<img src="web/resources/desktop_windows-48px.svg" alt="icon" style="height:1em; vertical-align:middle;">). Then enter the code in sunshine
-
-3. Launch an app
-
-### Streaming over the Internet
-
-1. Forward the web server port on your router (default is `8080`; HTTP is `80`, HTTPS is `443`).  
-   You can configure this using the [`bind_address`](#bind-address) option.
-
-When running on a **local network**, WebRTC peers usually negotiate connections without any issues.
-
-When streaming **over the Internet**, the built-in STUN servers will attempt to establish a direct peer-to-peer WebRTC connection. This works for most home networks, but may fail in more restrictive environments (for example, corporate firewalls or strict NAT configurations).
-
-If a direct WebRTC connection cannot be established, you have a few options:
-
-1. **Use a TURN server (recommended)**  
-   Configure a [TURN server](#configure-a-turn-server) to reliably relay WebRTC traffic when direct peer-to-peer connections are blocked.
-
-2. **Forward ports directly**  
-   You can [forward the required ports](#port-forward) on your router.  
-   Note that this may still fail if the firewall blocks UDP traffic.
-
-3. **Use WebSocket transport as a fallback**  
-   WebSockets use standard HTTP/HTTPS ports and are often allowed even in very restrictive networks, making them a good fallback option when WebRTC negotiation fails. See [Using WebSocket Transport](#using-websocket-transport).
-
-
-#### Configure a turn server
-1. Host and configure a turn server like [coturn](https://github.com/coturn/coturn) or use other services to host one for you.
-
-2. Add your turn server to your WebRTC Ice Server list
-```json
-{
-    "webrtc": {
-        "ice_servers": [
-            {
-                "urls": [
-                    "stun:stun.l.google.com:19302",
-                    "stun:stun1.l.google.com:3478",
-                    "stun:stun.l.google.com:5349"
-                ]
-            },
-            {
-                "urls": [
-                        "turn:yourip.com:3478?transport=udp",
-                        "turn:yourip.com:3478?transport=tcp",
-                        "turn:yourip.com:5349?transport=tcp"
-                ],
-                "username": "your username",
-                "credential": "your credential"
-            }
-        ]
-    }
-}
-```
-Some (business) firewalls might be very strict and only allow tcp on port 443 for turn connections if that's the case also bind the turn server on port 443 and add `"turn:yourip.com:443?transport=tcp"` to the url's list.
-
-#### Port forward
-
-1. Set the [WebRTC Port Range](#webrtc-port-range) to a fixed range
-```json
-{
-    "webrtc": {
-        "port_range": {
-            "min": 40000,
-            "max": 40010
-        }
-    }
-}
-```
-2. Forward the port range specified in the previous step as `udp`.
-If you're using Windows Defender make sure to allow NAT Traversal. Important: If your firewall blocks udp connections this won't work and you need to host a [turn server](#configure-a-turn-server)
-
-3. Configure [WebRTC Nat 1 To 1](#webrtc-nat-1-to-1-ips) to advertise your [public ip](https://whatismyipaddress.com/) (Optional: WebRTC stun servers can usually automatically detect them):
-```json
-{
-    "webrtc": {
-        "nat_1to1": {
-            "ice_candidate_type": "host",
-            "ips": [
-                "74.125.224.72"
-            ]
-        }
-    }
-}
-```
-
-It might be helpful to look what kind of nat your pc is behind:
-- [Nat Checker](https://www.checkmynat.com/)
-
-### Configuring https
-You can configure https directly with the Moonlight Web Server.
-
-1. You'll need a private key and a certificate.
-
-You can generate a self signed certificate with this python script [generate_certificate.py](generate_certificate.py):
-
-```sh
-pip install pyOpenSSL
-python ./generate_certificate.py
-```
-
-2. Copy the files `server/key.pem` and `server/cert.pem` into your `server` directory.
-
-3. Configure the [private key](#https-certificates) and [certificate](#https-certificates) https using the certificates
-```json
-{
-    "web_server": {
-        "certificate": {
-            "private_key_pem": "./server/key.pem",
-            "certificate_pem": "./server/cert.pem"
-        }
-    }
-}
-```
-
-### Proxying via Apache 2
-It's possible to proxy the Moonlight Website using [Apache 2](https://httpd.apache.org/).
-
-Note:
-When you want to use https, the Moonlight Website should use http so that Apache 2 will handle all the https encryption.
-
-1. Enable the modules `mod_proxy`, `mod_proxy_wstunnel`
-
-```sh
-sudo a2enmod mod_proxy mod_proxy_wstunnel
-```
-
-2. Create a new file under `/etc/apache2/conf-available/moonlight-web.conf` with the content:
-```
-# Example subpath "/moonlight" -> To connect you'd go to "http://yourip.com/moonlight/"
-Define MOONLIGHT_SUBPATH /moonlight
-# The address and port of your Moonlight Web server
-Define MOONLIGHT_STREAMER YOUR_LOCAL_IP:YOUR_PORT
-
-ProxyPreserveHost on
-        
-# Important: This WebSocket will help negotiate the WebRTC Peers
-<Location ${MOONLIGHT_SUBPATH}/api/host/stream/web_socket>
-        ProxyPass ws://${MOONLIGHT_STREAMER}${MOONLIGHT_SUBPATH}/api/host/stream/web_socket
-        ProxyPassReverse ws://${MOONLIGHT_STREAMER}${MOONLIGHT_SUBPATH}/api/host/stream/web_socket
-</Location>
-
-ProxyPass ${MOONLIGHT_SUBPATH}/ http://${MOONLIGHT_STREAMER}${MOONLIGHT_SUBPATH}/
-ProxyPassReverse ${MOONLIGHT_SUBPATH}/ http://${MOONLIGHT_STREAMER}${MOONLIGHT_SUBPATH}/
-```
-
-3. Enable the created config file
-```sh
-sudo a2enconf moonlight-web
-```
-
-4. Change [config](#config) to include the [prefixed path](#url-path-prefix)
-```json
-{
-    "web_server": {
-        "url_path_prefix": "/moonlight"
-    }
-}
-```
-
-5. Use https with a certificate (Optional)
-
-### Authentication using a Reverse Proxy
-Authentication with a reverse proxy works by the proxy adding custom headers to the request of the user. In this example the username header is named `X-Forwarded-User`.
-
-<b>Make sure that the header is not changeable by any external request and only the proxy can set this header.</b>
-
-Enable proxy authentication by setting the [forwarded header username](#forwarded-header-username) option.
-By default the [auto create missing user](#forwarded-header-auto-create-missing-user) option is turned on even if it's not specified in the config.
-```json
-{
-    "web_server": {
-        "forwarded_header": {
-            "username_header": "X-Forwarded-User",
-            "auto_create_missing_user": true
-        }
-    }
-}
-```
-
-If `auto_create_missing_user` is enabled, newly created users will be assigned the role configured as the default in the Admin Panel.
-
-### Using WebSocket Transport
-
-In some networks (for example, corporate or highly restricted environments), establishing a WebRTC connection can be difficult or may not work at all.
-To support these cases, you can stream data over **WebSockets** using the same HTTP or HTTPS port that your server already exposes.
-
-You can force the Web Sockets by setting the `Data Transport` option to `Web Sockets`.
-
-There are a few important things to be aware of when using WebSockets for streaming:
-
-- The browser’s `VideoDecoder` API is only available when your site is served over **HTTPS** (a secure context).
-
-- If the application is **not** running in a secure context, it will fall back to an older video playback API, which may introduce noticeable latency.
-
-## Free access from anywhere (Tailscale)
-The easiest free way to use Starlight Streams over the internet: no port forwarding, no TURN server, no domain.
-[Tailscale](https://tailscale.com/) (free Personal plan) puts your devices in a private network.
-
-1. Install Tailscale on the machine that runs the Starlight Streams server and on your laptop. Log in with the same account on both.
-2. On the server machine run `tailscale serve --bg 8080`. It prints an address like `https://my-server.tailXXXX.ts.net`.
-3. Open that address on your laptop, from anywhere. It is https, so controllers and keyboard lock work too.
-
-### Without installing anything on the laptop (Tailscale Funnel)
-Tailscale Funnel makes the server reachable from any browser on the internet, still for free.
-1. Install Tailscale only on the server machine.
-2. Run `tailscale funnel --bg 8080` (the first time it shows a link to allow Funnel for your account).
-3. Open the printed `https://my-server.tailXXXX.ts.net` address in any browser, on any laptop.
-4. In Starlight Streams settings set `Data Transport` to `Web Sockets`. Funnel only forwards https, so the stream must go over Web Sockets instead of WebRTC.
-
-The page is now public on the internet: use a strong password for every user.
-
-Power On also works from anywhere, as long as the Starlight Streams server runs on an always-on device on the same local network as the gaming pc (e.g. another pc or a Raspberry Pi), because that device sends the Wake-on-LAN packet.
-
-## Power On / Power Off
-Every pc in the list has two buttons: **Power On** and **Power Off**.
-
-### Power On (Wake-on-LAN)
-Power On sends a Wake-on-LAN packet to the pc. It works after the pc has been paired once (the MAC address is saved when pairing).
-1. Enable "Wake on LAN" in the BIOS/UEFI of your pc.
-2. On Windows: Device Manager -> your network adapter -> Properties -> Power Management -> enable "Allow this device to wake the computer" and "Only allow a magic packet to wake the computer".
-3. Use a cable (Ethernet). Wake-on-LAN usually does not work over Wi-Fi.
-4. The Starlight Streams server must be on the same local network as the pc.
-5. To be able to turn the pc on again after **Power Off**: disable "ErP" / "Deep Sleep" in the BIOS, and on Windows turn off "Fast startup" (Control Panel -> Power Options -> Choose what the power buttons do).
-
-### Power Off (Starlight power agent)
-Sunshine can't turn the pc off by itself, so a tiny program, `starlight-power-agent.exe`, runs on the pc.
-The Windows installer (`Starlight-Streams-PC.zip`) sets it up for you. Manually:
-1. Start it on the pc: `starlight-power-agent --token MY_SECRET` (port `47900`, allow it in the firewall).
-2. In the Starlight Streams `server/config.json` set the same password:
+Brug netværkskabel til gaming PC'en og helst også til server-laptoppen. Det giver mindst forsinkelse, og tænd-signalet (Wake-on-LAN) virker normalt kun over kabel.
+
+### Trin 1: Hent installationsprogrammerne
+
+Gå til [den nyeste udgivelse](../../releases/latest) og hent:
+- `Starlight-Streams-Laptop.zip`
+- `Starlight-Streams-PC.zip`
+
+### Trin 2: Installer på server-laptoppen
+
+1. Pak `Starlight-Streams-Laptop.zip` ud, fx på skrivebordet.
+2. Dobbeltklik på **`Install.bat`** og tryk **Ja**, når Windows spørger om administrator-adgang.
+   Hvis Windows viser "Windows beskyttede din PC", så tryk **Flere oplysninger** og derefter **Kør alligevel**.
+3. Svar på spørgsmålene:
+   - **Sluk-password:** Find på et password med kun bogstaver og tal, og skriv det ned. Det skal også bruges på gaming PC'en.
+   - **Auto-sluk:** Tryk Enter for 30 minutter, eller skriv `0` for aldrig.
+4. Installationsprogrammet installerer **Tailscale** (gratis). Log ind med fx din Google-konto, når browseren åbner.
+5. Første gang beder Tailscale dig slå **Funnel** til. Åbn linket og tryk **Enable**.
+6. Til sidst vises en adresse, der slutter på **`.ts.net`**. Det er din Starlight-adresse, og den virker fra alle browsere i hele verden.
+
+Installationsprogrammet sørger også for, at Starlight starter af sig selv, når laptoppen tænder. Laptoppen går heller ikke i dvale, når den er sat til strøm, heller ikke med låget lukket.
+
+### Trin 3: Installer på gaming PC'en
+
+1. Pak `Starlight-Streams-PC.zip` ud og dobbeltklik på **`Install.bat`**. Tryk **Ja**.
+2. Skriv **det samme sluk-password** som på laptoppen.
+3. Installationsprogrammet installerer **Sunshine** (programmet der streamer skærmen) og sluk-programmet. Det slår også Wake-on-LAN til i Windows.
+4. Skriv den **IP-adresse** ned, der vises til sidst (fx `192.168.1.20`).
+5. Åbn **https://localhost:47990** på gaming PC'en og opret et brugernavn og password til Sunshine. Browseren advarer om certifikatet; tryk **Avanceret** og fortsæt.
+6. **Genstart gaming PC'en** én gang.
+
+### Trin 4: BIOS-indstillinger (så PC'en kan tændes igen)
+
+Gå ind i BIOS på gaming PC'en (tryk typisk `Del` eller `F2`, mens PC'en starter):
+- Slå **Wake on LAN** til. Det kan også hedde "Power On By PCI-E" eller "Resume by LAN".
+- Slå **ErP** og **Deep Sleep** fra.
+
+### Trin 5: Første login og parring
+
+1. Åbn din `.ts.net`-adresse (eller `http://localhost:8080` på laptoppen).
+2. **Første login opretter din admin-konto.** Det navn og password, du skriver, bliver dit login.
+3. Tryk på **tilføj PC** (skærmen med +) og skriv gaming PC'ens IP-adresse fra trin 3.
+4. Tryk på PC'en. Der vises en **PIN-kode**.
+5. Gå til **https://localhost:47990** på gaming PC'en, vælg **PIN**, skriv koden og tryk **Send**.
+
+Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display 2**.
+
+---
+
+## Sådan bruger du det
+
+| Det vil du | Sådan gør du |
+|---|---|
+| Spille | Tryk **▶ Stream** under den skærm, du vil se. Er PC'en slukket, bliver den tændt først. |
+| Skifte skærm under spillet | **Ctrl+Shift+D**, eller åbn menuen i venstre side og tryk **1**, **2** … under "Display". |
+| Slukke PC'en | **⏻ Power Off** nederst på PC-kortet. |
+| Lade en ven spille | **🔗 Guest Link** øverst, vælg antal timer og send linket. |
+| Stoppe streamen | Menuen i venstre side, tryk **Exit**. |
+| Stoppe en auto-sluk | Skriv `shutdown /a` i Kør (`Win + R`) på gaming PC'en inden for 2 minutter. |
+| Have lyd fra PC'en derhjemme også | Indstillinger, slå **Play Audio Local** til. |
+
+---
+
+## Mindst mulig forsinkelse
+
+- **Derhjemme:** Brug `http://<server-laptoppens-ip>:8080` i stedet for `.ts.net`-adressen. Så kører billedet direkte på dit eget netværk (WebRTC). Det er det hurtigste.
+- **Ude:** `.ts.net`-adressen virker overalt uden installation, men kører billedet over Web Sockets. Det giver lidt mere forsinkelse.
+  Vil du have det hurtigste ude, så installer Tailscale på den computer, du spiller på. Brug laptoppens Tailscale-adresse, fx `http://server-laptop:8080`.
+- Brug **netværkskabel** til gaming PC'en og server-laptoppen.
+- Under **Indstillinger** kan du sætte fps og bitrate op. **H265** eller **AV1** giver bedre billede, hvis din computer kan afspille det.
+- Under streamen viser **Stats** i menuen, hvor forsinkelsen kommer fra.
+
+---
+
+## Fejlfinding
+
+| Problem | Løsning |
+|---|---|
+| **Stream** siger, at tænd-signalet ikke kunne sendes | PC'en skal være **parret én gang**, mens den er tændt (trin 5). |
+| PC'en tænder ikke | Tjek BIOS (trin 4). Gaming PC'en skal bruge **kabel**, og server-laptoppen skal være på samme hjemmenetværk. |
+| **Power Off** virker ikke | Sluk-passwordet skal være det samme på begge maskiner. Kør `Install.bat` igen på begge med samme password. |
+| Siden kan ikke åbnes | Server-laptoppen skal være tændt. Prøv `http://localhost:8080` på selve laptoppen. |
+| `.ts.net`-adressen virker ikke | Kør `Install.bat` igen på laptoppen, og tjek at Funnel er slået til. |
+| Forkert skærm | Skærm 1 er den første skærm, Sunshine finder. Tryk **2** i menuen eller Ctrl+Shift+D. |
+| Lyd fra PC'en derhjemme | **Play Audio Local** skal være slået fra (det er standard). Virker det stadig ikke, så installer Steam på gaming PC'en. Sunshine bruger Steams virtuelle højttaler til at gøre PC'en lydløs. |
+
+---
+
+## Afinstaller
+
+Hver zip-fil har en **`Uninstall.bat`**. Dobbeltklik på den på den maskine, du vil rydde op på. Sunshine og Tailscale fjernes under **Apps** i Windows-indstillinger.
+
+---
+
+## Avanceret: indstillinger
+
+Server-laptoppens indstillinger ligger i `C:\Program Files\Starlight Streams\server\config.json`. Genstart laptoppen efter ændringer.
+
 ```json
 {
     "moonlight": {
-        "power_agent_token": "MY_SECRET",
-        "power_agent_port": 47900
-    }
-}
-```
-3. Restart the Starlight Streams server. Clicking **Power Off** now asks for confirmation and shuts the pc down.
-
-### Auto power off
-When a stream ends and nobody starts a new one for `auto_shutdown_minutes` (default `30`, `0` = never), the server turns the pc off.
-A pc that is used without Starlight Streams is never turned off.
-```json
-{
-    "moonlight": {
+        "power_agent_token": "MITPASSWORD",
+        "power_agent_port": 47900,
         "auto_shutdown_minutes": 30
-    }
-}
-```
-
-## Config
-The config file is under `server/config.json` relative to the executable.
-Here are the most important settings for configuring Moonlight Web.
-
-Most options have command line arguments or environment variables associated with them.
-```sh
-./web-server help
-```
-
-Generate the config with:
-```sh
-./web-server config generate
-```
-
-For a full list of values look into the [Rust Config module](src/config.rs).
-
-### Bind Address 
-The address and port the website will run on
-
-Environment Variable: `BIND_ADDRESS=0.0.0.0:8080`
-
-```json
-{
+    },
     "web_server": {
         "bind_address": "0.0.0.0:8080"
     }
 }
 ```
 
-### Default User
-The user id which is selected by default when providing no login.
-Go into the Admin Panel and look for the user id of the user you want to make the default.
+| Indstilling | Betydning |
+|---|---|
+| `power_agent_token` | Sluk-passwordet. Skal være det samme som på gaming PC'en. |
+| `power_agent_port` | Porten sluk-programmet lytter på (standard `47900`). |
+| `auto_shutdown_minutes` | Minutter uden stream før PC'en slukkes. `0` = aldrig. |
+| `bind_address` | Adressen og porten Starlight kører på (standard `0.0.0.0:8080`). |
 
-```json
-{
-    "web_server": {
-        "default_user_id": 1284358932
-    }
-}
-```
+Alle Moonlight Webs øvrige indstillinger (https, TURN-server, brugere osv.) virker også. De er beskrevet i [Moonlight Webs README](https://github.com/MrCreativ3001/moonlight-web-stream#config).
 
-### Https Certificates
-If enabled the web server will use https with the provided certificate data
+---
 
-Environment Variables:
-- `SSL_PRIVATE_KEY=./server/key.pem`
-- `SSL_CERTIFICATE=./server/cert.pem`
+## Til udviklere: byg selv
 
-```json
-{
-    "web_server":{
-        "certificate": {
-            "private_key_pem": "./server/key.pem",
-            "certificate_pem": "./server/cert.pem"
-        }
-    }
-}
-```
-
-### WebRTC Port Range
-This will set the port range on the web server used to communicate when using WebRTC
-
-Environment Variable: `WEBRTC_PORT_RANGE=40000:40010`
-
-```json
-{
-    "webrtc": {
-        "port_range": {
-            "min": 40000,
-            "max": 40010
-        }
-    }
-}
-```
-
-### WebRTC Ice Servers
-A list of ice servers for webrtc to use.
-
-```json
-{
-    "webrtc": {
-        "ice_servers": [
-            {
-                "urls": [
-                    "stun:stun.l.google.com:19302",
-                    "stun:stun1.l.google.com:3478",
-                    "stun:stun.l.google.com:5349"
-                ]
-            }
-        ]
-    }
-}
-```
-
-You can also set ice servers with environment variables:
-```dockerfile
-ENV WEBRTC_ICE_SERVER_0_URL=stun:stun.l.google.com:5349
-ENV WEBRTC_ICE_SERVER_0_USERNAME=name
-ENV WEBRTC_ICE_SERVER_0_CREDENTIAL=cred
-ENV WEBRTC_ICE_SERVER_1_URL=stun:stun1.l.google.com:5349
-```
-will currespond to the ice server
-```json
-{
-    "webrtc": {
-        "ice_servers": [
-            {
-                "urls": [
-                    "stun:stun.l.google.com:19302",
-                ],
-                "username": "name",
-                "credential": "cred"
-            },
-            {
-                "urls": [
-                    "stun:stun1.l.google.com:5349"
-                ]
-            }
-        ]
-    }
-}
-```
-
-You can disable all default ice servers with the cli argument `--disable-default-webrtc-ice-servers` or the environment variable `DISABLE_DEFAULT_WEBRTC_ICE_SERVERS`.
-
-### WebRTC Ice Server Script
-The given script will be executed on every stream start to dynamically generate ice servers.
-
-```json
-{
-    "webrtc": {
-        "ice_server_script": "./server/ice_server_script.sh"
-    }
-}
-```
-
-The script must return a json list that follows the same structure as the [WebRTC Ice Servers](#webrtc-ice-servers) config option.
-
-Linux example using a bash script:
-```sh
-#!/bin/bash
-
-# Assign arguments to variables
-username="user"
-credential="cred"
-
-# Output the json into stdout
-echo "[
-    {
-        \"urls\": [
-            \"turn:example.com\"
-        ],
-        \"username\": \"$username\",
-        \"credential\": \"$credential\"
-    }
-]"
-```
-
-Windows example using a batch script:
-```bat
-@echo off
-
-:: Assign arguments to variables
-set "username=user"
-set "credential=cred"
-
-:: Output the JSON with dynamic values
-echo [
-echo     {
-echo         "urls": [
-echo             "turn:example.com"
-echo         ],
-echo         "username": "%username%",
-echo         "credential": "%credential%"
-echo     }
-echo ]
-```
-
-### WebRTC Nat 1 to 1 ips
-This will advertise the ip as an ice candidate on the web server.
-It's recommended to set this but stun servers should figure out the public ip.
-
-`ice_candidate_type`:
-- `host` -> This is the ip address of the server and the client can connect to
-- `srflx` -> This is the public ip address of this server, like an ice candidate added from a stun server.
-
-```json
-{
-    "webrtc": {
-        "nat_1to1": {
-            "ice_candidate_type": "host",
-            "ips": [
-                "74.125.224.72"
-            ]
-        }
-    }
-}
-```
-
-You can also use the cli argument `--webrtc-nat-1to1-host` or environment variable `WEBRTC_NAT_1TO1_HOST` to use a ip as a host candidate type. This will do the same as the json above.
-```dockerfile
-ENV WEBRTC_NAT_1TO1_HOST=74.125.224.72
-```
-
-### Url Path Prefix
-This is useful when rerouting the web page using services like [Apache 2](#proxying-via-apache-2).
-Will always append the prefix to all requests made by the website.
-
-Environment Variable: `PATH_PREFIX=/moonlight`
-
-```json
-{
-    "web_server": {
-        "url_path_prefix": "/moonlight"
-    }
-}
-```
-
-### Forwarded Header Username
-The header that will give the authenticated username to this web server.
-
-```json
-{
-    "web_server": {
-        "forwarded_header": {
-            "username_header": "X-Forwarded-User"
-        }
-    }
-}
-```
-
-### Forwarded Header Auto Create Missing User
-Automatically create a new user when the requested user specified in the [username_header](#forwarded-header-username) is not found.
-
-```json
-{
-    "web_server": {
-        "forwarded_header": {
-            "auto_create_missing_user": true
-        }
-    }
-}
-```
-
-### Forwarded Header Ignore Case
-Perform a case-insensitive lookup for the user in the in the [username_header](#forwarded-header-username).
-If multiple users match the given name, the request will fail.
-
-```json
-{
-    "web_server": {
-        "forwarded_header": {
-            "ignore_case": true
-        }
-    }
-}
-```
-
-## Migrating to v2
-1. Some config options have changed so backup your old config by renaming it to something like `old_config.json`.
-
-2. Start the web server which will generate the new config.
-
-3. Move your configurations to the new config
-
-4. The first user to login will be created and will be an admin. All previously stored hosts will be moved to this user.
-
-Other changes:
-- Proxy path changed:
-  - change all instances of `ProxyPass ${MOONLIGHT_SUBPATH}/ http://${MOONLIGHT_STREAMER}/`<br> to `ProxyPass ${MOONLIGHT_SUBPATH}/ http://${MOONLIGHT_STREAMER}${MOONLIGHT_SUBPATH}/`
-  - [Proxying via Apache 2](https://github.com/MrCreativ3001/moonlight-web-stream/tree/v2?tab=readme-ov-file#proxying-via-apache-2)
-
-## Migrating to v3
-Changes:
-- replaced openssl by rustls
-  - This makes older v1 and v2 server certificates incompatible
-  - When using a self signed certificate, regenerate it using the updated [generate_certificate.py](./generate_certificate.py)
-- replaced moonlight-common-c by moonlight-common-rust
-  - This could make older Nvidia GameStream and Sunshine Servers unsupported
-- moved web socket endpoint from `/api/host/stream` to `/api/host/stream/web_socket`
-  - Change the Web Socket Endpoint when using a Reserve Proxy: See [Proxying via Apache2](#proxying-via-apache-2)
-- `config.json` is not generated at first startup and can optionally be used for more granular control
-  - you can generate a config with `./web-server config generate`, if required
-- moved `default_user_id` and `default_role_id` from the `config.json` into the `data.json` file
-  - go into the admin panel and set the user or role you that you want to be the default to the default at the bottom of the page
-- removed old unused `default_settings` value in the config
-- removed `webrtc.network_types` setting in the config
-
-## Contributors
-Thanks to everyone who contributed to make this software better :).
-
-<a href = "https://github.com/Tanu-N-Prabhu/Python/graphs/contributors">
-  <img src = "https://contrib.rocks/image?repo=MrCreativ3001/moonlight-web-stream"/>
-</a>
-
-## Building
-Clone this repository:
-```sh
-git clone https://github.com/MrCreativ3001/moonlight-web-stream.git
-```
-A [Rust](https://www.rust-lang.org/tools/install) installation is required.
-
-Moonlight Web consists the [web server binary](#building-the-web-server) and a [web frontend](#building-the-frontend):
-
-### Building the Web Server
-Run
-```sh
-cargo build --release
-```
-.
-
-You can use [Cargo Cross](https://github.com/cross-rs/cross) for cross compilation:
-```sh
-cross build --release --target YOUR_TARGET
-```
-Note: windows only has the gnu target `x86_64-pc-windows-gnu`. macOS is built natively for `aarch64-apple-darwin` and `x86_64-apple-darwin`.
-
-### Building the Frontend
-Build the web frontend with [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
-
-To generate bindings to rust code it is using [Uniffi Bindgen React Native](https://github.com/jhugman/uniffi-bindgen-react-native).
-This has a dependency on wasm-bindgen.
+Kræver Rust, Node.js og `wasm-bindgen-cli` 0.2.128.
 
 ```sh
-cargo install wasm-bindgen-cli
-npm install
-npm run build
+npm ci
+npm run build          # bygger web-delen til ./dist
+cargo build --release  # bygger web-server og starlight-power-agent
 ```
 
-The build output will be in `dist/`.
+Windows-installationsprogrammerne bygges automatisk af GitHub ved hvert push til `main` (`.github/workflows/windows-installer.yml`) og lægges under Releases.
 
-If you're compiling in:
-- debug mode -> the folder needs to be called `dist/`
-- release mode -> the folder needs to be called `static/`
+---
+
+## Licens
+
+GPL-3.0-or-later, ligesom Moonlight Web. Tak til [MrCreativ3001](https://github.com/MrCreativ3001/moonlight-web-stream) og alle Moonlight Webs bidragydere, samt til [Moonlight](https://moonlight-stream.org/) og [Sunshine](https://github.com/LizardByte/Sunshine).
