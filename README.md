@@ -24,6 +24,7 @@ It hosts a Web Server which will forward [Sunshine](https://docs.lizardbyte.dev/
   - [Proxying via Apache 2](#proxying-via-apache-2)
   - [Authentication with a Reverse Proxy](#authentication-using-a-reverse-proxy)
   - [Using Web Socket Transport](#using-websocket-transport)
+- [Free access from anywhere (Tailscale)](#free-access-from-anywhere-tailscale)
 - [Power On / Power Off](#power-on--power-off)
 - [Config](#config)
 - [Migrating to v2](#migrating-to-v2)
@@ -255,6 +256,16 @@ There are a few important things to be aware of when using WebSockets for stream
 - The browser’s `VideoDecoder` API is only available when your site is served over **HTTPS** (a secure context).
 
 - If the application is **not** running in a secure context, it will fall back to an older video playback API, which may introduce noticeable latency.
+
+## Free access from anywhere (Tailscale)
+The easiest free way to use Starlight Streams over the internet: no port forwarding, no TURN server, no domain.
+[Tailscale](https://tailscale.com/) (free Personal plan) puts your devices in a private network.
+
+1. Install Tailscale on the machine that runs the Starlight Streams server and on your laptop. Log in with the same account on both.
+2. On the server machine run `tailscale serve --bg 8080`. It prints an address like `https://my-server.tailXXXX.ts.net`.
+3. Open that address on your laptop, from anywhere. It is https, so controllers and keyboard lock work too.
+
+Power On also works from anywhere, as long as the Starlight Streams server runs on an always-on device on the same local network as the gaming pc (e.g. another pc or a Raspberry Pi), because that device sends the Wake-on-LAN packet.
 
 ## Power On / Power Off
 Every pc in the list has two buttons: **Power On** and **Power Off**.
