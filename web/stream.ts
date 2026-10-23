@@ -14,6 +14,7 @@ import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboar
 import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
+import { DisplaySwitcher, MAX_DISPLAYS } from "./stream/display"
 import { LogMessageType } from "./stream/log"
 import { streamStatsToText } from "./stream/stats"
 import "./styles/index"
@@ -169,6 +170,7 @@ class ViewerApp implements Component {
     private statsDiv = document.createElement("div")
     private localTouchCursorDiv = document.createElement("div")
     private stream: Stream
+    private displaySwitcher: DisplaySwitcher
 
     private inputConfig: StreamInputConfig = defaultStreamInputConfig()
     private previousMouseMode: MouseMode
@@ -187,6 +189,7 @@ class ViewerApp implements Component {
 
     constructor(api: Api, hostId: number, appId: number, bootstrapRole: DetailedRole, options?: Partial<Settings>) {
         this.api = api
+        this.displaySwitcher = new DisplaySwitcher(hostId)
 
         const defaultSettings = getLocalStreamSettings(bootstrapRole.default_settings)
         const settings = {
@@ -340,6 +343,9 @@ class ViewerApp implements Component {
         } else if (data.type == "connectionComplete") {
             this.sidebar.onCapabilitiesChange(data.capabilities)
 
+            // Go back to the display that was streamed last time
+            setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500)
+
             this.armFullscreenOnNextInteraction()
         } else if (data.type == "streamEnded") {
             if (data.graceful) {
@@ -423,6 +429,20 @@ class ViewerApp implements Component {
     getInputConfig(): StreamInputConfig {
         return this.inputConfig
     }
+    // Displays
+    getCurrentDisplay(): number {
+        return this.displaySwitcher.getCurrent()
+    }
+    switchDisplay(display: number) {
+        this.displaySwitcher.switchTo(this.stream.getInput(), display)
+        this.sidebar.onDisplayChange(display)
+    }
+    switchToOtherDisplay() {
+        const display = this.displaySwitcher.switchToOther(this.stream.getInput())
+        this.sidebar.onDisplayChange(display)
+        showNotification(I.stream.displaySwitched(display), "info")
+    }
+
     setInputConfig(config: StreamInputConfig) {
         Object.assign(this.inputConfig, config)
 
@@ -435,7 +455,15 @@ class ViewerApp implements Component {
         this.onUserInteraction()
 
         console.debug(event)
-        if (event.shiftKey && event.ctrlKey && event.code == "KeyV") {
+        if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyD") {
+            // Starlight Streams: quick switch to the other display
+            event.preventDefault()
+            event.stopPropagation()
+            if (!event.repeat) {
+                this.switchToOtherDisplay()
+            }
+            return
+        } else if (event.shiftKey && event.ctrlKey && event.code == "KeyV") {
             // We are likely pasting -> don't send keys
         } else if (event.code == "F11") {
             // Allow manual fullscreen
@@ -1031,6 +1059,9 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     private mouseMode: SelectComponent
     private touchMode: SelectComponent
 
+    private displayDiv = document.createElement("div")
+    private displayButtons: Array<HTMLButtonElement> = []
+
     constructor(app: ViewerApp) {
         this.app = app
 
@@ -1039,6 +1070,31 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
         this.buttonDiv.classList.add("sidebar-stream-buttons")
         this.div.appendChild(this.buttonDiv)
+
+        // Display selection (Starlight Streams)
+        this.displayDiv.classList.add("sidebar-stream-displays")
+        const displayLabel = document.createElement("p")
+        displayLabel.innerText = I.stream.display
+        this.displayDiv.appendChild(displayLabel)
+
+        const displayButtonRow = document.createElement("div")
+        displayButtonRow.classList.add("sidebar-stream-display-buttons")
+        for (let display = 1; display <= MAX_DISPLAYS; display++) {
+            const button = document.createElement("button")
+            button.innerText = `${display}`
+            button.addEventListener("click", () => this.app.switchDisplay(display))
+            displayButtonRow.appendChild(button)
+            this.displayButtons.push(button)
+        }
+        this.displayDiv.appendChild(displayButtonRow)
+
+        const displayHint = document.createElement("p")
+        displayHint.classList.add("sidebar-stream-display-hint")
+        displayHint.innerText = I.stream.displayHotkeyHint
+        this.displayDiv.appendChild(displayHint)
+
+        this.div.appendChild(this.displayDiv)
+        this.onDisplayChange(this.app.getCurrentDisplay())
 
         // Send keycode
         this.sendKeycodeButton.innerText = I.stream.sendKeycode
@@ -1131,6 +1187,12 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
         })
         this.touchMode.addChangeListener(this.onTouchModeChange.bind(this))
         this.touchMode.mount(this.div)
+    }
+
+    onDisplayChange(display: number) {
+        this.displayButtons.forEach((button, index) => {
+            button.classList.toggle("sidebar-stream-display-active", index + 1 == display)
+        })
     }
 
     onCapabilitiesChange(capabilities: StreamCapabilities) {

@@ -1107,3 +1107,28 @@ canvas.video-stream {
 .host-power-button:hover {
     filter: brightness(1.15);
 }
+
+/** Starlight Streams: display selection */
+.sidebar-stream-displays p {
+    margin: 6px 0;
+}
+
+.sidebar-stream-display-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.sidebar-stream-display-buttons button {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-stream-display-buttons button.sidebar-stream-display-active {
+    outline: 2px solid #00d4ff;
+    font-weight: 700;
+}
+
+.sidebar-stream-display-hint {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
