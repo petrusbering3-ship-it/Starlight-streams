@@ -102,7 +102,7 @@ jobs:
     # Build
     - name: Build
       run: |
-        cross build --release --target ${{ matrix.target }}
+        cross build --release --target ${{ matrix.target }} --bin web-server
   
         npm ci
         npm run build

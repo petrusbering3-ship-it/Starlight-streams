@@ -76,9 +76,12 @@ fn handle(mut stream: TcpStream, token: &str) -> std::io::Result<()> {
     if method == "GET" {
         return respond(&mut stream, "200 OK", "Starlight power agent is running");
     }
-    if method != "POST" || path != "/shutdown" {
-        return respond(&mut stream, "404 Not Found", "");
-    }
+    // auto-shutdown shows a warning first, so somebody sitting at the pc can cancel it
+    let warning = match (method, path) {
+        ("POST", "/shutdown") => false,
+        ("POST", "/auto-shutdown") => true,
+        _ => return respond(&mut stream, "404 Not Found", ""),
+    };
     if !constant_time_eq(
         authorization.as_bytes(),
         format!("Bearer {token}").as_bytes(),
@@ -89,7 +92,7 @@ fn handle(mut stream: TcpStream, token: &str) -> std::io::Result<()> {
     respond(&mut stream, "200 OK", "shutting down")?;
     println!("Shutdown requested, turning off the pc...");
     thread::sleep(Duration::from_secs(1));
-    shutdown();
+    shutdown(warning);
 
     Ok(())
 }
@@ -106,13 +109,31 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-fn shutdown() {
+fn shutdown(warning: bool) {
     #[cfg(windows)]
-    let result = Command::new("shutdown").args(["/s", "/t", "5"]).status();
+    let result = if warning {
+        Command::new("shutdown")
+            .args([
+                "/s",
+                "/t",
+                "120",
+                "/c",
+                "Starlight Streams: nobody is streaming, the pc turns off in 2 minutes. Run 'shutdown /a' to cancel.",
+            ])
+            .status()
+    } else {
+        Command::new("shutdown").args(["/s", "/t", "5"]).status()
+    };
     #[cfg(target_os = "macos")]
-    let result = Command::new("shutdown").args(["-h", "+1"]).status();
+    let result = Command::new("shutdown")
+        .args(["-h", if warning { "+2" } else { "+1" }])
+        .status();
     #[cfg(not(any(windows, target_os = "macos")))]
-    let result = Command::new("systemctl").arg("poweroff").status();
+    let result = if warning {
+        Command::new("shutdown").args(["-P", "+2"]).status()
+    } else {
+        Command::new("systemctl").arg("poweroff").status()
+    };
 
     if let Err(err) = result {
         eprintln!("Failed to shut down: {err}");

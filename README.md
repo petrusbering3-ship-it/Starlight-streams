@@ -1,7 +1,12 @@
 
 # Starlight Streams
 Starlight Streams is a fork of [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) by MrCreativ3001 (GPL-3.0).
-It has all the features of Moonlight Web, plus **Power On / Power Off buttons** so you can turn your streaming pc on and off from the browser.
+It has all the features of Moonlight Web, plus:
+- **Power On & Play**: one click wakes the pc, waits until it's ready and starts the game you played last.
+- **Power Off**: turn the pc off from the browser.
+- **Auto power off**: the pc turns off when nobody streamed for 30 minutes (configurable). It shows a 2 minute warning on the pc first, `shutdown /a` cancels it.
+- **Guest links** (admins): a link that lets a friend play for a few hours. Guests can't turn your pc off and are deleted automatically when the link expires.
+- **Silent at home**: by default the pc's own speakers are muted while streaming, the sound plays on your laptop (setting `Play Audio Local`).
 
 ## Windows installer (easiest)
 You need two Windows computers on the same home network:
@@ -315,6 +320,17 @@ The Windows installer (`Starlight-Streams-PC.zip`) sets it up for you. Manually:
 }
 ```
 3. Restart the Starlight Streams server. Clicking **Power Off** now asks for confirmation and shuts the pc down.
+
+### Auto power off
+When a stream ends and nobody starts a new one for `auto_shutdown_minutes` (default `30`, `0` = never), the server turns the pc off.
+A pc that is used without Starlight Streams is never turned off.
+```json
+{
+    "moonlight": {
+        "auto_shutdown_minutes": 30
+    }
+}
+```
 
 ## Config
 The config file is under `server/config.json` relative to the executable.

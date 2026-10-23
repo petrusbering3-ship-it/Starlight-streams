@@ -1,4 +1,4 @@
-import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
+import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
 import { showNotification } from "./component/notification"
 import { showMessage, showModal } from "./component/modal/index"
 import { ApiUserPasswordPrompt } from "./component/modal/login"
@@ -471,6 +471,31 @@ export async function apiShutDown(api: Api, request: PostWakeUpRequest): Promise
         json: request,
         response: "ignore"
     })
+}
+
+export async function apiPostGuest(api: Api, request: PostGuestRequest): Promise<PostGuestResponse> {
+    return await fetchApi(api, "/guest", "post", {
+        json: request
+    }) as PostGuestResponse
+}
+
+/// Starlight Streams: logs in with the credentials inside a guest link (#guest=name:password)
+export async function loginFromGuestLink(): Promise<void> {
+    const prefix = "#guest="
+    if (!window.location.hash.startsWith(prefix)) {
+        return
+    }
+
+    const [name, password] = decodeURIComponent(window.location.hash.substring(prefix.length)).split(":")
+    // Remove the credentials from the url bar
+    history.replaceState(null, "", window.location.pathname + window.location.search)
+
+    if (!name || !password) {
+        return
+    }
+
+    const api = { host_url: buildUrl("/api"), bearer: null, user: null, role: null }
+    await apiLogin(api, { name, password })
 }
 
 export async function apiGetApps(api: Api, query: GetAppsQuery): Promise<Array<App>> {

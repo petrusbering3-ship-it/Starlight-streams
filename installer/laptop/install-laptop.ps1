@@ -17,6 +17,11 @@ do {
     $token = Read-Host "Vælg et sluk-password (kun bogstaver a-z og tal, samme skal bruges på gaming PC'en)"
 } until ($token -match '^[A-Za-z0-9]+$')
 
+do {
+    $minutes = Read-Host "Auto-sluk: sluk gaming PC'en efter hvor mange minutter uden stream? (0 = aldrig, tryk Enter for 30)"
+    if (-not $minutes) { $minutes = "30" }
+} until ($minutes -match '^[0-9]+$')
+
 # 2. Kopier programmet
 Write-Host "Installerer Starlight Streams i $dest ..."
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -43,6 +48,7 @@ if (-not $config.moonlight) {
     $config | Add-Member -NotePropertyName moonlight -NotePropertyValue ([pscustomobject]@{})
 }
 $config.moonlight | Add-Member -NotePropertyName power_agent_token -NotePropertyValue $token -Force
+$config.moonlight | Add-Member -NotePropertyName auto_shutdown_minutes -NotePropertyValue ([int]$minutes) -Force
 # UTF-8 uden BOM
 [IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json -Depth 20))
 

@@ -149,6 +149,7 @@ async fn handle_ws(
     // -- Get host
     let host_id = HostId(stream_request.host_id);
     let mut host = user.host(host_id).await?;
+    let _stream_activity = host.stream_activity()?;
 
     let host = host.use_host(&mut user).await?;
 

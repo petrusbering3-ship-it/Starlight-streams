@@ -293,6 +293,7 @@ pub async fn webrtc_post(
 
     // Get host
     let mut host = user.host(host_id).await?;
+    let stream_activity = host.stream_activity()?;
     let host = host.use_host(&mut user).await?;
 
     if !host.is_paired().await? {
@@ -669,6 +670,9 @@ pub async fn webrtc_post(
         let handler = handler.clone();
 
         async move {
+            // Keep the host marked as streaming until the connection is closed
+            let _stream_activity = stream_activity;
+
             loop {
                 let event = select! {
                     _ = sleep(Duration::from_secs(10)) => {

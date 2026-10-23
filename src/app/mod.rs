@@ -35,8 +35,10 @@ use crate::app::{
 };
 
 pub mod auth;
+pub mod guest;
 pub mod host;
 pub mod password;
+pub mod power;
 pub mod role;
 pub mod storage;
 pub mod stream;
@@ -181,6 +183,7 @@ struct AppInner {
     storage: Arc<dyn Storage + Send + Sync>,
     app_image_cache: RwLock<HashMap<(UserId, HostId, AppId), Bytes>>,
     streams: RwLock<HashMap<StreamId, Stream>>,
+    host_activity: power::HostActivity,
 }
 
 pub type RequestClient = TokioHyperClient;
@@ -196,10 +199,14 @@ impl App {
             config,
             app_image_cache: Default::default(),
             streams: Default::default(),
+            host_activity: Default::default(),
         };
         let inner = Arc::new(app);
 
-        Ok(Self { inner })
+        let this = Self { inner };
+        power::spawn_background_tasks(this.new_ref());
+
+        Ok(this)
     }
 
     fn new_ref(&self) -> AppRef {

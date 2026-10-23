@@ -135,6 +135,13 @@ export class Game implements Component {
         }
     }
     private startStream() {
+        // Starlight Streams: remembered for "Power On & Play"
+        try {
+            localStorage.setItem(`starlight-last-app-${this.getHostId()}`, `${this.getAppId()}`)
+        } catch (e) {
+            // storage might be unavailable
+        }
+
         let query = new URLSearchParams({
             hostId: this.getHostId(),
             appId: this.getAppId(),

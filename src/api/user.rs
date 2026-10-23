@@ -1,6 +1,6 @@
 use crate::api::bindings::{
     DeleteUserRequest, DetailedUser, GetDefaultUserResponse, GetUserQuery, GetUsersResponse,
-    PatchUserRequest, PostUserRequest, PutDefaultUserRequest,
+    PatchUserRequest, PostGuestRequest, PostGuestResponse, PostUserRequest, PutDefaultUserRequest,
 };
 use actix_web::{
     HttpResponse, delete, get, patch, post, put,
@@ -70,6 +70,22 @@ pub async fn add_user(
     let detailed_user = user.detailed_user().await?;
 
     Ok(Json(detailed_user))
+}
+
+/// Starlight Streams: creates a temporary guest user that can be shared as a link
+#[post("/guest")]
+pub async fn add_guest(
+    app: Data<App>,
+    admin: Admin,
+    Json(request): Json<PostGuestRequest>,
+) -> Result<Json<PostGuestResponse>, AppError> {
+    let guest = app.create_guest(&admin, request.hours).await?;
+
+    Ok(Json(PostGuestResponse {
+        name: guest.name,
+        password: guest.password,
+        expires_at: guest.expires_at as u32,
+    }))
 }
 
 #[patch("/user")]

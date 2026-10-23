@@ -5,6 +5,7 @@ import { getCurrentLanguage, getTranslations } from "../../i18n"
 import { setContextMenu } from "../context_menu"
 import { showNotification } from "../notification"
 import { showMessage } from "../modal/index"
+import { buildUrl } from "../../config_"
 import { HOST_IMAGE, HOST_OVERLAY_LOCK, HOST_OVERLAY_NONE, HOST_OVERLAY_OFFLINE } from "../../resources/index"
 
 export type HostEventListener = (event: ComponentEvent<Host>) => void
@@ -53,7 +54,7 @@ export class Host implements Component {
         this.powerOnButton.innerText = `⏻ ${i.powerOn}`
         this.powerOnButton.addEventListener("click", (event) => {
             event.stopPropagation()
-            this.wakeUp()
+            this.powerOnAndPlay()
         })
         this.powerOffButton.classList.add("host-power-button", "host-power-off")
         this.powerOffButton.innerText = `⏻ ${i.powerOff}`
@@ -72,7 +73,10 @@ export class Host implements Component {
         if (host != null) {
             this.updateCache(host, null)
 
-            apiGetUser(api).then((user) => this.userCache = user)
+            apiGetUser(api).then((user) => {
+                this.userCache = user
+                this.updatePowerButtons()
+            })
         } else {
             this.forceFetch()
         }
@@ -247,6 +251,72 @@ export class Host implements Component {
 
         await showMessage(i.wakeUpSent)
     }
+    private updatePowerButtons() {
+        // Guests may not turn off the pc
+        const isGuest = this.userCache?.name.startsWith("guest-") ?? false
+        this.powerOffButton.style.display = isGuest ? "none" : ""
+    }
+
+    private poweringOn = false
+
+    /// Starlight Streams: wakes the pc, waits until it's online and then starts the last played game
+    private async powerOnAndPlay() {
+        const i = getTranslations(getCurrentLanguage()).host
+        if (this.poweringOn) {
+            return
+        }
+        this.poweringOn = true
+
+        try {
+            await this.forceFetch().catch(() => { })
+
+            if (this.cache?.server_state == null) {
+                try {
+                    await apiWakeUp(this.api, { host_id: this.getHostId() })
+                } catch (e) {
+                    await showMessage(i.wakeUpFailed)
+                    return
+                }
+
+                const start = Date.now()
+                while (this.cache?.server_state == null) {
+                    const seconds = Math.round((Date.now() - start) / 1000)
+                    if (seconds > 180) {
+                        await showMessage(i.startTimeout)
+                        return
+                    }
+                    this.powerOnButton.innerText = `⏻ ${i.startingUp(seconds)}`
+
+                    await new Promise(resolve => setTimeout(resolve, 3000))
+                    await this.forceFetch().catch(() => { })
+                }
+            }
+
+            if (this.cache?.paired != "Paired") {
+                await this.pair()
+                return
+            }
+
+            let lastAppId: string | null = null
+            try {
+                lastAppId = localStorage.getItem(`starlight-last-app-${this.getHostId()}`)
+            } catch (e) {
+                // storage might be unavailable
+            }
+
+            if (lastAppId) {
+                const query = new URLSearchParams({ hostId: `${this.getHostId()}`, appId: lastAppId })
+                // Same tab: opening a new tab after waiting would be blocked as a popup
+                window.location.href = buildUrl(`/stream.html?${query}`)
+            } else {
+                this.divElement.dispatchEvent(new ComponentEvent("ml-hostopen", this))
+            }
+        } finally {
+            this.poweringOn = false
+            this.powerOnButton.innerText = `⏻ ${i.powerOn}`
+        }
+    }
+
     private async shutDown() {
         const i = getTranslations(getCurrentLanguage()).host
         if (!confirm(i.shutDownConfirm(this.cache?.name ?? ""))) {
@@ -328,6 +398,7 @@ export class Host implements Component {
         if (user) {
             this.userCache = user
         }
+        this.updatePowerButtons()
 
         // Update Elements
         this.nameElement.innerText = this.cache.name

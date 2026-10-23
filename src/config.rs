@@ -251,6 +251,9 @@ pub struct MoonlightConfig {
     /// Shared secret that must match the token configured in the Starlight power agent
     #[serde(default)]
     pub power_agent_token: Option<String>,
+    /// Shut the host pc down when nobody streamed to it for this many minutes (0 = never)
+    #[serde(default = "default_auto_shutdown_minutes")]
+    pub auto_shutdown_minutes: Option<u32>,
 }
 
 impl Default for MoonlightConfig {
@@ -260,12 +263,17 @@ impl Default for MoonlightConfig {
             pair_device_name: default_pair_device_name(),
             power_agent_port: default_power_agent_port(),
             power_agent_token: None,
+            auto_shutdown_minutes: default_auto_shutdown_minutes(),
         }
     }
 }
 
 fn default_moonlight_http_port() -> u16 {
     47989
+}
+
+fn default_auto_shutdown_minutes() -> Option<u32> {
+    Some(30)
 }
 
 fn default_power_agent_port() -> u16 {

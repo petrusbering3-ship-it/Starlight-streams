@@ -1,10 +1,10 @@
 import "./polyfill/index"
-import { Api, getApi, apiPostHost, FetchError, apiLogout, apiGetUser, tryLogin, apiGetHost, apiGetRole, apiPatchRole } from "./api"
+import { Api, getApi, apiPostHost, apiPostGuest, loginFromGuestLink, FetchError, apiLogout, apiGetUser, tryLogin, apiGetHost, apiGetRole, apiPatchRole } from "./api"
 import { AddHostModal } from "./component/host/add_modal"
 import { HostList } from "./component/host/list"
 import { Component, ComponentEvent } from "./component/index"
 import { showNotification } from "./component/notification"
-import { showMessage, showModal } from "./component/modal/index"
+import { showMessage, showModal, showPrompt } from "./component/modal/index"
 import { setContextMenu } from "./component/context_menu"
 import { GameList } from "./component/game/list"
 import { Host } from "./component/host/index"
@@ -21,6 +21,8 @@ let I = getTranslations(getCurrentLanguage())
 
 async function startApp() {
     setTouchContextMenuEnabled(true)
+
+    await loginFromGuestLink()
 
     const api = await getApi()
 
@@ -98,6 +100,7 @@ class MainApp implements Component {
     private backButton: HTMLButtonElement = document.createElement("button")
 
     private hostAddButton: HTMLButtonElement = document.createElement("button")
+    private guestLinkButton: HTMLButtonElement = document.createElement("button")
     private settingsButton: HTMLButtonElement = document.createElement("button")
     private saveRoleDefaultsButton: HTMLButtonElement = document.createElement("button")
 
@@ -152,6 +155,11 @@ class MainApp implements Component {
         // Host add button
         this.hostAddButton.classList.add("host-add")
         this.hostAddButton.addEventListener("click", this.addHost.bind(this))
+
+        // Guest link button (admins only)
+        this.guestLinkButton.innerText = `🔗 ${I.index.guestLink}`
+        this.guestLinkButton.classList.add("button-fit-content", "guest-link-button")
+        this.guestLinkButton.addEventListener("click", this.createGuestLink.bind(this))
 
         // Host list
         this.hostList = new HostList(api)
@@ -230,6 +238,41 @@ class MainApp implements Component {
                 elements
             })
         }
+    }
+
+    private async createGuestLink() {
+        const hoursText = await showPrompt(I.index.guestLinkHours, { defaultValue: "3" })
+        if (hoursText == null) {
+            return
+        }
+        const hours = parseInt(hoursText)
+        if (!(hours > 0 && hours <= 168)) {
+            await showMessage(I.index.guestLinkFailed)
+            return
+        }
+
+        let guest
+        try {
+            guest = await apiPostGuest(this.api, { hours })
+        } catch (e) {
+            await showMessage(I.index.guestLinkFailed)
+            return
+        }
+
+        const link = `${window.location.origin}${window.location.pathname}#guest=${encodeURIComponent(`${guest.name}:${guest.password}`)}`
+
+        let copied = false
+        try {
+            await navigator.clipboard.writeText(link)
+            copied = true
+        } catch (e) {
+            // clipboard is only available in secure contexts
+        }
+
+        await showMessage(I.index.guestLinkCreated(link, hours, copied))
+
+        // Hosts may have been shared with guests
+        await this.hostList.forceFetch()
     }
 
     private async onHostOpen(event: ComponentEvent<Host>) {
@@ -416,6 +459,9 @@ class MainApp implements Component {
         if (this.topLineActions.contains(this.adminButton)) {
             this.topLineActions.removeChild(this.adminButton)
         }
+        if (this.topLineActions.contains(this.guestLinkButton)) {
+            this.topLineActions.removeChild(this.guestLinkButton)
+        }
 
         if (this.user.is_default_user) {
             this.topLineActions.appendChild(this.loginButton)
@@ -424,6 +470,7 @@ class MainApp implements Component {
         }
 
         if (this.user.role == "Admin") {
+            this.topLineActions.insertBefore(this.guestLinkButton, this.topLineActions.firstChild)
             this.topLineActions.appendChild(this.adminButton)
             if (this.currentDisplay == "settings" && !this.actionElement.contains(this.saveRoleDefaultsButton)) {
                 this.actionElement.appendChild(this.saveRoleDefaultsButton)

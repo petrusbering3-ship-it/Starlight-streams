@@ -48,20 +48,24 @@ jobs:
           cache: npm
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: cross-x86_64-pc-windows-gnu
+          shared-key: mingw-x86_64-pc-windows-gnu
+
+      # A recent MinGW is needed: the one in the cross image is too old to link the power agent
+      - name: Install MinGW
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
-      - name: Install Cross
-        run: cargo binstall --force cross
       - name: Install Wasm-Bindgen
         run: cargo binstall --no-confirm --force wasm-bindgen-cli@0.2.128
 
       - name: Build
         run: |
-          cross build --release --target x86_64-pc-windows-gnu
+          cargo build --release --target x86_64-pc-windows-gnu
           npm ci
           npm run build
 

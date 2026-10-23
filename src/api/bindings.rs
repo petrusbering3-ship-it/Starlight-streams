@@ -251,6 +251,21 @@ pub struct DetailedUser {
 
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
+pub struct PostGuestRequest {
+    pub hours: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct PostGuestResponse {
+    pub name: String,
+    pub password: String,
+    /// Unix time in seconds
+    pub expires_at: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
 pub struct PostUserRequest {
     pub name: String,
     pub password: String,

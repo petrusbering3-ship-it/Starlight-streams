@@ -84,7 +84,7 @@ impl User {
         self.id
     }
 
-    async fn storage_user(&mut self) -> Result<Arc<StorageUser>, AppError> {
+    pub(crate) async fn storage_user(&mut self) -> Result<Arc<StorageUser>, AppError> {
         if let Some(storage) = self.cache_storage.as_ref() {
             return Ok(storage.clone());
         }

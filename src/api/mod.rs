@@ -24,8 +24,8 @@ use crate::api::{
         },
     },
     user::{
-        add_user, delete_default_user, delete_user, get_default_user, get_user, list_users,
-        patch_user, put_default_user,
+        add_guest, add_user, delete_default_user, delete_user, get_default_user, get_user,
+        list_users, patch_user, put_default_user,
     },
 };
 
@@ -72,6 +72,7 @@ pub fn api_service() -> impl HttpServiceFactory {
             // -- Users
             get_user,
             add_user,
+            add_guest,
             patch_user,
             delete_user,
             list_users,

@@ -18,6 +18,8 @@ use moonlight_common::{
 
 use crate::app::{
     AppError, AppInner, AppRef, RequestClient,
+    guest::guest_expiry,
+    power::{PowerCommand, StreamActivityGuard, send_power_command},
     storage::{StorageHost, StorageHostModify, StorageHostPairInfo},
     user::{AuthenticatedUser, RoleType, UserId},
 };
@@ -430,59 +432,32 @@ impl Host {
 
     /// Asks the Starlight power agent on the host pc to shut the pc down.
     pub async fn shutdown(&self, user: &mut AuthenticatedUser) -> Result<(), AppError> {
-        use tokio::{
-            io::{AsyncReadExt, AsyncWriteExt},
-            net::TcpStream,
-            time::{Duration, timeout},
-        };
-
         self.can_use(user).await?;
+
+        // Guests may play, but not turn off the pc
+        if guest_expiry(&user.storage_user().await?.name).is_some() {
+            return Err(AppError::Forbidden);
+        }
 
         let app = self.app.access()?;
 
         let storage = self.storage_host(&app).await?;
 
-        let port = app.config.moonlight.power_agent_port;
-        let token = app
-            .config
-            .moonlight
-            .power_agent_token
-            .clone()
-            .unwrap_or_default();
+        let config = &app.config.moonlight;
+        let token = config.power_agent_token.as_deref().unwrap_or_default();
 
-        let address = if storage.address.contains(':') && !storage.address.starts_with('[') {
-            format!("[{}]:{port}", storage.address)
-        } else {
-            format!("{}:{port}", storage.address)
-        };
-
-        let request = format!(
-            "POST /shutdown HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-        );
-
-        let response = timeout(Duration::from_secs(5), async {
-            let mut stream = TcpStream::connect(&address).await?;
-            stream.write_all(request.as_bytes()).await?;
-
-            let mut response = Vec::new();
-            stream.read_to_end(&mut response).await?;
-
-            Ok::<_, std::io::Error>(response)
-        })
+        send_power_command(
+            &storage.address,
+            config.power_agent_port,
+            token,
+            PowerCommand::Shutdown,
+        )
         .await
-        .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))??;
+    }
 
-        let response = String::from_utf8_lossy(&response);
-        let status_ok = response
-            .lines()
-            .next()
-            .is_some_and(|line| line.split_whitespace().nth(1) == Some("200"));
-
-        if status_ok {
-            Ok(())
-        } else {
-            Err(AppError::Forbidden)
-        }
+    /// Marks this host as streaming until the returned guard is dropped (used for auto shutdown).
+    pub fn stream_activity(&self) -> Result<StreamActivityGuard, AppError> {
+        StreamActivityGuard::new(self.app.clone(), self.id)
     }
 
     pub async fn list_apps(&mut self, user: &mut AuthenticatedUser) -> Result<Vec<App>, AppError> {
