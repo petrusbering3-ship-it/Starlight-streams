@@ -1239,3 +1239,19 @@ canvas.video-stream {
     border-color: #6366f1;
     color: #fff;
 }
+
+/** Starlight Streams: the picture fills the screen (keeping its proportions), also when the
+    stream is smaller than the screen, and the sharpening canvas lies exactly on top of it */
+video.video-stream,
+canvas.video-enhancer {
+    width: 100vw;
+    height: var(--stream-video-height);
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+}
+
+canvas.video-enhancer {
+    pointer-events: none;
+    background-color: #000;
+}

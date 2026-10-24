@@ -59,6 +59,13 @@ export class AudioBufferPipe implements PcmAudioPlayer {
 
     private nextAudioPlayTime: number | null = null
 
+    // Starlight Streams: adaptive buffer. Start small, grow a little after every underrun
+    // (crackle) and shrink back slowly while playback is steady.
+    private static readonly MIN_LATENCY_SECS = 0.04
+    private static readonly MAX_TARGET_LATENCY_SECS = 0.15
+    private targetLatency = AudioBufferPipe.MIN_LATENCY_SECS
+    private steadySince: number | null = null
+
     playPcm(unit: AudioPcmUnit): void {
         if (!this.node) {
             return
@@ -67,30 +74,38 @@ export class AudioBufferPipe implements PcmAudioPlayer {
             return
         }
 
-        const TARGET_LATENCY_SECS = 0.12
-        const MAX_LATENCY_SECS = 0.25
-
         const now = this.base.getAudioContext().currentTime
 
+        if (this.steadySince == null) {
+            this.steadySince = now
+        }
+        // Steady for a while -> try a smaller buffer again
+        if (now - this.steadySince > 5 && this.targetLatency > AudioBufferPipe.MIN_LATENCY_SECS) {
+            this.targetLatency = Math.max(AudioBufferPipe.MIN_LATENCY_SECS, this.targetLatency - 0.01)
+            this.steadySince = now
+        }
+        const maxLatency = this.targetLatency + 0.08
+
         if (this.nextAudioPlayTime == null) {
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS
+            this.nextAudioPlayTime = now + this.targetLatency
         }
 
         let ahead = this.nextAudioPlayTime - this.base.getAudioContext().currentTime
 
         // Too far ahead -> gently pull back audio
-        if (ahead > MAX_LATENCY_SECS) {
+        if (ahead > maxLatency) {
             console.debug("Audio too far ahead, trimming latency");
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS;
-            ahead = TARGET_LATENCY_SECS;
+            this.nextAudioPlayTime = now + this.targetLatency;
+            ahead = this.targetLatency;
         }
 
-        // Underrun -> jump forward
+        // Underrun -> jump forward, and keep a bigger buffer from now on
         if (ahead < 0) {
-            console.debug("Audio underrun")
+            this.targetLatency = Math.min(AudioBufferPipe.MAX_TARGET_LATENCY_SECS, this.targetLatency + 0.02)
+            this.steadySince = now
+            console.debug(`Audio underrun, buffer is now ${Math.round(this.targetLatency * 1000)} ms`)
 
-            // We are behind (underrun), jump to current time + small buffer
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS;
+            this.nextAudioPlayTime = now + this.targetLatency;
         }
 
         const context = this.base.getAudioContext()

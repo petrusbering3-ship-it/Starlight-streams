@@ -6,6 +6,7 @@ import { Component, ComponentEvent } from "./index"
 import { InputComponent, SelectComponent } from "./input"
 import { SidebarEdge } from "./sidebar/index"
 import { StreamPermissions } from "../api_bindings";
+import { SharpeningMode } from "../stream/video/enhancer"
 
 export type Settings = {
     sidebarEdge: SidebarEdge,
@@ -23,6 +24,8 @@ export type Settings = {
     forceVideoElementRenderer: boolean
     canvasRenderer: boolean
     canvasVsync: boolean
+    // Starlight Streams: picture sharpening (see stream/video/enhancer.ts)
+    sharpening: SharpeningMode
     playAudioLocal: boolean
     microphone: boolean
     mouseScrollMode: MouseScrollMode
@@ -168,6 +171,7 @@ export class StreamSettingsComponent implements Component {
     private forceVideoElementRenderer: InputComponent
     private canvasRenderer: InputComponent
     private canvasVsync: InputComponent
+    private sharpening: SelectComponent
     private hdr: InputComponent
 
     private videoSize: SelectComponent
@@ -373,6 +377,20 @@ export class StreamSettingsComponent implements Component {
         })
         this.canvasVsync.addChangeListener(this.onSettingsChange.bind(this))
         this.canvasVsync.mount(this.divElement)
+
+        // Sharpening
+        this.sharpening = new SelectComponent("sharpening", [
+            { value: "auto", name: i.sharpeningAuto },
+            { value: "off", name: i.sharpeningOff },
+            { value: "low", name: i.sharpeningLow },
+            { value: "medium", name: i.sharpeningMedium },
+            { value: "high", name: i.sharpeningHigh },
+        ], {
+            displayName: i.sharpening,
+            preSelectedOption: settings?.sharpening ?? defaultSettings_.sharpening
+        })
+        this.sharpening.addChangeListener(this.onSettingsChange.bind(this))
+        this.sharpening.mount(this.divElement)
 
         // HDR
         this.hdr = new InputComponent("hdr", "checkbox", i.enableHdr, {
@@ -607,6 +625,7 @@ export class StreamSettingsComponent implements Component {
         settings.forceVideoElementRenderer = this.forceVideoElementRenderer.isChecked()
         settings.canvasRenderer = this.canvasRenderer.isChecked()
         settings.canvasVsync = this.canvasVsync.isChecked()
+        settings.sharpening = this.sharpening.getValue() as SharpeningMode
 
         settings.playAudioLocal = this.playAudioLocal.isChecked()
 

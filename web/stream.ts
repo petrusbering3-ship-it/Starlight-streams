@@ -16,6 +16,8 @@ import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, Str
 import { emptyKeyModifiers } from "./stream/keyboard"
 import { DisplaySwitcher, getDisplayCount } from "./stream/display"
 import { measureAutoQuality } from "./stream/auto_quality"
+import { VideoEnhancer } from "./stream/video/enhancer"
+import { QualityLevel, QualityMonitor, stepDown, stepUp } from "./stream/quality_monitor"
 import { LogMessageType } from "./stream/log"
 import { streamStatsToText } from "./stream/stats"
 import "./styles/index"
@@ -184,6 +186,17 @@ class ViewerApp implements Component {
     private localTouchCursorDiv = document.createElement("div")
     private stream: Stream
     private displaySwitcher: DisplaySwitcher
+    private enhancer: VideoEnhancer
+
+    // Starlight Streams: auto quality during the stream
+    private appId: number
+    private permissions: DetailedRole["permissions"]
+    private streamSettings: Settings
+    private qualityMonitor: QualityMonitor | null = null
+    private qualityCeiling: QualityLevel | null = null
+    private lastQualityUpAt = 0
+    private qualityUpBlockedUntil = 0
+    private restartingStream = false
     private hostId: number
 
     // Starlight Streams: game mouse = laptop cursor hidden, mouse only moves the pc's mouse (pointer lock)
@@ -272,6 +285,13 @@ class ViewerApp implements Component {
         this.toggleFullscreenWithKeybind = settings.toggleFullscreenWithKeybind
 
         this.stream = new Stream(this.api, hostId, appId, settings, [browserWidth, browserHeight], bootstrapRole.permissions)
+        this.appId = appId
+        this.permissions = bootstrapRole.permissions
+        this.streamSettings = settings
+
+        // Picture sharpening; HDR would lose its colors in the 8 bit canvas
+        this.enhancer = new VideoEnhancer(settings.hdr ? "off" : settings.sharpening ?? "auto")
+        this.enhancer.start()
         this.startStream(settings)
 
         // Configure input
@@ -332,7 +352,7 @@ class ViewerApp implements Component {
             ?.classList.toggle("sidebar-button-unobtrusive", settings.hideSidebarButton)
 
         // Add app info listener
-        this.stream.addInfoListener(this.onInfo.bind(this))
+        this.addStreamInfoListener()
 
         // Create connection info modal
         const connectionInfoListener = this.connectionInfoModal.onInfo.bind(this.connectionInfoModal)
@@ -352,6 +372,107 @@ class ViewerApp implements Component {
         }
     }
 
+    /// Only events of the current stream count: an old one stopped by auto quality is ignored
+    private addStreamInfoListener() {
+        const stream = this.stream
+        stream.addInfoListener((event) => {
+            if (stream === this.stream) {
+                this.onInfo(event)
+            }
+        })
+    }
+
+    // -- Auto quality during the stream
+    private currentQuality(): QualityLevel {
+        return {
+            videoSize: this.streamSettings.videoSize,
+            bitrate: this.streamSettings.bitrate,
+            fps: this.streamSettings.fps,
+        }
+    }
+
+    private startQualityMonitor() {
+        this.qualityMonitor?.stop()
+        if (!this.streamSettings.autoQuality) {
+            return
+        }
+        // Never go above the quality the stream started with
+        this.qualityCeiling ??= this.currentQuality()
+
+        const stream = this.stream
+        this.qualityMonitor = new QualityMonitor(
+            () => stream.getTransportStats(),
+            (direction) => this.onQualityChange(direction)
+        )
+        this.qualityMonitor.start()
+    }
+
+    private onQualityChange(direction: "down" | "up") {
+        const now = Date.now()
+        const current = this.currentQuality()
+
+        if (direction == "down") {
+            // Went up and it didn't hold: don't try again for a while
+            if (now - this.lastQualityUpAt < 60_000) {
+                this.qualityUpBlockedUntil = now + 10 * 60_000
+            }
+            const lower = stepDown(current)
+            if (lower) {
+                this.restartStreamWithQuality(lower, "down")
+            }
+        } else {
+            if (now < this.qualityUpBlockedUntil || !this.qualityCeiling) {
+                return
+            }
+            const higher = stepUp(current, this.qualityCeiling)
+            if (higher) {
+                this.lastQualityUpAt = now
+                this.restartStreamWithQuality(higher, "up")
+            }
+        }
+    }
+
+    /// Replaces the stream with one of another quality. The game keeps running on the pc, and
+    /// fullscreen and the captured mouse stay, because the page isn't reloaded.
+    private async restartStreamWithQuality(level: QualityLevel, direction: "down" | "up") {
+        if (this.restartingStream) {
+            return
+        }
+        this.restartingStream = true
+
+        try {
+            this.qualityMonitor?.stop()
+            this.qualityMonitor = null
+
+            const message = `${level.videoSize} · ${level.fps} fps · ${(level.bitrate / 1000).toFixed(1)} Mbit/s`
+            showNotification(direction == "down" ? I.stream.qualityLowered(message) : I.stream.qualityRaised(message), "info")
+
+            const old = this.stream
+            old.getInput().raiseAllKeys()
+            await old.stop()
+            old.unmount(this.div)
+
+            this.streamSettings = { ...this.streamSettings, ...level }
+
+            const browserWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+            const browserHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0)
+            this.stream = new Stream(this.api, this.hostId, this.appId, this.streamSettings, [browserWidth, browserHeight], this.permissions)
+
+            this.addStreamInfoListener()
+            this.stream.addInfoListener(this.connectionInfoModal.onInfo.bind(this.connectionInfoModal))
+            this.stream.getInput().addScreenKeyboardVisibleEvent(this.onScreenKeyboardSetVisible.bind(this))
+            this.setInputConfig(this.inputConfig)
+            for (const gamepad of navigator.getGamepads()) {
+                if (gamepad != null) {
+                    this.onGamepadAdd(gamepad)
+                }
+            }
+            this.stream.mount(this.div)
+        } finally {
+            this.restartingStream = false
+        }
+    }
+
     private async onInfo(event: InfoEvent) {
         const data = event.detail
 
@@ -364,6 +485,8 @@ class ViewerApp implements Component {
 
             // Go back to the display that was streamed last time
             setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500)
+
+            this.startQualityMonitor()
 
             // Game mouse stays on between streams, the mouse is captured on the first click
             if (loadGameMousePreference() && !this.gameMouse) {

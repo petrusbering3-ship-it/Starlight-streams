@@ -1,3 +1,4 @@
+import { StatValue } from "./stats"
 import { Api, apiWebRTCConfiguration, apiWebRTCOffer } from "../api"
 import { Component } from "../component/index"
 import { Settings, TransportType } from "../component/settings_menu"
@@ -559,6 +560,11 @@ export class Stream implements Component {
     }
     getMicrophoneListener(): Pipe | null {
         return this.microphoneListener
+    }
+
+    /// The transport's current statistics (packet loss, round trip, ...), used by auto quality
+    async getTransportStats(): Promise<Record<string, StatValue> | null> {
+        return (await this.transport?.getStats()) ?? null
     }
 
     async stop(): Promise<boolean> {

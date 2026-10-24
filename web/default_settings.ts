@@ -23,6 +23,8 @@ const trueDefaultSettings: Settings =
     "canvasRenderer": false,
     // Canvas only: when true, draw only on requestAnimationFrame (stable, may add ~0–17 ms). When false, draw on frame submit (low latency).
     "canvasVsync": false,
+    // Starlight Streams: "off", "auto" (only when the picture is enlarged), "low", "medium", "high"
+    "sharpening": "auto",
     "playAudioLocal": false,
     "microphone": false,
     // possible values: "highres", "normal"
