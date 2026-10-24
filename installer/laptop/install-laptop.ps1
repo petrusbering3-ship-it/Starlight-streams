@@ -1,6 +1,27 @@
 ﻿# Starlight Streams - installation på laptoppen (serveren)
 $ErrorActionPreference = "Stop"
 
+# Run as administrator: start an elevated copy of this script in its own window
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Start-Process powershell.exe -Verb RunAs -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+    exit
+}
+
+$logFile = Join-Path $env:TEMP "starlight-install-laptop.log"
+Start-Transcript -Path $logFile -Force | Out-Null
+
+# Keep the window open on errors, so you can see what went wrong
+trap {
+    Write-Host ""
+    Write-Host "Noget gik galt: $_" -ForegroundColor Red
+    Write-Host "Send et billede af denne besked, eller filen $logFile"
+    Stop-Transcript | Out-Null
+    Read-Host "Tryk Enter for at lukke"
+    exit 1
+}
+
+
 $src = $PSScriptRoot
 $dest = Join-Path $env:ProgramFiles "Starlight Streams"
 $taskName = "Starlight Streams Server"
@@ -107,3 +128,6 @@ Write-Host "Åbn https-adressen ovenfor (den der slutter på .ts.net) i en brows
 Write-Host "Hjemme kan du også bruge http://localhost:8080 på laptoppen."
 Write-Host "Første gang du logger ind, bliver det navn og password du skriver til din admin-konto."
 Write-Host "Husk at installere Starlight PC-delen på gaming PC'en med samme sluk-password: $token"
+
+Stop-Transcript | Out-Null
+Read-Host "Tryk Enter for at lukke"

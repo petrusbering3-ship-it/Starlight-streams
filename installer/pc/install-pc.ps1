@@ -1,6 +1,27 @@
 ﻿# Starlight Streams - installation på gaming PC'en
 $ErrorActionPreference = "Stop"
 
+# Run as administrator: start an elevated copy of this script in its own window
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Start-Process powershell.exe -Verb RunAs -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+    exit
+}
+
+$logFile = Join-Path $env:TEMP "starlight-install-pc.log"
+Start-Transcript -Path $logFile -Force | Out-Null
+
+# Keep the window open on errors, so you can see what went wrong
+trap {
+    Write-Host ""
+    Write-Host "Noget gik galt: $_" -ForegroundColor Red
+    Write-Host "Send et billede af denne besked, eller filen $logFile"
+    Stop-Transcript | Out-Null
+    Read-Host "Tryk Enter for at lukke"
+    exit 1
+}
+
+
 $src = $PSScriptRoot
 $dest = Join-Path $env:ProgramFiles "Starlight Power Agent"
 $taskName = "Starlight Power Agent"
@@ -105,3 +126,6 @@ Write-Host "   (Har du allerede tilføjet PC'en med en anden adresse, så fjern 
 Write-Host "3. Tryk på PC'en for at parre. Skriv PIN-koden under 'PIN' på https://localhost:47990"
 Write-Host "4. Slå 'Wake on LAN' til i BIOS og slå 'ErP' / 'Deep Sleep' fra, så PC'en kan tændes igen."
 Write-Host "Genstart PC'en én gang, så alt er slået til."
+
+Stop-Transcript | Out-Null
+Read-Host "Tryk Enter for at lukke"
