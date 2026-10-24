@@ -106,6 +106,13 @@ export function setLocalStreamSettings(settings?: Settings) {
     localStorage.setItem("mlSettings", JSON.stringify(settings))
 }
 
+// Starlight Streams: one click performance presets
+const PERFORMANCE_PRESETS: Array<{ name: "weakNetwork" | "balanced" | "bestQuality", settings: Partial<Settings> }> = [
+    { name: "weakNetwork", settings: { videoSize: "720p", fps: 60, bitrate: 6000, videoCodec: "h264" } },
+    { name: "balanced", settings: { videoSize: "1080p", fps: 60, bitrate: 20000, videoCodec: "h264" } },
+    { name: "bestQuality", settings: { videoSize: "native", fps: 60, bitrate: 40000, videoCodec: "auto" } },
+]
+
 export type StreamSettingsChangeListener = (event: ComponentEvent<StreamSettingsComponent>) => void
 
 function makeSettingsValid(permissions: StreamPermissions, settings: Settings) {
@@ -205,6 +212,26 @@ export class StreamSettingsComponent implements Component {
 
         // Root div
         this.divElement.classList.add("settings")
+
+        // Quick setup presets (Starlight Streams)
+        const presetHeader = document.createElement("h2")
+        presetHeader.innerText = i.quickSetup
+        this.divElement.appendChild(presetHeader)
+
+        const presetRow = document.createElement("div")
+        presetRow.classList.add("settings-presets")
+        for (const preset of PERFORMANCE_PRESETS) {
+            const button = document.createElement("button")
+            button.classList.add("settings-preset")
+            button.innerText = i.presets[preset.name]
+            button.addEventListener("click", () => {
+                const newSettings = { ...this.getStreamSettings(), ...preset.settings }
+                setLocalStreamSettings(newSettings)
+                window.location.reload()
+            })
+            presetRow.appendChild(button)
+        }
+        this.divElement.appendChild(presetRow)
 
         // Sidebar
         this.sidebarHeader.innerText = i.sidebar

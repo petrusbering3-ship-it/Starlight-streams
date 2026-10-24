@@ -172,6 +172,10 @@ class ViewerApp implements Component {
     private stream: Stream
     private displaySwitcher: DisplaySwitcher
 
+    // Starlight Streams: game mouse = laptop cursor hidden, mouse only moves the pc's mouse (pointer lock)
+    private gameMouse = false
+    private mouseModeBeforeGameMouse: MouseMode = "follow"
+
     private inputConfig: StreamInputConfig = defaultStreamInputConfig()
     private previousMouseMode: MouseMode
 
@@ -346,6 +350,12 @@ class ViewerApp implements Component {
             // Go back to the display that was streamed last time
             setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500)
 
+            // Game mouse stays on between streams, the mouse is captured on the first click
+            if (loadGameMousePreference() && !this.gameMouse) {
+                this.setGameMouse(true, false)
+                showNotification(I.stream.gameMouseClickToCapture, "info")
+            }
+
             this.armFullscreenOnNextInteraction()
         } else if (data.type == "streamEnded") {
             if (data.graceful) {
@@ -429,6 +439,38 @@ class ViewerApp implements Component {
     getInputConfig(): StreamInputConfig {
         return this.inputConfig
     }
+    // Game mouse
+    isGameMouse(): boolean {
+        return this.gameMouse
+    }
+    /// capture: request the pointer lock now (needs a click or key press from the user)
+    async setGameMouse(enabled: boolean, capture: boolean) {
+        if (enabled == this.gameMouse) {
+            return
+        }
+        this.gameMouse = enabled
+        saveGameMousePreference(enabled)
+        this.sidebar.onGameMouseChange(enabled)
+
+        if (enabled) {
+            this.mouseModeBeforeGameMouse = this.inputConfig.mouseMode == "relative" ? "follow" : this.inputConfig.mouseMode
+            this.inputConfig.mouseMode = "relative"
+            this.setInputConfig(this.inputConfig)
+
+            if (capture) {
+                // Fullscreen + keyboard lock: Esc goes to the game instead of releasing the mouse
+                // (requestFullscreen also captures the mouse because the mouse mode is relative)
+                await this.requestFullscreen()
+            }
+            showNotification(I.stream.gameMouseOn, "info")
+        } else {
+            await this.exitPointerLock()
+            this.inputConfig.mouseMode = this.mouseModeBeforeGameMouse
+            this.setInputConfig(this.inputConfig)
+            showNotification(I.stream.gameMouseOff, "info")
+        }
+    }
+
     // Displays
     getCurrentDisplay(): number {
         return this.displaySwitcher.getCurrent()
@@ -455,7 +497,15 @@ class ViewerApp implements Component {
         this.onUserInteraction()
 
         console.debug(event)
-        if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyD") {
+        if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyM") {
+            // Starlight Streams: toggle game mouse
+            event.preventDefault()
+            event.stopPropagation()
+            if (!event.repeat) {
+                this.setGameMouse(!this.gameMouse, true)
+            }
+            return
+        } else if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyD") {
             // Starlight Streams: quick switch to the other display
             event.preventDefault()
             event.stopPropagation()
@@ -513,6 +563,11 @@ class ViewerApp implements Component {
 
     // Mouse
     onMouseButtonDown(event: MouseEvent) {
+        // Game mouse: capture the mouse again after it was released (e.g. with Esc)
+        if (this.gameMouse && !document.pointerLockElement) {
+            this.requestPointerLock()
+        }
+
         if (this.consumeAutoFullscreenInteraction()) {
             this.pendingAutoFullscreenMouseGesture = true
             event.preventDefault()
@@ -789,7 +844,8 @@ class ViewerApp implements Component {
     private onPointerLockChange() {
         this.checkFullyImmersed()
 
-        if (!document.pointerLockElement) {
+        // In game mouse mode the mouse stays relative, the next click captures it again
+        if (!document.pointerLockElement && !this.gameMouse) {
             this.inputConfig.mouseMode = this.previousMouseMode
             this.setInputConfig(this.inputConfig)
         }
@@ -1059,6 +1115,8 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     private mouseMode: SelectComponent
     private touchMode: SelectComponent
 
+    private gameMouseButton = document.createElement("button")
+
     private displayDiv = document.createElement("div")
     private displayButtons: Array<HTMLButtonElement> = []
 
@@ -1070,6 +1128,14 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
         this.buttonDiv.classList.add("sidebar-stream-buttons")
         this.div.appendChild(this.buttonDiv)
+
+        // Game mouse (Starlight Streams)
+        this.gameMouseButton.classList.add("sidebar-stream-game-mouse")
+        this.gameMouseButton.addEventListener("click", () => {
+            this.app.setGameMouse(!this.app.isGameMouse(), true)
+        })
+        this.div.appendChild(this.gameMouseButton)
+        this.onGameMouseChange(false)
 
         // Display selection (Starlight Streams)
         this.displayDiv.classList.add("sidebar-stream-displays")
@@ -1187,6 +1253,11 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
         })
         this.touchMode.addChangeListener(this.onTouchModeChange.bind(this))
         this.touchMode.mount(this.div)
+    }
+
+    onGameMouseChange(enabled: boolean) {
+        this.gameMouseButton.innerText = enabled ? I.stream.gameMouseButtonOn : I.stream.gameMouseButtonOff
+        this.gameMouseButton.classList.toggle("sidebar-stream-game-mouse-active", enabled)
     }
 
     onDisplayChange(display: number) {
@@ -1326,4 +1397,21 @@ export function stopPropagationOn(element: HTMLElement) {
 }
 function onStopPropagation(event: Event) {
     event.stopPropagation()
+}
+
+// Starlight Streams: remember game mouse between streams
+const GAME_MOUSE_KEY = "starlight-game-mouse"
+function loadGameMousePreference(): boolean {
+    try {
+        return localStorage.getItem(GAME_MOUSE_KEY) == "1"
+    } catch (e) {
+        return false
+    }
+}
+function saveGameMousePreference(enabled: boolean) {
+    try {
+        localStorage.setItem(GAME_MOUSE_KEY, enabled ? "1" : "0")
+    } catch (e) {
+        // storage might be unavailable
+    }
 }

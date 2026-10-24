@@ -3,13 +3,15 @@
 
 use std::{
     collections::HashMap,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Mutex,
     time::{Duration, Instant},
 };
 
+use moonlight_common::mac::MacAddress;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
+    net::{TcpStream, UdpSocket, lookup_host},
     spawn,
     time::{sleep, timeout},
 };
@@ -70,6 +72,85 @@ impl Drop for StreamActivityGuard {
             entry.active_streams = entry.active_streams.saturating_sub(1);
             entry.last_stream_end = Instant::now();
         }
+    }
+}
+
+/// Ports the magic packet is sent to: the usual Wake-on-LAN ports and the Sunshine ports (like Moonlight does)
+const WAKE_PORTS: [u16; 7] = [9, 7, 47998, 47999, 48000, 48002, 48010];
+
+/// Sends Wake-on-LAN magic packets more reliably than a single 255.255.255.255 broadcast:
+/// - out of the network card that is used to reach the host (Windows sends 255.255.255.255
+///   only out of one card, which is often the wrong one with Wi-Fi + cable or Tailscale)
+/// - to the limited broadcast, the subnet broadcast and the host address itself
+/// - a few times, in case a packet is lost
+pub async fn send_magic_packet(mac: MacAddress, host_address: &str) -> Result<(), AppError> {
+    if mac == MacAddress::NULL {
+        return Err(AppError::HostNotFound);
+    }
+
+    let mut packet = [0xFFu8; 6 * 17];
+    for i in 1..17 {
+        packet[(i * 6)..((i + 1) * 6)].copy_from_slice(&mac.to_bytes());
+    }
+
+    // Resolve the host (it might be a name) and find the local address used to reach it
+    let host_ip = lookup_host((host_address, 9))
+        .await
+        .ok()
+        .and_then(|mut addresses| addresses.find(|address| address.is_ipv4()))
+        .map(|address| address.ip());
+
+    let mut local_ip = None;
+    if let Some(host_ip) = host_ip {
+        let probe = UdpSocket::bind("0.0.0.0:0").await?;
+        if probe.connect((host_ip, 9)).await.is_ok() {
+            local_ip = probe.local_addr().ok().map(|address| address.ip());
+        }
+    }
+
+    let mut targets: Vec<IpAddr> = vec![IpAddr::V4(Ipv4Addr::BROADCAST)];
+    if let Some(IpAddr::V4(ip)) = host_ip {
+        let [a, b, c, _] = ip.octets();
+        // Most home networks are /24; x.x.255.255 covers /16 networks
+        targets.push(IpAddr::V4(Ipv4Addr::new(a, b, c, 255)));
+        targets.push(IpAddr::V4(Ipv4Addr::new(a, b, 255, 255)));
+        targets.push(IpAddr::V4(ip));
+    }
+
+    // One socket bound to the right card, and one unbound socket as a fallback
+    let mut sockets = Vec::new();
+    if let Some(local_ip) = local_ip
+        && let Ok(socket) = UdpSocket::bind(SocketAddr::new(local_ip, 0)).await
+    {
+        sockets.push(socket);
+    }
+    sockets.push(UdpSocket::bind("0.0.0.0:0").await?);
+
+    let mut sent_any = false;
+    for _ in 0..3 {
+        for socket in &sockets {
+            let _ = socket.set_broadcast(true);
+            for target in &targets {
+                for port in WAKE_PORTS {
+                    if socket
+                        .send_to(&packet, SocketAddr::new(*target, port))
+                        .await
+                        .is_ok()
+                    {
+                        sent_any = true;
+                    }
+                }
+            }
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    info!("sent Wake-on-LAN to {mac} via {local_ip:?} (host {host_ip:?}), success: {sent_any}");
+
+    if sent_any {
+        Ok(())
+    } else {
+        Err(std::io::Error::other("failed to send any Wake-on-LAN packet").into())
     }
 }
 

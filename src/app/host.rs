@@ -8,7 +8,7 @@ use actix_web::web::Bytes;
 use moonlight_common::{
     crypto::rustcrypto::RustCryptoBackend,
     error::Error as MoonlightError,
-    high::tokio::{MoonlightHost, broadcast_magic_packet},
+    high::tokio::MoonlightHost,
     http::{
         ClientIdentifier, ClientSecret, ServerIdentifier,
         pair::{PairPin, PairingCryptoBackend},
@@ -19,7 +19,7 @@ use moonlight_common::{
 use crate::app::{
     AppError, AppInner, AppRef, RequestClient,
     guest::guest_expiry,
-    power::{PowerCommand, StreamActivityGuard, send_power_command},
+    power::{PowerCommand, StreamActivityGuard, send_magic_packet, send_power_command},
     storage::{StorageHost, StorageHostModify, StorageHostPairInfo},
     user::{AuthenticatedUser, RoleType, UserId},
 };
@@ -423,8 +423,7 @@ impl Host {
         let storage = self.storage_host(&app).await?;
 
         if let Some(mac) = storage.cache.mac {
-            broadcast_magic_packet(mac).await?;
-            Ok(())
+            send_magic_packet(mac, &storage.address).await
         } else {
             Err(AppError::HostNotFound)
         }

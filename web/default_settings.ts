@@ -6,7 +6,7 @@ const trueDefaultSettings: Settings =
     // possible values: "left", "right", "up", "down"
     "sidebarEdge": "left",
     "hideSidebarButton": false,
-    "bitrate": 10000,
+    "bitrate": 20000,
     "fps": 60,
     // possible values: "720p", "1080p", "1440p", "4k", "native", "custom"
     "videoSize": "custom",

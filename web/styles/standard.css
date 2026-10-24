@@ -1803,3 +1803,25 @@ input[type="checkbox"]:checked {
 .top-line-actions {
     align-items: center;
 }
+
+/** Starlight Streams: game mouse */
+.sidebar-stream-game-mouse {
+    margin: 8px 0;
+}
+
+.sidebar-stream-game-mouse.sidebar-stream-game-mouse-active {
+    background-color: #22c55e;
+    border-color: #22c55e;
+    color: #fff;
+}
+
+/** Starlight Streams: quick setup presets */
+.settings-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.settings-presets .settings-preset {
+    margin: 0;
+}

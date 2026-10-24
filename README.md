@@ -7,6 +7,8 @@ Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001
 - **Display 1 / Display 2:** Vælg hvilken skærm du vil streame, direkte på forsiden. Under streamen skifter **Ctrl+Shift+D** mellem dine to skærme.
 - **Stream-knappen tænder PC'en:** Er PC'en slukket, bliver den tændt. Når den er klar, starter det spil du spillede sidst.
 - **Sluk-knap:** Sluk PC'en fra browseren.
+- **Game Mouse:** Til spil som Minecraft. Laptoppens musemarkør forsvinder, og musen styrer kun PC'en. Tænd og sluk med **Ctrl+Shift+M**.
+- **Hurtig opsætning:** Ét klik vælger kvaliteten: svagt net, balanceret eller bedste kvalitet.
 - **Auto-sluk:** PC'en slukker selv, når ingen har streamet i 30 minutter. Den viser først en advarsel på 2 minutter på PC'en.
 - **Gæste-link:** Lad en ven spille i nogle timer via et link. Linket udløber af sig selv, og gæster kan ikke slukke din PC.
 - **Lydløs derhjemme:** PC'ens højttalere er tavse, mens du streamer. Lyden kommer i fuld styrke på laptoppen.
@@ -78,6 +80,8 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 |---|---|
 | Spille | Tryk **▶ Stream** under den skærm, du vil se. Er PC'en slukket, bliver den tændt først. |
 | Skifte skærm under spillet | **Ctrl+Shift+D**, eller åbn menuen i venstre side og tryk **1**, **2** … under "Display". |
+| Spille med musen (Minecraft, skydespil) | **Ctrl+Shift+M** eller **🎮 Game Mouse** i menuen. Musen fanges og styrer kun PC'en, og Esc går til spillet. Hold Esc for at komme ud. Klik i billedet for at fange musen igen. |
+| Bedre billede eller mindre hak | Indstillinger, **Quick Setup**: ⚡ Balanced er et godt udgangspunkt. 📶 Weak network ved dårligt net. |
 | Slukke PC'en | **⏻ Power Off** nederst på PC-kortet. |
 | Lade en ven spille | **🔗 Guest Link** øverst, vælg antal timer og send linket. |
 | Stoppe streamen | Menuen i venstre side, tryk **Exit**. |
@@ -92,7 +96,7 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 - **Ude:** `.ts.net`-adressen virker overalt uden installation, men kører billedet over Web Sockets. Det giver lidt mere forsinkelse.
   Vil du have det hurtigste ude, så installer Tailscale på den computer, du spiller på. Brug laptoppens Tailscale-adresse, fx `http://server-laptop:8080`.
 - Brug **netværkskabel** til gaming PC'en og server-laptoppen.
-- Under **Indstillinger** kan du sætte fps og bitrate op. **H265** eller **AV1** giver bedre billede, hvis din computer kan afspille det.
+- Under **Indstillinger, Quick Setup** vælger du kvaliteten med ét klik. Selv kan du sætte fps og bitrate op. **H265** eller **AV1** giver bedre billede, hvis din computer kan afspille det.
 - Under streamen viser **Stats** i menuen, hvor forsinkelsen kommer fra.
 
 ---
@@ -102,7 +106,7 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 | Problem | Løsning |
 |---|---|
 | **Stream** siger, at tænd-signalet ikke kunne sendes | PC'en skal være **parret én gang**, mens den er tændt (trin 5). |
-| PC'en tænder ikke | Tjek BIOS (trin 4). Gaming PC'en skal bruge **kabel**, og server-laptoppen skal være på samme hjemmenetværk. |
+| PC'en tænder ikke | 1) Kør den nyeste `Install.bat` igen på gaming PC'en. Den slår "tænd fra slukket" til på netværkskortet og viser kablets IP-adresse. 2) Er PC'en tilføjet med en anden adresse (fx Wi-Fi'ens), så fjern den i Starlight (højreklik, **Remove Host**), tilføj den med kablets adresse og par igen. 3) Tjek BIOS (trin 4). 4) Gaming PC'en skal bruge **kabel**, og server-laptoppen skal være på samme hjemmenetværk. |
 | **Power Off** virker ikke | Sluk-passwordet skal være det samme på begge maskiner. Kør `Install.bat` igen på begge med samme password. |
 | Siden kan ikke åbnes | Server-laptoppen skal være tændt. Prøv `http://localhost:8080` på selve laptoppen. |
 | `.ts.net`-adressen virker ikke | Kør `Install.bat` igen på laptoppen, og tjek at Funnel er slået til. |

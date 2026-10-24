@@ -56,6 +56,12 @@ Write-Host "Slår Wake-on-LAN til på netværkskortet ..."
 $adapters = Get-NetAdapter -Physical | Where-Object { $_.MediaType -eq "802.3" }
 foreach ($adapter in $adapters) {
     Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "*WakeOnMagicPacket" -RegistryValue 1 -ErrorAction SilentlyContinue
+    # Wake from a full shutdown (Realtek: "Shutdown Wake-On-Lan", Intel: "PME")
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "S5WakeOnLan" -RegistryValue 1 -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "EnablePME" -RegistryValue 1 -ErrorAction SilentlyContinue
+    # Keep the network card powered while the pc is off
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "*EEE" -RegistryValue 0 -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "PowerSavingMode" -RegistryValue 0 -ErrorAction SilentlyContinue
     Set-NetAdapterPowerManagement -Name $adapter.Name -WakeOnMagicPacket Enabled -ErrorAction SilentlyContinue
     powercfg /deviceenablewake "$($adapter.InterfaceDescription)" | Out-Null
 }
@@ -67,12 +73,21 @@ if (-not $adapters) {
 Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -Value 0 -Type DWord
 
 # 5. Vis PC'ens adresse
-$ip = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" } | Select-Object -First 1).IPv4Address.IPAddress
+# Prefer the cable network card: Wake-on-LAN goes to the card the pc is added with
+$configs = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" }
+$wired = $configs | Where-Object { $_.NetAdapter.MediaType -eq "802.3" -and $_.NetAdapter.InterfaceDescription -notmatch "Virtual|Hyper-V|VPN|Tailscale|VMware|VirtualBox" } | Select-Object -First 1
+if ($wired) {
+    $ip = $wired.IPv4Address.IPAddress
+} else {
+    $ip = ($configs | Select-Object -First 1).IPv4Address.IPAddress
+    Write-Warning "PC'en er ikke tilsluttet med netværkskabel. Tænd på afstand (Wake-on-LAN) virker normalt kun med kabel."
+}
 
 Write-Host ""
 Write-Host "=== Færdig! ===" -ForegroundColor Green
 Write-Host "1. Åbn https://localhost:47990 og opret et brugernavn og password til Sunshine (kun første gang)."
 Write-Host "2. Gå ind i Starlight Streams, tryk på 'tilføj PC' og skriv denne adresse: $ip"
+Write-Host "   (Har du allerede tilføjet PC'en med en anden adresse, så fjern den og tilføj den igen med denne.)"
 Write-Host "3. Tryk på PC'en for at parre. Skriv PIN-koden under 'PIN' på https://localhost:47990"
 Write-Host "4. Slå 'Wake on LAN' til i BIOS og slå 'ErP' / 'Deep Sleep' fra, så PC'en kan tændes igen."
 Write-Host "Genstart PC'en én gang, så alt er slået til."
