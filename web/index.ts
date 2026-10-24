@@ -1,5 +1,5 @@
 import "./polyfill/index"
-import { Api, getApi, apiPostHost, apiPostGuest, loginFromGuestLink, FetchError, apiLogout, apiGetUser, tryLogin, apiGetHost, apiGetRole, apiPatchRole } from "./api"
+import { Api, getApi, apiPostHost, apiPostGuest, loginFromGuestLink, apiStarlightInfo, apiStarlightUpdate, FetchError, apiLogout, apiGetUser, tryLogin, apiGetHost, apiGetRole, apiPatchRole } from "./api"
 import { AddHostModal } from "./component/host/add_modal"
 import { HostList } from "./component/host/list"
 import { Component, ComponentEvent } from "./component/index"
@@ -18,6 +18,9 @@ import { setStyle as setPageStyle } from "./styles/index"
 // TODO: look at this? https://developer.mozilla.org/en-US/docs/Web/API/Web_components
 
 let I = getTranslations(getCurrentLanguage())
+
+// Starlight Streams: where updates come from (must match installer/laptop/update.ps1)
+const STARLIGHT_REPOSITORY = "petrusbering3-ship-it/Starlight-streams"
 
 async function startApp() {
     setTouchContextMenuEnabled(true)
@@ -101,6 +104,8 @@ class MainApp implements Component {
 
     private hostAddButton: HTMLButtonElement = document.createElement("button")
     private guestLinkButton: HTMLButtonElement = document.createElement("button")
+    private updateButton: HTMLButtonElement = document.createElement("button")
+    private updateChecked = false
     private settingsButton: HTMLButtonElement = document.createElement("button")
     private saveRoleDefaultsButton: HTMLButtonElement = document.createElement("button")
 
@@ -202,7 +207,7 @@ class MainApp implements Component {
     }
 
     private async addHost() {
-        const modal = new AddHostModal()
+        const modal = new AddHostModal(this.api)
 
         let host = await showModal(modal);
 
@@ -238,6 +243,71 @@ class MainApp implements Component {
                 elements
             })
         }
+    }
+
+    /// Starlight Streams: shows an update button when GitHub has a newer release
+    private async checkForUpdate() {
+        if (this.updateChecked) {
+            return
+        }
+        this.updateChecked = true
+
+        try {
+            const info = await apiStarlightInfo(this.api)
+            if (!info.can_update || info.version == "dev") {
+                return
+            }
+
+            const response = await fetch(`https://api.github.com/repos/${STARLIGHT_REPOSITORY}/releases/latest`, { cache: "no-store" })
+            if (!response.ok) {
+                return
+            }
+            const latest = (await response.json()).tag_name
+            if (typeof latest != "string" || latest == info.version) {
+                return
+            }
+
+            this.updateButton.innerText = `⬆ ${I.index.updateAvailable(latest)}`
+            this.updateButton.classList.add("button-fit-content", "update-button")
+            this.updateButton.onclick = () => this.runUpdate(info.version, latest)
+            this.topLineActions.appendChild(this.updateButton)
+        } catch (e) {
+            console.warn("failed to check for updates", e)
+        }
+    }
+
+    private async runUpdate(currentVersion: string, latest: string) {
+        if (!confirm(I.index.updateConfirm(latest))) {
+            return
+        }
+
+        const result = await apiStarlightUpdate(this.api).catch(() => null)
+        if (!result?.started) {
+            await showMessage(I.index.updateFailed)
+            return
+        }
+
+        this.updateButton.disabled = true
+        this.updateButton.innerText = I.index.updating
+        showNotification(I.index.updating, "info")
+
+        // The server restarts with the new version, then the page is reloaded
+        const start = Date.now()
+        while (Date.now() - start < 5 * 60 * 1000) {
+            await new Promise(resolve => setTimeout(resolve, 5000))
+            try {
+                const info = await apiStarlightInfo(this.api)
+                if (info.version != currentVersion) {
+                    window.location.reload()
+                    return
+                }
+            } catch (e) {
+                // the server is restarting
+            }
+        }
+
+        await showMessage(I.index.updateTimeout)
+        this.updateButton.disabled = false
     }
 
     private async createGuestLink() {
@@ -470,6 +540,7 @@ class MainApp implements Component {
         }
 
         if (this.user.role == "Admin") {
+            this.checkForUpdate()
             this.topLineActions.insertBefore(this.guestLinkButton, this.topLineActions.firstChild)
             this.topLineActions.appendChild(this.adminButton)
             if (this.currentDisplay == "settings" && !this.actionElement.contains(this.saveRoleDefaultsButton)) {

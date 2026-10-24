@@ -15,6 +15,7 @@ import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
 import { DisplaySwitcher, MAX_DISPLAYS } from "./stream/display"
+import { measureAutoQuality } from "./stream/auto_quality"
 import { LogMessageType } from "./stream/log"
 import { streamStatsToText } from "./stream/stats"
 import "./styles/index"
@@ -94,8 +95,20 @@ async function startApp() {
     }
     uniffiSetLogger(new CustomUniffiLogger(), LogLevel.Debug)
 
+    // Starlight Streams: auto quality picks resolution, fps and bitrate from a quick speed test
+    let options = parseSettingsFromQuery(queryParams)
+    const effectiveSettings = { ...getLocalStreamSettings(bootstrapRole.role.default_settings), ...options }
+    if (effectiveSettings.autoQuality) {
+        showNotification(I.stream.autoQualityMeasuring, "info")
+        const auto = await measureAutoQuality(api)
+        if (auto) {
+            options = { ...options, ...auto.settings }
+            showNotification(I.stream.autoQualityResult(auto.settings.videoSize ?? "", auto.settings.fps ?? 0, auto.settings.bitrate ?? 0, auto.mbps), "info")
+        }
+    }
+
     // Start and Mount App
-    const app = new ViewerApp(api, hostId, appId, bootstrapRole.role, parseSettingsFromQuery(queryParams))
+    const app = new ViewerApp(api, hostId, appId, bootstrapRole.role, options)
     app.mount(rootElement);
 
     (window as any)["app"] = app

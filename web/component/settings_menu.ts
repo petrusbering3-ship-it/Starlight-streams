@@ -10,6 +10,8 @@ import { StreamPermissions } from "../api_bindings";
 export type Settings = {
     sidebarEdge: SidebarEdge,
     hideSidebarButton: boolean,
+    // Starlight Streams: measure the connection before each stream and pick resolution, fps and bitrate
+    autoQuality: boolean
     bitrate: number
     videoSize: "720p" | "1080p" | "1440p" | "4k" | "native" | "custom"
     videoSizeCustom: {
@@ -107,10 +109,12 @@ export function setLocalStreamSettings(settings?: Settings) {
 }
 
 // Starlight Streams: one click performance presets
-const PERFORMANCE_PRESETS: Array<{ name: "weakNetwork" | "balanced" | "bestQuality", settings: Partial<Settings> }> = [
-    { name: "weakNetwork", settings: { videoSize: "720p", fps: 60, bitrate: 6000, videoCodec: "h264" } },
-    { name: "balanced", settings: { videoSize: "1080p", fps: 60, bitrate: 20000, videoCodec: "h264" } },
-    { name: "bestQuality", settings: { videoSize: "native", fps: 60, bitrate: 40000, videoCodec: "auto" } },
+// The fixed presets turn auto quality off, so the chosen quality is used
+const PERFORMANCE_PRESETS: Array<{ name: "auto" | "weakNetwork" | "balanced" | "bestQuality", settings: Partial<Settings> }> = [
+    { name: "auto", settings: { autoQuality: true } },
+    { name: "weakNetwork", settings: { autoQuality: false, videoSize: "720p", fps: 60, bitrate: 6000, videoCodec: "h264" } },
+    { name: "balanced", settings: { autoQuality: false, videoSize: "1080p", fps: 60, bitrate: 20000, videoCodec: "h264" } },
+    { name: "bestQuality", settings: { autoQuality: false, videoSize: "native", fps: 60, bitrate: 40000, videoCodec: "auto" } },
 ]
 
 export type StreamSettingsChangeListener = (event: ComponentEvent<StreamSettingsComponent>) => void
@@ -157,6 +161,7 @@ export class StreamSettingsComponent implements Component {
     private hideSidebarButton: InputComponent
 
     private streamHeader: HTMLHeadingElement = document.createElement("h3")
+    private autoQuality: InputComponent
     private bitrate: InputComponent
     private fps: InputComponent
     private videoCodec: SelectComponent
@@ -258,6 +263,13 @@ export class StreamSettingsComponent implements Component {
         // Video
         this.streamHeader.innerText = i.video
         this.divElement.appendChild(this.streamHeader)
+
+        // Auto quality
+        this.autoQuality = new InputComponent("autoQuality", "checkbox", i.autoQuality, {
+            checked: settings?.autoQuality ?? defaultSettings_.autoQuality
+        })
+        this.autoQuality.addChangeListener(this.onSettingsChange.bind(this))
+        this.autoQuality.mount(this.divElement)
 
         // Bitrate
         this.bitrate = new InputComponent("bitrate", "number", i.bitrate, {
@@ -583,6 +595,7 @@ export class StreamSettingsComponent implements Component {
 
         settings.sidebarEdge = this.sidebarEdge.getValue() as any
         settings.hideSidebarButton = this.hideSidebarButton.isChecked()
+        settings.autoQuality = this.autoQuality.isChecked()
         settings.bitrate = parseInt(this.bitrate.getValue())
         settings.fps = parseInt(this.fps.getValue())
         settings.videoSize = this.videoSize.getValue() as any

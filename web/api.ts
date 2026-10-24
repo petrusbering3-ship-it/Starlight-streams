@@ -1,4 +1,4 @@
-import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
+import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
 import { showNotification } from "./component/notification"
 import { showMessage, showModal } from "./component/modal/index"
 import { ApiUserPasswordPrompt } from "./component/modal/login"
@@ -464,6 +464,18 @@ export async function apiWakeUp(api: Api, request: PostWakeUpRequest): Promise<v
         json: request,
         response: "ignore"
     })
+}
+
+export async function apiDiscoverHosts(api: Api): Promise<GetDiscoverHostsResponse> {
+    return await fetchApi(api, "/hosts/discover", "GET", {}, 20000) as GetDiscoverHostsResponse
+}
+
+export async function apiStarlightInfo(api: Api): Promise<GetStarlightInfoResponse> {
+    return await fetchApi(api, "/starlight/info", "GET") as GetStarlightInfoResponse
+}
+
+export async function apiStarlightUpdate(api: Api): Promise<PostStarlightUpdateResponse> {
+    return await fetchApi(api, "/starlight/update", "POST", {}) as PostStarlightUpdateResponse
 }
 
 export async function apiShutDown(api: Api, request: PostWakeUpRequest): Promise<void> {

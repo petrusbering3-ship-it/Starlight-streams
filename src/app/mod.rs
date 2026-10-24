@@ -35,6 +35,7 @@ use crate::app::{
 };
 
 pub mod auth;
+pub mod discover;
 pub mod guest;
 pub mod host;
 pub mod password;

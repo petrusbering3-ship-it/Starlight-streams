@@ -6,6 +6,8 @@ const trueDefaultSettings: Settings =
     // possible values: "left", "right", "up", "down"
     "sidebarEdge": "left",
     "hideSidebarButton": false,
+    // Starlight Streams: measure the connection before each stream and pick resolution, fps and bitrate
+    "autoQuality": true,
     "bitrate": 20000,
     "fps": 60,
     // possible values: "720p", "1080p", "1440p", "4k", "native", "custom"

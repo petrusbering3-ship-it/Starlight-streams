@@ -8,7 +8,9 @@ Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001
 - **Stream-knappen tænder PC'en:** Er PC'en slukket, bliver den tændt. Når den er klar, starter det spil du spillede sidst.
 - **Sluk-knap:** Sluk PC'en fra browseren.
 - **Game Mouse:** Til spil som Minecraft. Laptoppens musemarkør forsvinder, og musen styrer kun PC'en. Tænd og sluk med **Ctrl+Shift+M**.
-- **Hurtig opsætning:** Ét klik vælger kvaliteten: svagt net, balanceret eller bedste kvalitet.
+- **Auto-kvalitet:** Før hver stream testes forbindelsen, og opløsning, fps og bitrate vælges automatisk. Du kan stadig vælge selv under **Quick Setup**: svagt net, balanceret eller bedste kvalitet.
+- **Find PC'er automatisk:** "Tilføj PC" viser gaming PC'erne på dit netværk. Klik på én, og så er den tilføjet.
+- **Opdater med ét klik:** Når der er en ny version, viser Starlight en grøn **⬆ Update**-knap.
 - **Auto-sluk:** PC'en slukker selv, når ingen har streamet i 30 minutter. Den viser først en advarsel på 2 minutter på PC'en.
 - **Gæste-link:** Lad en ven spille i nogle timer via et link. Linket udløber af sig selv, og gæster kan ikke slukke din PC.
 - **Lydløs derhjemme:** PC'ens højttalere er tavse, mens du streamer. Lyden kommer i fuld styrke på laptoppen.
@@ -66,7 +68,7 @@ Gå ind i BIOS på gaming PC'en (tryk typisk `Del` eller `F2`, mens PC'en starte
 
 1. Åbn din `.ts.net`-adresse (eller `http://localhost:8080` på laptoppen).
 2. **Første login opretter din admin-konto.** Det navn og password, du skriver, bliver dit login.
-3. Tryk på **tilføj PC** (skærmen med +) og skriv gaming PC'ens IP-adresse fra trin 3.
+3. Tryk på **tilføj PC** (skærmen med +). Gaming PC'en dukker op på listen efter et par sekunder: klik på den. Hvis den ikke dukker op, så skriv IP-adressen fra trin 3.
 4. Tryk på PC'en. Der vises en **PIN-kode**.
 5. Gå til **https://localhost:47990** på gaming PC'en, vælg **PIN**, skriv koden og tryk **Send**.
 
@@ -81,7 +83,8 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 | Spille | Tryk **▶ Stream** under den skærm, du vil se. Er PC'en slukket, bliver den tændt først. |
 | Skifte skærm under spillet | **Ctrl+Shift+D**, eller åbn menuen i venstre side og tryk **1**, **2** … under "Display". |
 | Spille med musen (Minecraft, skydespil) | **Ctrl+Shift+M** eller **🎮 Game Mouse** i menuen. Musen fanges og styrer kun PC'en, og Esc går til spillet. Hold Esc for at komme ud. Klik i billedet for at fange musen igen. |
-| Bedre billede eller mindre hak | Indstillinger, **Quick Setup**: ⚡ Balanced er et godt udgangspunkt. 📶 Weak network ved dårligt net. |
+| Bedre billede eller mindre hak | Som standard vælger **🤖 Auto** kvaliteten selv før hver stream. Vil du bestemme selv, så vælg en anden knap under Indstillinger, **Quick Setup**. |
+| Opdatere | Tryk på den grønne **⬆ Update**-knap øverst, når den er der. Siden genindlæses af sig selv efter cirka et minut. Gaming PC'en skal ikke opdateres. |
 | Slukke PC'en | **⏻ Power Off** nederst på PC-kortet. |
 | Lade en ven spille | **🔗 Guest Link** øverst, vælg antal timer og send linket. |
 | Stoppe streamen | Menuen i venstre side, tryk **Exit**. |

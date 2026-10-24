@@ -1172,3 +1172,30 @@ canvas.video-stream {
 .settings-presets .settings-preset {
     margin: 0;
 }
+
+/** Starlight Streams: add pc with discovery */
+.add-host-section {
+    margin: 12px 0 6px;
+    opacity: 0.85;
+}
+
+.add-host-discovered {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.add-host-discovered .add-host-discovered-host {
+    margin: 4px 0;
+    text-align: left;
+}
+
+/** Starlight Streams: update button */
+.update-button {
+    background-color: #22c55e;
+    border-color: #22c55e;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 1rem;
+    font-weight: 700;
+}

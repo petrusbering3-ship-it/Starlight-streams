@@ -251,6 +251,35 @@ pub struct DetailedUser {
 
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
+pub struct DiscoveredHost {
+    pub name: String,
+    pub address: String,
+    pub http_port: u16,
+    pub already_added: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct GetDiscoverHostsResponse {
+    pub hosts: Vec<DiscoveredHost>,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct GetStarlightInfoResponse {
+    pub version: String,
+    /// Only true when installed with the Windows installer
+    pub can_update: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct PostStarlightUpdateResponse {
+    pub started: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
 pub struct PostGuestRequest {
     pub hours: u32,
 }

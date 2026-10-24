@@ -37,6 +37,7 @@ pub mod auth;
 pub mod host;
 pub mod role;
 pub mod settings;
+pub mod starlight;
 pub mod stream;
 pub mod user;
 
@@ -62,6 +63,13 @@ pub fn api_service() -> impl HttpServiceFactory {
             delete_host,
             pair_host,
             cancel_host,
+        ])
+        .service(services![
+            // -- Starlight Streams
+            starlight::discover_hosts,
+            starlight::starlight_info,
+            starlight::starlight_update,
+            starlight::speed_test,
         ])
         .service(services![
             // -- Apps

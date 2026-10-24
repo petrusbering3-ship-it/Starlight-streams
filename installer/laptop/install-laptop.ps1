@@ -34,6 +34,8 @@ if (Test-Path (Join-Path $dest "static")) {
     Remove-Item (Join-Path $dest "static") -Recurse -Force
 }
 Copy-Item (Join-Path $src "static") $dest -Recurse -Force
+# Used by the Update button in Starlight Streams
+Copy-Item (Join-Path $src "update.ps1") $dest -Force
 
 # 3. Config med sluk-password (beholder resten af en eksisterende config)
 $serverDir = Join-Path $dest "server"
