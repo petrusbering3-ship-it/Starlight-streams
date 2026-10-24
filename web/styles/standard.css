@@ -1852,3 +1852,62 @@ input[type="checkbox"]:checked {
     font-size: 1rem;
     font-weight: 700;
 }
+
+/** Starlight Streams: display details and sleep */
+.host-displays {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.host-display-details {
+    margin: -4px 0 2px;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.host-display-name {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    opacity: 0.55;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.host-power {
+    gap: 8px;
+}
+
+.host-element button.host-sleep {
+    margin: 0;
+    background: transparent;
+    border: 1px solid var(--sl-border, #ffffff44);
+    border-radius: 10px;
+    color: #a5b4fc;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+}
+
+.host-element button.host-sleep:hover:not(:disabled) {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+}
+
+/* All display boxes in one row, the card grows with the number of displays */
+.host-displays {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(140px, 1fr);
+}
+
+@media (max-width: 600px) {
+    .host-element {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .host-displays {
+        grid-auto-flow: row;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    }
+}

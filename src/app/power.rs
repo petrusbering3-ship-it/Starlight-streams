@@ -17,7 +17,10 @@ use tokio::{
 };
 use tracing::{info, warn};
 
-use crate::app::{AppError, AppRef, guest::remove_expired_guests, host::HostId};
+use crate::{
+    app::{AppError, AppRef, guest::remove_expired_guests, host::HostId},
+    config::AutoShutdownAction,
+};
 
 #[derive(Default)]
 pub(super) struct HostActivity {
@@ -160,6 +163,8 @@ pub enum PowerCommand {
     Shutdown,
     /// Shut down with a warning on the pc, so somebody sitting there can cancel it
     AutoShutdown,
+    /// Sleep: wakes up in a few seconds
+    Sleep,
 }
 
 impl PowerCommand {
@@ -167,6 +172,7 @@ impl PowerCommand {
         match self {
             Self::Shutdown => "/shutdown",
             Self::AutoShutdown => "/auto-shutdown",
+            Self::Sleep => "/sleep",
         }
     }
 }
@@ -178,6 +184,19 @@ pub async fn send_power_command(
     token: &str,
     command: PowerCommand,
 ) -> Result<(), AppError> {
+    agent_request(host_address, port, token, "POST", command.path())
+        .await
+        .map(|_| ())
+}
+
+/// Sends a request to the Starlight power agent running on the host pc and returns the body.
+pub async fn agent_request(
+    host_address: &str,
+    port: u16,
+    token: &str,
+    method: &str,
+    path: &str,
+) -> Result<String, AppError> {
     let address = if host_address.contains(':') && !host_address.starts_with('[') {
         format!("[{host_address}]:{port}")
     } else {
@@ -185,8 +204,7 @@ pub async fn send_power_command(
     };
 
     let request = format!(
-        "POST {} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-        command.path()
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );
 
     let response = timeout(Duration::from_secs(5), async {
@@ -208,7 +226,11 @@ pub async fn send_power_command(
         .is_some_and(|line| line.split_whitespace().nth(1) == Some("200"));
 
     if status_ok {
-        Ok(())
+        let body = response
+            .split_once("\r\n\r\n")
+            .map(|(_, body)| body.to_string())
+            .unwrap_or_default();
+        Ok(body)
     } else {
         Err(AppError::Forbidden)
     }
@@ -267,13 +289,12 @@ pub(super) fn spawn_background_tasks(app_ref: AppRef) {
                     }
                 };
 
-                match send_power_command(
-                    &host.address,
-                    config.power_agent_port,
-                    token,
-                    PowerCommand::AutoShutdown,
-                )
-                .await
+                let command = match config.auto_shutdown_action {
+                    AutoShutdownAction::Shutdown => PowerCommand::AutoShutdown,
+                    AutoShutdownAction::Sleep => PowerCommand::Sleep,
+                };
+                match send_power_command(&host.address, config.power_agent_port, token, command)
+                    .await
                 {
                     Ok(()) => info!("auto shutdown: sent shutdown to host {host_id:?}"),
                     Err(err) => warn!("auto shutdown: failed to shut down host {host_id:?}: {err}"),

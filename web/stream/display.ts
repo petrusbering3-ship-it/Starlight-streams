@@ -1,11 +1,10 @@
-import { StreamKeys } from "../api_bindings"
+import { HostDisplay, StreamKeys } from "../api_bindings"
 import { StreamInput } from "./input"
 import { emptyKeyModifiers } from "./keyboard"
 
 // Starlight Streams: choose which display of the pc is streamed.
 // Sunshine switches the streamed display with the shortcut Ctrl+Alt+Shift+F1..F12.
 
-export const MAX_DISPLAYS = 6
 
 function sendSwitchShortcut(input: StreamInput, display: number) {
     const fKey = StreamKeys.VK_F1 + (display - 1)
@@ -21,8 +20,28 @@ function sendSwitchShortcut(input: StreamInput, display: number) {
     input.sendKey(false, StreamKeys.VK_CONTROL, emptyKeyModifiers())
 }
 
-/// Number of display boxes shown on the host card
-export const HOST_CARD_DISPLAYS = 2
+/// Number of display boxes shown when the displays of the pc aren't known yet
+export const DEFAULT_DISPLAY_COUNT = 2
+
+/// The displays the pc reported last time (kept, so they are known while the pc is off)
+export function getCachedDisplays(hostId: number): Array<HostDisplay> | null {
+    try {
+        const saved = JSON.parse(localStorage.getItem(`starlight-displays-${hostId}`) ?? "null")
+        return Array.isArray(saved) && saved.length > 0 ? saved : null
+    } catch (e) {
+        return null
+    }
+}
+export function setCachedDisplays(hostId: number, displays: Array<HostDisplay>) {
+    try {
+        localStorage.setItem(`starlight-displays-${hostId}`, JSON.stringify(displays))
+    } catch (e) {
+        // storage might be unavailable
+    }
+}
+export function getDisplayCount(hostId: number): number {
+    return getCachedDisplays(hostId)?.length ?? DEFAULT_DISPLAY_COUNT
+}
 
 function storageKey(hostId: number): string {
     return `starlight-display-${hostId}`

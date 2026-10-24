@@ -254,6 +254,17 @@ pub struct MoonlightConfig {
     /// Shut the host pc down when nobody streamed to it for this many minutes (0 = never)
     #[serde(default = "default_auto_shutdown_minutes")]
     pub auto_shutdown_minutes: Option<u32>,
+    /// What auto shutdown does: "shutdown" (with a 2 minute warning) or "sleep"
+    #[serde(default)]
+    pub auto_shutdown_action: AutoShutdownAction,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AutoShutdownAction {
+    #[default]
+    Shutdown,
+    Sleep,
 }
 
 impl Default for MoonlightConfig {
@@ -264,6 +275,7 @@ impl Default for MoonlightConfig {
             power_agent_port: default_power_agent_port(),
             power_agent_token: None,
             auto_shutdown_minutes: default_auto_shutdown_minutes(),
+            auto_shutdown_action: AutoShutdownAction::default(),
         }
     }
 }

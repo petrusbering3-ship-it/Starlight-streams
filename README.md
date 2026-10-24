@@ -4,9 +4,9 @@ Stream spil fra din gaming PC til en hvilken som helst browser, derhjemme eller 
 
 Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) af MrCreativ3001 (GPL-3.0). Den har alle funktionerne fra Moonlight Web, og derudover:
 
-- **Display 1 / Display 2:** Vælg hvilken skærm du vil streame, direkte på forsiden. Under streamen skifter **Ctrl+Shift+D** mellem dine to skærme.
+- **Smarte skærm-bokse:** PC-kortet viser præcis så mange bokse, som PC'en har skærme, med navn, opløsning og Hz. Under streamen skifter **Ctrl+Shift+D** mellem dine to sidste skærme.
 - **Stream-knappen tænder PC'en:** Er PC'en slukket, bliver den tændt. Når den er klar, starter det spil du spillede sidst.
-- **Sluk-knap:** Sluk PC'en fra browseren.
+- **Sluk og Dvale:** Sluk PC'en eller sæt den i dvale fra browseren. Fra dvale vågner den på få sekunder.
 - **Game Mouse:** Til spil som Minecraft. Laptoppens musemarkør forsvinder, og musen styrer kun PC'en. Tænd og sluk med **Ctrl+Shift+M**.
 - **Auto-kvalitet:** Før hver stream testes forbindelsen, og opløsning, fps og bitrate vælges automatisk. Du kan stadig vælge selv under **Quick Setup**: svagt net, balanceret eller bedste kvalitet.
 - **Find PC'er automatisk:** "Tilføj PC" viser gaming PC'erne på dit netværk. Klik på én, og så er den tilføjet.
@@ -86,6 +86,7 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 | Bedre billede eller mindre hak | Som standard vælger **🤖 Auto** kvaliteten selv før hver stream. Vil du bestemme selv, så vælg en anden knap under Indstillinger, **Quick Setup**. |
 | Opdatere | Tryk på den grønne **⬆ Update**-knap øverst, når den er der. Siden genindlæses af sig selv efter cirka et minut. Gaming PC'en skal ikke opdateres. |
 | Slukke PC'en | **⏻ Power Off** nederst på PC-kortet. |
+| Sætte PC'en i dvale | **☾ Sleep** nederst på PC-kortet. Tryk **▶ Stream** for at vække den igen, det tager få sekunder. |
 | Lade en ven spille | **🔗 Guest Link** øverst, vælg antal timer og send linket. |
 | Stoppe streamen | Menuen i venstre side, tryk **Exit**. |
 | Stoppe en auto-sluk | Skriv `shutdown /a` i Kør (`Win + R`) på gaming PC'en inden for 2 minutter. |
@@ -114,6 +115,7 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 | Siden kan ikke åbnes | Server-laptoppen skal være tændt. Prøv `http://localhost:8080` på selve laptoppen. |
 | `.ts.net`-adressen virker ikke | Kør `Install.bat` igen på laptoppen, og tjek at Funnel er slået til. |
 | Forkert skærm | Skærm 1 er den første skærm, Sunshine finder. Tryk **2** i menuen eller Ctrl+Shift+D. |
+| Skærm-boksene viser ikke navn og opløsning | Kør den nyeste `Install.bat` på gaming PC'en og log ind på PC'en én gang. Skærmene kan først ses, når nogen er logget ind. |
 | Lyd fra PC'en derhjemme | **Play Audio Local** skal være slået fra (det er standard). Virker det stadig ikke, så installer Steam på gaming PC'en. Sunshine bruger Steams virtuelle højttaler til at gøre PC'en lydløs. |
 
 ---
@@ -133,7 +135,8 @@ Server-laptoppens indstillinger ligger i `C:\Program Files\Starlight Streams\ser
     "moonlight": {
         "power_agent_token": "MITPASSWORD",
         "power_agent_port": 47900,
-        "auto_shutdown_minutes": 30
+        "auto_shutdown_minutes": 30,
+        "auto_shutdown_action": "shutdown"
     },
     "web_server": {
         "bind_address": "0.0.0.0:8080"
@@ -146,6 +149,7 @@ Server-laptoppens indstillinger ligger i `C:\Program Files\Starlight Streams\ser
 | `power_agent_token` | Sluk-passwordet. Skal være det samme som på gaming PC'en. |
 | `power_agent_port` | Porten sluk-programmet lytter på (standard `47900`). |
 | `auto_shutdown_minutes` | Minutter uden stream før PC'en slukkes. `0` = aldrig. |
+| `auto_shutdown_action` | `"shutdown"` (sluk, med 2 minutters advarsel) eller `"sleep"` (dvale, vågner hurtigere). Standard `"shutdown"`. |
 | `bind_address` | Adressen og porten Starlight kører på (standard `0.0.0.0:8080`). |
 
 Alle Moonlight Webs øvrige indstillinger (https, TURN-server, brugere osv.) virker også. De er beskrevet i [Moonlight Webs README](https://github.com/MrCreativ3001/moonlight-web-stream#config).

@@ -1,4 +1,4 @@
-import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
+import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetHostDisplaysResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
 import { showNotification } from "./component/notification"
 import { showMessage, showModal } from "./component/modal/index"
 import { ApiUserPasswordPrompt } from "./component/modal/login"
@@ -203,23 +203,22 @@ class StreamedJsonResponse<Initial, Other> {
 
     async next(): Promise<Other | null> {
         while (true) {
+            // Several lines can arrive in one chunk: take one line and keep the rest for the next call
+            const newline = this.bufferedText.indexOf("\n")
+            if (newline != -1) {
+                const text = this.bufferedText.substring(0, newline)
+                this.bufferedText = this.bufferedText.substring(newline + 1)
+
+                return JSON.parse(text)
+            }
+
             const { done, value } = await this.reader.read()
 
             if (done) {
                 return null
             }
 
-            this.bufferedText += this.decoder.decode(value)
-
-            const split = this.bufferedText.split("\n", 2)
-            if (split.length == 2) {
-                this.bufferedText = split[1]
-
-                const text = split[0]
-                const json = JSON.parse(text)
-
-                return json
-            }
+            this.bufferedText += this.decoder.decode(value, { stream: true })
         }
     }
 }
@@ -476,6 +475,17 @@ export async function apiStarlightInfo(api: Api): Promise<GetStarlightInfoRespon
 
 export async function apiStarlightUpdate(api: Api): Promise<PostStarlightUpdateResponse> {
     return await fetchApi(api, "/starlight/update", "POST", {}) as PostStarlightUpdateResponse
+}
+
+export async function apiSleep(api: Api, request: PostWakeUpRequest): Promise<void> {
+    await fetchApi(api, "/host/sleep", "post", {
+        json: request,
+        response: "ignore"
+    })
+}
+
+export async function apiHostDisplays(api: Api, query: GetHostQuery): Promise<GetHostDisplaysResponse> {
+    return await fetchApi(api, "/host/displays", "GET", { query }) as GetHostDisplaysResponse
 }
 
 export async function apiShutDown(api: Api, request: PostWakeUpRequest): Promise<void> {

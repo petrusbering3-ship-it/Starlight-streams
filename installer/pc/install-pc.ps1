@@ -35,6 +35,7 @@ if (-not (Test-Path $sunshine)) {
 # 3. Sluk-programmet, starter automatisk når PC'en tænder
 Write-Host "Installerer sluk-programmet i $dest ..."
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+Stop-ScheduledTask -TaskName "Starlight Display Info" -ErrorAction SilentlyContinue
 Get-Process starlight-power-agent -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 1
 
@@ -47,6 +48,19 @@ $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccou
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName
+
+# Screen list: the agent runs as a service and can't see the user's screens, so a copy runs
+# in the logged in user's session and writes them to a file the agent reads
+$displaysDir = Join-Path $env:ProgramData "Starlight"
+New-Item -ItemType Directory -Force -Path $displaysDir | Out-Null
+icacls $displaysDir /grant "*S-1-5-32-545:(OI)(CI)M" | Out-Null
+$displaysFile = Join-Path $displaysDir "displays.json"
+$displaysTask = "Starlight Display Info"
+$displaysAction = New-ScheduledTaskAction -Execute (Join-Path $dest "starlight-power-agent.exe") -Argument "--write-displays `"$displaysFile`""
+$displaysTrigger = New-ScheduledTaskTrigger -AtLogOn
+$displaysPrincipal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
+Register-ScheduledTask -TaskName $displaysTask -Action $displaysAction -Trigger $displaysTrigger -Principal $displaysPrincipal -Settings $settings -Force | Out-Null
+Start-ScheduledTask -TaskName $displaysTask -ErrorAction SilentlyContinue
 
 Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow -Profile Any | Out-Null

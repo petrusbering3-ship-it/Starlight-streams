@@ -19,7 +19,9 @@ use moonlight_common::{
 use crate::app::{
     AppError, AppInner, AppRef, RequestClient,
     guest::guest_expiry,
-    power::{PowerCommand, StreamActivityGuard, send_magic_packet, send_power_command},
+    power::{
+        PowerCommand, StreamActivityGuard, agent_request, send_magic_packet, send_power_command,
+    },
     storage::{StorageHost, StorageHostModify, StorageHostPairInfo},
     user::{AuthenticatedUser, RoleType, UserId},
 };
@@ -429,8 +431,12 @@ impl Host {
         }
     }
 
-    /// Asks the Starlight power agent on the host pc to shut the pc down.
-    pub async fn shutdown(&self, user: &mut AuthenticatedUser) -> Result<(), AppError> {
+    /// Asks the Starlight power agent on the host pc to shut the pc down or put it to sleep.
+    pub async fn power_command(
+        &self,
+        user: &mut AuthenticatedUser,
+        command: PowerCommand,
+    ) -> Result<(), AppError> {
         self.can_use(user).await?;
 
         // Guests may play, but not turn off the pc
@@ -445,13 +451,33 @@ impl Host {
         let config = &app.config.moonlight;
         let token = config.power_agent_token.as_deref().unwrap_or_default();
 
-        send_power_command(
+        send_power_command(&storage.address, config.power_agent_port, token, command).await
+    }
+
+    /// The displays of the host pc, as reported by the Starlight power agent
+    pub async fn displays(
+        &self,
+        user: &mut AuthenticatedUser,
+    ) -> Result<Vec<bindings::HostDisplay>, AppError> {
+        self.can_use(user).await?;
+
+        let app = self.app.access()?;
+
+        let storage = self.storage_host(&app).await?;
+
+        let config = &app.config.moonlight;
+        let token = config.power_agent_token.as_deref().unwrap_or_default();
+
+        let body = agent_request(
             &storage.address,
             config.power_agent_port,
             token,
-            PowerCommand::Shutdown,
+            "GET",
+            "/displays",
         )
-        .await
+        .await?;
+
+        serde_json::from_str(&body).map_err(|_| AppError::BadRequest)
     }
 
     /// Marks this host as streaming until the returned guard is dropped (used for auto shutdown).

@@ -251,6 +251,24 @@ pub struct DetailedUser {
 
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
+pub struct HostDisplay {
+    /// 1 based, in the order Sunshine switches displays
+    pub index: u32,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub refresh_rate: u32,
+    pub primary: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct GetHostDisplaysResponse {
+    pub displays: Vec<HostDisplay>,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
 pub struct DiscoveredHost {
     pub name: String,
     pub address: String,

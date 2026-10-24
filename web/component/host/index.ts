@@ -1,12 +1,12 @@
-import { DetailedHost, DetailedUser, UndetailedHost } from "../../api_bindings"
-import { Api, apiDeleteHost, apiGetHost, isDetailedHost, apiPostPair, apiWakeUp, apiShutDown, apiGetUser, apiPatchHost } from "../../api"
+import { DetailedHost, DetailedUser, HostDisplay, UndetailedHost } from "../../api_bindings"
+import { Api, apiDeleteHost, apiGetHost, isDetailedHost, apiPostPair, apiWakeUp, apiShutDown, apiSleep, apiHostDisplays, apiGetUser, apiPatchHost } from "../../api"
 import { Component, ComponentEvent } from "../index"
 import { getCurrentLanguage, getTranslations } from "../../i18n"
 import { setContextMenu } from "../context_menu"
 import { showNotification } from "../notification"
 import { showMessage } from "../modal/index"
 import { buildUrl } from "../../config_"
-import { getPreferredDisplay, HOST_CARD_DISPLAYS, setPreferredDisplay } from "../../stream/display"
+import { DEFAULT_DISPLAY_COUNT, getCachedDisplays, getPreferredDisplay, setCachedDisplays, setPreferredDisplay } from "../../stream/display"
 import { HOST_IMAGE, HOST_OVERLAY_LOCK, HOST_OVERLAY_NONE, HOST_OVERLAY_OFFLINE } from "../../resources/index"
 
 export type HostEventListener = (event: ComponentEvent<Host>) => void
@@ -29,6 +29,8 @@ export class Host implements Component {
     private streamButtons: Array<HTMLButtonElement> = []
     private powerElement: HTMLDivElement = document.createElement("div")
     private powerOffButton: HTMLButtonElement = document.createElement("button")
+    private sleepButton: HTMLButtonElement = document.createElement("button")
+    private displaysFetchedAt = 0
 
     constructor(api: Api, hostId: number, host: UndetailedHost | DetailedHost | null) {
         this.api = api
@@ -57,38 +59,18 @@ export class Host implements Component {
         // Display boxes, each with a stream button (Starlight Streams)
         const i = getTranslations(getCurrentLanguage()).host
         this.displaysElement.classList.add("host-displays")
-        for (let display = 1; display <= HOST_CARD_DISPLAYS; display++) {
-            const box = document.createElement("div")
-            box.classList.add("host-display")
-
-            const screen = document.createElement("div")
-            screen.classList.add("host-display-screen")
-            screen.innerText = `${display}`
-            box.appendChild(screen)
-
-            const label = document.createElement("p")
-            label.classList.add("host-display-label")
-            label.innerText = i.displayName(display)
-            box.appendChild(label)
-
-            const streamButton = document.createElement("button")
-            streamButton.classList.add("host-stream-button")
-            streamButton.innerText = `▶ ${i.stream}`
-            streamButton.addEventListener("click", (event) => {
-                event.stopPropagation()
-                this.powerOnAndPlay(display)
-            })
-            box.appendChild(streamButton)
-
-            this.displaysElement.appendChild(box)
-            this.displayBoxes.push(box)
-            this.streamButtons.push(streamButton)
-        }
         this.divElement.appendChild(this.displaysElement)
-        this.updateDisplayBoxes()
+        this.renderDisplayBoxes(getCachedDisplays(this.hostId))
 
-        // Power off
+        // Sleep and power off
         this.powerElement.classList.add("host-power")
+        this.sleepButton.classList.add("host-power-button", "host-sleep")
+        this.sleepButton.innerText = `☾ ${i.sleep}`
+        this.sleepButton.addEventListener("click", (event) => {
+            event.stopPropagation()
+            this.sleep()
+        })
+        this.powerElement.appendChild(this.sleepButton)
         this.powerOffButton.classList.add("host-power-button", "host-power-off")
         this.powerOffButton.innerText = `⏻ ${i.powerOff}`
         this.powerOffButton.addEventListener("click", (event) => {
@@ -287,6 +269,91 @@ export class Host implements Component {
         // Guests may not turn off the pc
         const isGuest = this.userCache?.name.startsWith("guest-") ?? false
         this.powerOffButton.style.display = isGuest ? "none" : ""
+        this.sleepButton.style.display = isGuest ? "none" : ""
+    }
+
+    /// One box per display of the pc, or the default number of boxes when they aren't known yet
+    private renderDisplayBoxes(displays: Array<HostDisplay> | null) {
+        const i = getTranslations(getCurrentLanguage()).host
+
+        const count = displays?.length ?? DEFAULT_DISPLAY_COUNT
+        this.displaysElement.replaceChildren()
+        this.displayBoxes = []
+        this.streamButtons = []
+        this.displaysElement.classList.toggle("host-displays-single", count == 1)
+
+        for (let display = 1; display <= count; display++) {
+            const info = displays?.[display - 1]
+
+            const box = document.createElement("div")
+            box.classList.add("host-display")
+
+            const screen = document.createElement("div")
+            screen.classList.add("host-display-screen")
+            screen.innerText = `${display}`
+            box.appendChild(screen)
+
+            const label = document.createElement("p")
+            label.classList.add("host-display-label")
+            label.innerText = info?.primary ? `${i.displayName(display)} ★` : i.displayName(display)
+            box.appendChild(label)
+
+            if (info) {
+                const details = document.createElement("p")
+                details.classList.add("host-display-details")
+                details.innerText = `${info.width}×${info.height} · ${info.refresh_rate} Hz`
+                details.title = info.name
+                box.appendChild(details)
+
+                const name = document.createElement("p")
+                name.classList.add("host-display-name")
+                name.innerText = info.name
+                box.appendChild(name)
+            }
+
+            const streamButton = document.createElement("button")
+            streamButton.classList.add("host-stream-button")
+            streamButton.innerText = `▶ ${i.stream}`
+            streamButton.addEventListener("click", (event) => {
+                event.stopPropagation()
+                this.powerOnAndPlay(display)
+            })
+            box.appendChild(streamButton)
+
+            this.displaysElement.appendChild(box)
+            this.displayBoxes.push(box)
+            this.streamButtons.push(streamButton)
+        }
+
+        // A display that doesn't exist anymore can't be streamed
+        if (displays && getPreferredDisplay(this.hostId) > count) {
+            setPreferredDisplay(this.hostId, 1)
+        }
+        this.updateDisplayBoxes()
+    }
+
+    /// Asks the pc which displays it has (at most every 30 seconds)
+    private async refreshDisplays() {
+        if (Date.now() - this.displaysFetchedAt < 30_000 || this.poweringOn) {
+            return
+        }
+        this.displaysFetchedAt = Date.now()
+
+        try {
+            const displays = (await apiHostDisplays(this.api, { host_id: this.hostId })).displays
+            // Empty when nobody is logged in on the pc: keep what we knew
+            if (displays.length == 0) {
+                return
+            }
+
+            const cached = getCachedDisplays(this.hostId)
+            if (JSON.stringify(cached) != JSON.stringify(displays)) {
+                setCachedDisplays(this.hostId, displays)
+                this.renderDisplayBoxes(displays)
+            }
+        } catch (e) {
+            // Older power agent or not reachable: keep the boxes we have
+        }
     }
 
     private updateDisplayBoxes() {
@@ -358,6 +425,20 @@ export class Host implements Component {
             this.poweringOn = false
             button.innerText = `▶ ${i.stream}`
         }
+    }
+
+    private async sleep() {
+        const i = getTranslations(getCurrentLanguage()).host
+        try {
+            await apiSleep(this.api, {
+                host_id: this.getHostId()
+            })
+        } catch (e) {
+            await showMessage(i.shutDownFailed)
+            return
+        }
+
+        await showMessage(i.sleepSent)
     }
 
     private async shutDown() {
@@ -445,6 +526,10 @@ export class Host implements Component {
 
         // Update Elements
         this.nameElement.innerText = this.cache.name
+
+        if (this.cache.server_state != null) {
+            this.refreshDisplays()
+        }
 
         if (this.cache.server_state == null) {
             this.imageOverlayElement.src = HOST_OVERLAY_OFFLINE

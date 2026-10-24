@@ -2,6 +2,9 @@
 $name = "Starlight Power Agent"
 Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+Stop-ScheduledTask -TaskName "Starlight Display Info" -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName "Starlight Display Info" -Confirm:$false -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $env:ProgramData "Starlight") -Recurse -Force -ErrorAction SilentlyContinue
 Get-Process starlight-power-agent -ErrorAction SilentlyContinue | Stop-Process -Force
 Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
 

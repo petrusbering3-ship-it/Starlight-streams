@@ -1,7 +1,7 @@
 use crate::api::bindings::{
-    DeleteHostQuery, GetHostQuery, GetHostResponse, GetHostsResponse, PatchHostRequest,
-    PostCancelRequest, PostCancelResponse, PostHostRequest, PostHostResponse, PostPairRequest,
-    PostPairResponse1, PostPairResponse2, PostWakeUpRequest, UndetailedHost,
+    DeleteHostQuery, GetHostDisplaysResponse, GetHostQuery, GetHostResponse, GetHostsResponse,
+    PatchHostRequest, PostCancelRequest, PostCancelResponse, PostHostRequest, PostHostResponse,
+    PostPairRequest, PostPairResponse1, PostPairResponse2, PostWakeUpRequest, UndetailedHost,
 };
 use actix_web::{
     HttpResponse, delete, get, patch, post,
@@ -17,6 +17,7 @@ use crate::{
     app::{
         App, AppError,
         host::HostId,
+        power::PowerCommand,
         storage::StorageHostModify,
         user::{AuthenticatedUser, RoleType, UserId},
     },
@@ -207,13 +208,36 @@ async fn shutdown_host(
     mut user: AuthenticatedUser,
     Json(request): Json<PostWakeUpRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let host_id = HostId(request.host_id);
+    let host = user.host(HostId(request.host_id)).await?;
 
-    let host = user.host(host_id).await?;
-
-    host.shutdown(&mut user).await?;
+    host.power_command(&mut user, PowerCommand::Shutdown)
+        .await?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[post("/host/sleep")]
+async fn sleep_host(
+    mut user: AuthenticatedUser,
+    Json(request): Json<PostWakeUpRequest>,
+) -> Result<HttpResponse, AppError> {
+    let host = user.host(HostId(request.host_id)).await?;
+
+    host.power_command(&mut user, PowerCommand::Sleep).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[get("/host/displays")]
+async fn host_displays(
+    mut user: AuthenticatedUser,
+    Query(query): Query<GetHostQuery>,
+) -> Result<Json<GetHostDisplaysResponse>, AppError> {
+    let host = user.host(HostId(query.host_id)).await?;
+
+    let displays = host.displays(&mut user).await?;
+
+    Ok(Json(GetHostDisplaysResponse { displays }))
 }
 
 #[post("/host/cancel")]

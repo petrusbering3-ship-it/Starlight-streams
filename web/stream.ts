@@ -14,7 +14,7 @@ import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboar
 import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
-import { DisplaySwitcher, MAX_DISPLAYS } from "./stream/display"
+import { DisplaySwitcher, getDisplayCount } from "./stream/display"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { LogMessageType } from "./stream/log"
 import { streamStatsToText } from "./stream/stats"
@@ -184,6 +184,7 @@ class ViewerApp implements Component {
     private localTouchCursorDiv = document.createElement("div")
     private stream: Stream
     private displaySwitcher: DisplaySwitcher
+    private hostId: number
 
     // Starlight Streams: game mouse = laptop cursor hidden, mouse only moves the pc's mouse (pointer lock)
     private gameMouse = false
@@ -206,6 +207,7 @@ class ViewerApp implements Component {
 
     constructor(api: Api, hostId: number, appId: number, bootstrapRole: DetailedRole, options?: Partial<Settings>) {
         this.api = api
+        this.hostId = hostId
         this.displaySwitcher = new DisplaySwitcher(hostId)
 
         const defaultSettings = getLocalStreamSettings(bootstrapRole.default_settings)
@@ -485,6 +487,9 @@ class ViewerApp implements Component {
     }
 
     // Displays
+    getDisplayCount(): number {
+        return getDisplayCount(this.hostId)
+    }
     getCurrentDisplay(): number {
         return this.displaySwitcher.getCurrent()
     }
@@ -493,6 +498,10 @@ class ViewerApp implements Component {
         this.sidebar.onDisplayChange(display)
     }
     switchToOtherDisplay() {
+        if (this.getDisplayCount() < 2) {
+            showNotification(I.stream.onlyOneDisplay, "info")
+            return
+        }
         const display = this.displaySwitcher.switchToOther(this.stream.getInput())
         this.sidebar.onDisplayChange(display)
         showNotification(I.stream.displaySwitched(display), "info")
@@ -1158,7 +1167,7 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
         const displayButtonRow = document.createElement("div")
         displayButtonRow.classList.add("sidebar-stream-display-buttons")
-        for (let display = 1; display <= MAX_DISPLAYS; display++) {
+        for (let display = 1; display <= this.app.getDisplayCount(); display++) {
             const button = document.createElement("button")
             button.innerText = `${display}`
             button.addEventListener("click", () => this.app.switchDisplay(display))
