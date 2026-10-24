@@ -58,6 +58,16 @@ Copy-Item (Join-Path $src "static") $dest -Recurse -Force
 # Used by the Update button in Starlight Streams
 Copy-Item (Join-Path $src "update.ps1") $dest -Force
 
+# One click updates: "Opdater Starlight Streams" on the desktop
+$desktop = [Environment]::GetFolderPath("CommonDesktopDirectory")
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut((Join-Path $desktop "Opdater Starlight Streams.lnk"))
+$shortcut.TargetPath = "powershell.exe"
+$shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dest "update.ps1")`""
+$shortcut.WorkingDirectory = $dest
+$shortcut.IconLocation = "shell32.dll,238"
+$shortcut.Save()
+
 # 3. Config med sluk-password (beholder resten af en eksisterende config)
 $serverDir = Join-Path $dest "server"
 New-Item -ItemType Directory -Force -Path $serverDir | Out-Null

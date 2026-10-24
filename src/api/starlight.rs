@@ -73,7 +73,7 @@ pub async fn starlight_update(
 
     const TASK: &str = "Starlight Streams Update";
     let run = format!(
-        "powershell -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File \"{}\" -Silent",
         script.display()
     );
 

@@ -108,5 +108,7 @@ jobs:
           files: |
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
+            installer/laptop/update.ps1
+            installer/laptop/Update-Starlight.bat
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

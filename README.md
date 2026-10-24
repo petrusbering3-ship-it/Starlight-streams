@@ -86,7 +86,7 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 | Skifte skærm under spillet | **Ctrl+Shift+D**, eller åbn menuen i venstre side og tryk **1**, **2** … under "Display". |
 | Spille med musen (Minecraft, skydespil) | **Ctrl+Shift+M** eller **🎮 Game Mouse** i menuen. Musen fanges og styrer kun PC'en, og Esc går til spillet. Hold Esc for at komme ud. Klik i billedet for at fange musen igen. |
 | Bedre billede eller mindre hak | Som standard vælger **🤖 Auto** kvaliteten selv før hver stream. Vil du bestemme selv, så vælg en anden knap under Indstillinger, **Quick Setup**. |
-| Opdatere | Tryk på den grønne **⬆ Update**-knap øverst, når den er der. Siden genindlæses af sig selv efter cirka et minut. Gaming PC'en skal ikke opdateres. |
+| Opdatere | Dobbeltklik på **Opdater Starlight Streams** på laptoppens skrivebord, eller tryk på den grønne **⬆ Update**-knap i Starlight. Har du en gammel version uden genvejen: hent **`Update-Starlight.bat`** fra [den nyeste udgivelse](../../releases/latest) og dobbeltklik på den. |
 | Slukke PC'en | **⏻ Power Off** nederst på PC-kortet. |
 | Sætte PC'en i dvale | **☾ Sleep** nederst på PC-kortet. Tryk **▶ Stream** for at vække den igen, det tager få sekunder. |
 | Lade en ven spille | **🔗 Guest Link** øverst, vælg antal timer og send linket. |

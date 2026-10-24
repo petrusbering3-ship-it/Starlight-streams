@@ -29,6 +29,7 @@ Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
 $ts = Join-Path $env:ProgramFiles "Tailscale\tailscale.exe"
 if (Test-Path $ts) { & $ts funnel reset }
 
+Remove-Item (Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "Opdater Starlight Streams.lnk") -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 Remove-Item (Join-Path $env:ProgramFiles "Starlight Streams") -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "Starlight Streams er fjernet. Tailscale kan fjernes under Apps i Windows-indstillinger." -ForegroundColor Green
