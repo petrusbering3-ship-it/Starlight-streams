@@ -105,6 +105,12 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 - Brug **netværkskabel** til gaming PC'en og server-laptoppen.
 - Under **Indstillinger, Quick Setup** vælger du kvaliteten med ét klik. Selv kan du sætte fps og bitrate op. **H265** eller **AV1** giver bedre billede, hvis din computer kan afspille det.
 - Under streamen viser **Stats** i menuen, hvor forsinkelsen kommer fra.
+- Installationsprogrammerne indstiller selv resten: Sunshine bruger de hurtigste encoder-indstillinger, og Windows får Game Mode og GPU-planlægning. Netværkskortene sender pakker med det samme, og server-laptoppen kører Starlight med høj prioritet. Genstart gaming PC'en efter installationen.
+- Brug **Chrome** eller **Edge** og spil i fuld skærm.
+
+## Lås PC'en op automatisk
+
+Viser gaming PC'en låseskærmen, når du starter en stream, spørger Starlight én gang efter din **Windows-PIN** og skriver den selv på låseskærmen. Når du stopper streamen, låser PC'en sig igen, så den er helt normal, når du sidder ved den. PIN-koden gemmes kun i den browser, du streamer fra. Du kan skrive en ny PIN med **🔑 Unlock PC** i menuen under streamen.
 
 ---
 

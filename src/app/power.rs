@@ -30,7 +30,23 @@ pub(super) struct HostActivity {
 struct ActivityEntry {
     active_streams: u32,
     last_stream_end: Instant,
+    /// The pc was unlocked for the stream and is locked again when the last stream ends
+    relock: bool,
 }
+
+impl HostActivity {
+    pub(super) fn mark_unlocked(&self, host_id: HostId) {
+        let mut hosts = self.hosts.lock().expect("host activity lock");
+        if let Some(entry) = hosts.get_mut(&host_id)
+            && entry.active_streams > 0
+        {
+            entry.relock = true;
+        }
+    }
+}
+
+/// Wait before locking, so a stream that restarts (e.g. auto quality) doesn't lock the pc
+const RELOCK_DELAY: Duration = Duration::from_secs(10);
 
 /// Marks a host as streaming while this guard is alive.
 pub struct StreamActivityGuard {
@@ -50,6 +66,7 @@ impl StreamActivityGuard {
         let entry = hosts.entry(host_id).or_insert(ActivityEntry {
             active_streams: 0,
             last_stream_end: Instant::now(),
+            relock: false,
         });
         entry.active_streams += 1;
 
@@ -71,10 +88,56 @@ impl Drop for StreamActivityGuard {
             .lock()
             .expect("host activity lock");
 
+        let mut relock = false;
         if let Some(entry) = hosts.get_mut(&self.host_id) {
             entry.active_streams = entry.active_streams.saturating_sub(1);
             entry.last_stream_end = Instant::now();
+            relock = entry.active_streams == 0 && entry.relock;
         }
+        drop(hosts);
+        drop(inner);
+
+        if relock && let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(relock_host(self.app.clone(), self.host_id));
+        }
+    }
+}
+
+/// Locks the pc again after a stream it was unlocked for, unless a new stream started
+async fn relock_host(app_ref: AppRef, host_id: HostId) {
+    sleep(RELOCK_DELAY).await;
+
+    let Ok(app) = app_ref.access() else {
+        return;
+    };
+    {
+        let mut hosts = app.host_activity.hosts.lock().expect("host activity lock");
+        match hosts.get_mut(&host_id) {
+            Some(entry) if entry.active_streams == 0 && entry.relock => entry.relock = false,
+            _ => return,
+        }
+    }
+
+    let config = &app.config.moonlight;
+    let token = config.power_agent_token.as_deref().unwrap_or_default();
+    let host = match app.storage.get_host(host_id).await {
+        Ok(host) => host,
+        Err(err) => {
+            warn!("relock: failed to get host {host_id:?}: {err}");
+            return;
+        }
+    };
+
+    match send_power_command(
+        &host.address,
+        config.power_agent_port,
+        token,
+        PowerCommand::Lock,
+    )
+    .await
+    {
+        Ok(()) => info!("locked host {host_id:?} again after the stream"),
+        Err(err) => warn!("failed to lock host {host_id:?} after the stream: {err}"),
     }
 }
 
@@ -165,6 +228,8 @@ pub enum PowerCommand {
     AutoShutdown,
     /// Sleep: wakes up in a few seconds
     Sleep,
+    /// Show the lock screen
+    Lock,
 }
 
 impl PowerCommand {
@@ -173,6 +238,7 @@ impl PowerCommand {
             Self::Shutdown => "/shutdown",
             Self::AutoShutdown => "/auto-shutdown",
             Self::Sleep => "/sleep",
+            Self::Lock => "/lock",
         }
     }
 }

@@ -83,6 +83,11 @@ $displaysPrincipal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLeve
 Register-ScheduledTask -TaskName $displaysTask -Action $displaysAction -Trigger $displaysTrigger -Principal $displaysPrincipal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $displaysTask -ErrorAction SilentlyContinue
 
+# Lock the pc again after a stream that Starlight unlocked (started by the agent, runs in the user's session)
+$lockAction = New-ScheduledTaskAction -Execute "rundll32.exe" -Argument "user32.dll,LockWorkStation"
+$lockPrincipal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
+Register-ScheduledTask -TaskName "Starlight Lock" -Action $lockAction -Principal $lockPrincipal -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) -Force | Out-Null
+
 Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow -Profile Any | Out-Null
 
@@ -99,6 +104,8 @@ foreach ($adapter in $adapters) {
     Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "PowerSavingMode" -RegistryValue 0 -ErrorAction SilentlyContinue
     Set-NetAdapterPowerManagement -Name $adapter.Name -WakeOnMagicPacket Enabled -ErrorAction SilentlyContinue
     powercfg /deviceenablewake "$($adapter.InterfaceDescription)" | Out-Null
+    # Less lag: packets are handled right away instead of in batches
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "*InterruptModeration" -RegistryValue 0 -ErrorAction SilentlyContinue
 }
 if (-not $adapters) {
     Write-Warning "Fandt intet netværkskabel-kort. Wake-on-LAN virker normalt kun med kabel."
@@ -107,7 +114,49 @@ if (-not $adapters) {
 # Hurtig opstart forhindrer ofte Wake-on-LAN
 Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -Value 0 -Type DWord
 
-# 5. Automatisk Windows-login, så PC'en er klar uden at nogen skriver password
+# 5. Mindre forsinkelse: hurtigste encoder-indstillinger i Sunshine og gaming-indstillinger i Windows
+Write-Host "Indstiller Sunshine og Windows til mindst mulig forsinkelse ..."
+$sunshineConf = Join-Path $env:ProgramFiles "Sunshine\config\sunshine.conf"
+if (Test-Path (Split-Path $sunshineConf)) {
+    $lowLatency = [ordered]@{
+        nvenc_preset  = "1"                # NVIDIA: fastest
+        nvenc_twopass = "disabled"         # NVIDIA: one pass, less encode time
+        amd_usage     = "ultralowlatency"  # AMD
+        amd_quality   = "speed"            # AMD
+        qsv_preset    = "veryfast"         # Intel
+    }
+    $lines = @()
+    if (Test-Path $sunshineConf) {
+        $lines = @(Get-Content $sunshineConf)
+    }
+    foreach ($key in $lowLatency.Keys) {
+        $line = "$key = $($lowLatency[$key])"
+        $index = -1
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match "^\s*$key\s*=") {
+                $index = $i
+            }
+        }
+        if ($index -ge 0) {
+            $lines[$index] = $line
+        } else {
+            $lines += $line
+        }
+    }
+    [IO.File]::WriteAllLines($sunshineConf, [string[]]$lines)
+    Restart-Service -Name "SunshineService" -ErrorAction SilentlyContinue
+}
+
+# Game Mode, GPU scheduling by the graphics card and no network throttling while gaming
+New-Item -Path "HKCU:\Software\Microsoft\GameBar" -Force | Out-Null
+Set-ItemProperty "HKCU:\Software\Microsoft\GameBar" -Name AutoGameModeEnabled -Value 1 -Type DWord
+Set-ItemProperty "HKCU:\Software\Microsoft\GameBar" -Name AllowAutoGameMode -Value 1 -Type DWord
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name HwSchMode -Value 2 -Type DWord
+$multimedia = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+Set-ItemProperty $multimedia -Name NetworkThrottlingIndex -Value 0xffffffff -Type DWord
+Set-ItemProperty $multimedia -Name SystemResponsiveness -Value 10 -Type DWord
+
+# 6. Automatisk Windows-login, så PC'en er klar uden at nogen skriver password
 . (Join-Path $src "autologon.ps1")
 Write-Host ""
 Write-Host "Automatisk login: når PC'en tænder, logger Windows selv ind og låser skærmen med det samme." -ForegroundColor Cyan
@@ -162,7 +211,7 @@ if ($sunshineService) {
     Write-Warning "Sunshine kører ikke som en Windows-tjeneste. Geninstaller Sunshine, så den starter før login."
 }
 
-# 6. Vis PC'ens adresse
+# 7. Vis PC'ens adresse
 # Prefer the cable network card: Wake-on-LAN goes to the card the pc is added with
 $configs = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" }
 $wired = $configs | Where-Object { $_.NetAdapter.MediaType -eq "802.3" -and $_.NetAdapter.InterfaceDescription -notmatch "Virtual|Hyper-V|VPN|Tailscale|VMware|VirtualBox" } | Select-Object -First 1

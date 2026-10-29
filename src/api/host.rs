@@ -1,7 +1,8 @@
 use crate::api::bindings::{
-    DeleteHostQuery, GetHostDisplaysResponse, GetHostQuery, GetHostResponse, GetHostsResponse,
-    PatchHostRequest, PostCancelRequest, PostCancelResponse, PostHostRequest, PostHostResponse,
-    PostPairRequest, PostPairResponse1, PostPairResponse2, PostWakeUpRequest, UndetailedHost,
+    DeleteHostQuery, GetHostDisplaysResponse, GetHostQuery, GetHostResponse,
+    GetHostSessionResponse, GetHostsResponse, PatchHostRequest, PostCancelRequest,
+    PostCancelResponse, PostHostRequest, PostHostResponse, PostPairRequest, PostPairResponse1,
+    PostPairResponse2, PostWakeUpRequest, UndetailedHost,
 };
 use actix_web::{
     HttpResponse, delete, get, patch, post,
@@ -238,6 +239,29 @@ async fn host_displays(
     let displays = host.displays(&mut user).await?;
 
     Ok(Json(GetHostDisplaysResponse { displays }))
+}
+
+#[get("/host/session")]
+async fn host_session(
+    mut user: AuthenticatedUser,
+    Query(query): Query<GetHostQuery>,
+) -> Result<Json<GetHostSessionResponse>, AppError> {
+    let host = user.host(HostId(query.host_id)).await?;
+
+    Ok(Json(host.session(&mut user).await?))
+}
+
+/// The browser unlocked the pc for a stream: lock it again when the stream ends
+#[post("/host/unlocked")]
+async fn host_unlocked(
+    mut user: AuthenticatedUser,
+    Json(request): Json<PostWakeUpRequest>,
+) -> Result<HttpResponse, AppError> {
+    let host = user.host(HostId(request.host_id)).await?;
+
+    host.mark_unlocked(&mut user).await?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[post("/host/cancel")]

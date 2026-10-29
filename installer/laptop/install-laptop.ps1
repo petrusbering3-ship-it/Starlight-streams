@@ -90,7 +90,8 @@ Write-Host "Sætter Starlight Streams til at starte automatisk ..."
 $action = New-ScheduledTaskAction -Execute (Join-Path $dest "web-server.exe") -WorkingDirectory $dest
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+# Priority 2 (above normal): scheduled tasks run below normal by default, which adds lag
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -Priority 2
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName
 
@@ -103,7 +104,15 @@ Write-Host "Slår dvale fra når laptoppen er tilsluttet strøm ..."
 powercfg /change standby-timeout-ac 0
 powercfg /change hibernate-timeout-ac 0
 powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
+# Less lag: the processor doesn't slow down and Wi-Fi doesn't power save on power
+powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 100
+powercfg /setacvalueindex SCHEME_CURRENT 19cbb8fa-5279-450e-9fac-8a3d5fedd0c1 12bbebe6-58d6-4636-95bb-3217ef867c1a 0
 powercfg /setactive SCHEME_CURRENT
+foreach ($adapter in (Get-NetAdapter -Physical -ErrorAction SilentlyContinue)) {
+    Set-NetAdapterPowerManagement -Name $adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "*InterruptModeration" -RegistryValue 0 -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword "*EEE" -RegistryValue 0 -ErrorAction SilentlyContinue
+}
 
 # 7. Tailscale Funnel: adgang fra internettet uden at installere noget på den anden computer
 $ts = Join-Path $env:ProgramFiles "Tailscale\tailscale.exe"

@@ -74,6 +74,7 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System_Power",
     "Win32_Graphics_Gdi",
     "Win32_Devices_Display",
+    "Win32_System_RemoteDesktop",
 ] }
 
 [lints.clippy]

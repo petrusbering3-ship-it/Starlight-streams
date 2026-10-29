@@ -32,6 +32,7 @@ Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
 # Automatic Windows login off again
 . (Join-Path $PSScriptRoot "autologon.ps1")
 Disable-StarlightAutologon
+Unregister-ScheduledTask -TaskName "Starlight Lock" -Confirm:$false -ErrorAction SilentlyContinue
 
 Start-Sleep -Seconds 1
 Remove-Item (Join-Path $env:ProgramFiles "Starlight Power Agent") -Recurse -Force -ErrorAction SilentlyContinue

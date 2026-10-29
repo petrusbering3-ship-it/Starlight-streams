@@ -15,6 +15,7 @@ import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
 import { DisplaySwitcher, getDisplayCount } from "./stream/display"
+import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { VideoEnhancer } from "./stream/video/enhancer"
 import { QualityLevel, QualityMonitor, stepDown, stepUp } from "./stream/quality_monitor"
@@ -197,6 +198,8 @@ class ViewerApp implements Component {
     private lastQualityUpAt = 0
     private qualityUpBlockedUntil = 0
     private restartingStream = false
+    private unlocking = false
+    private unlockTried = false
     private hostId: number
 
     // Starlight Streams: game mouse = laptop cursor hidden, mouse only moves the pc's mouse (pointer lock)
@@ -483,8 +486,11 @@ class ViewerApp implements Component {
         } else if (data.type == "connectionComplete") {
             this.sidebar.onCapabilitiesChange(data.capabilities)
 
-            // Go back to the display that was streamed last time
-            setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500)
+            // Unlock the pc first (once per page), then go back to the display that was streamed last time
+            const firstConnection = !this.unlockTried
+            this.unlockTried = true
+            const unlocked = firstConnection ? this.autoUnlock(false) : Promise.resolve()
+            unlocked.finally(() => setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500))
 
             this.startQualityMonitor()
 
@@ -578,6 +584,39 @@ class ViewerApp implements Component {
         return this.inputConfig
     }
     // Game mouse
+    /// Types the saved Windows PIN on the pc's lock screen. askPin: ask for the PIN again (menu button)
+    async autoUnlock(askPin: boolean) {
+        if (this.unlocking) {
+            return
+        }
+        this.unlocking = true
+        try {
+            const locked = await needsUnlock(this.api, this.hostId)
+            if (locked == null && !askPin) {
+                return
+            }
+
+            let pin = getUnlockPin(this.hostId)
+            if (askPin || (!pin && locked)) {
+                const typed = prompt(I.stream.unlockAskPin, "")
+                if (typed == null) {
+                    return
+                }
+                pin = typed.trim() || null
+                setUnlockPin(this.hostId, pin)
+            }
+            if (!pin || locked == false) {
+                return
+            }
+
+            showNotification(I.stream.unlockUnlocking, "info")
+            const ok = await unlockPc(this.api, this.hostId, this.stream.getInput(), pin)
+            showNotification(ok ? I.stream.unlockDone : I.stream.unlockFailed, ok ? "info" : "error")
+        } finally {
+            this.unlocking = false
+        }
+    }
+
     isGameMouse(): boolean {
         return this.gameMouse
     }
@@ -1261,6 +1300,7 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     private touchMode: SelectComponent
 
     private gameMouseButton = document.createElement("button")
+    private unlockButton = document.createElement("button")
 
     private displayDiv = document.createElement("div")
     private displayButtons: Array<HTMLButtonElement> = []
@@ -1281,6 +1321,12 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
         })
         this.div.appendChild(this.gameMouseButton)
         this.onGameMouseChange(false)
+
+        // Unlock the pc's lock screen with the Windows PIN (Starlight Streams)
+        this.unlockButton.classList.add("sidebar-stream-game-mouse")
+        this.unlockButton.innerText = I.stream.unlockButton
+        this.unlockButton.addEventListener("click", () => this.app.autoUnlock(true))
+        this.div.appendChild(this.unlockButton)
 
         // Display selection (Starlight Streams)
         this.displayDiv.classList.add("sidebar-stream-displays")

@@ -1,4 +1,4 @@
-import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetHostDisplaysResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
+import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetHostDisplaysResponse, GetHostSessionResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
 import { showNotification } from "./component/notification"
 import { showMessage, showModal } from "./component/modal/index"
 import { ApiUserPasswordPrompt } from "./component/modal/login"
@@ -486,6 +486,17 @@ export async function apiSleep(api: Api, request: PostWakeUpRequest): Promise<vo
 
 export async function apiHostDisplays(api: Api, query: GetHostQuery): Promise<GetHostDisplaysResponse> {
     return await fetchApi(api, "/host/displays", "GET", { query }) as GetHostDisplaysResponse
+}
+
+export async function apiHostSession(api: Api, query: GetHostQuery): Promise<GetHostSessionResponse> {
+    return await fetchApi(api, "/host/session", "GET", { query }) as GetHostSessionResponse
+}
+
+export async function apiHostUnlocked(api: Api, request: PostWakeUpRequest): Promise<void> {
+    await fetchApi(api, "/host/unlocked", "post", {
+        json: request,
+        response: "ignore"
+    })
 }
 
 export async function apiShutDown(api: Api, request: PostWakeUpRequest): Promise<void> {

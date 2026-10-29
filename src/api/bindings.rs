@@ -267,6 +267,16 @@ pub struct GetHostDisplaysResponse {
     pub displays: Vec<HostDisplay>,
 }
 
+/// The Windows session on the host pc, as reported by the Starlight power agent
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct GetHostSessionResponse {
+    /// Somebody is logged in to Windows
+    pub logged_in: bool,
+    /// The lock screen is shown
+    pub locked: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
 pub struct DiscoveredHost {

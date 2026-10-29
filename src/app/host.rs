@@ -480,6 +480,42 @@ impl Host {
         serde_json::from_str(&body).map_err(|_| AppError::BadRequest)
     }
 
+    /// Whether the host pc is logged in and locked, as reported by the Starlight power agent
+    pub async fn session(
+        &self,
+        user: &mut AuthenticatedUser,
+    ) -> Result<bindings::GetHostSessionResponse, AppError> {
+        self.can_use(user).await?;
+
+        let app = self.app.access()?;
+
+        let storage = self.storage_host(&app).await?;
+
+        let config = &app.config.moonlight;
+        let token = config.power_agent_token.as_deref().unwrap_or_default();
+
+        let body = agent_request(
+            &storage.address,
+            config.power_agent_port,
+            token,
+            "GET",
+            "/session",
+        )
+        .await?;
+
+        serde_json::from_str(&body).map_err(|_| AppError::BadRequest)
+    }
+
+    /// The pc was unlocked for the running stream: lock it again when the last stream ends
+    pub async fn mark_unlocked(&self, user: &mut AuthenticatedUser) -> Result<(), AppError> {
+        self.can_use(user).await?;
+
+        let app = self.app.access()?;
+        app.host_activity.mark_unlocked(self.id);
+
+        Ok(())
+    }
+
     /// Marks this host as streaming until the returned guard is dropped (used for auto shutdown).
     pub fn stream_activity(&self) -> Result<StreamActivityGuard, AppError> {
         StreamActivityGuard::new(self.app.clone(), self.id)

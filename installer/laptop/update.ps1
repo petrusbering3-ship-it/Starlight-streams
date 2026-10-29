@@ -76,6 +76,17 @@ try {
 } catch {
     Write-Host "Opdateringen fejlede: $_" -ForegroundColor Red
 } finally {
+    # Scheduled tasks run below normal priority by default: give the server more CPU priority (less lag)
+    try {
+        $task = Get-ScheduledTask -TaskName $serverTask -ErrorAction Stop
+        if ($task.Settings.Priority -ne 2) {
+            $task.Settings.Priority = 2
+            Set-ScheduledTask -InputObject $task | Out-Null
+        }
+    } catch {
+        Write-Host "Kunne ikke ændre prioriteten: $_"
+    }
+
     # Always start the server again, also when the update failed
     Start-ScheduledTask -TaskName $serverTask -ErrorAction SilentlyContinue
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue

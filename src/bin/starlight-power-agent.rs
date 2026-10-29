@@ -118,7 +118,8 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
     );
 
     match (method, path) {
-        ("GET", "/displays") | ("POST", "/shutdown" | "/auto-shutdown" | "/sleep")
+        ("GET", "/displays" | "/session")
+        | ("POST", "/shutdown" | "/auto-shutdown" | "/sleep" | "/lock")
             if !authorized =>
         {
             respond(&mut stream, "401 Unauthorized", "")
@@ -127,6 +128,25 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
             // Written by the copy running in the user's session; empty if nobody is logged in
             let displays = std::fs::read_to_string(displays_file).unwrap_or_else(|_| "[]".into());
             respond(&mut stream, "200 OK", &displays)
+        }
+        ("GET", "/session") => {
+            let (logged_in, locked) = session_state();
+            respond(
+                &mut stream,
+                "200 OK",
+                &format!("{{\"logged_in\":{logged_in},\"locked\":{locked}}}"),
+            )
+        }
+        ("POST", "/lock") => {
+            // The installer's "Starlight Lock" task locks the pc in the user's session
+            #[cfg(windows)]
+            if let Err(err) = Command::new("schtasks")
+                .args(["/run", "/tn", "Starlight Lock"])
+                .status()
+            {
+                eprintln!("Failed to lock: {err}");
+            }
+            respond(&mut stream, "200 OK", "locked")
         }
         ("POST", "/sleep") => {
             respond(&mut stream, "200 OK", "going to sleep")?;
@@ -188,6 +208,55 @@ fn shutdown(warning: bool) {
     if let Err(err) = result {
         eprintln!("Failed to shut down: {err}");
     }
+}
+
+// -- Session
+
+/// (somebody is logged in, the lock screen is shown) for the session on the pc's screen
+#[cfg(windows)]
+fn session_state() -> (bool, bool) {
+    use windows_sys::Win32::System::RemoteDesktop::{
+        WTS_CURRENT_SERVER_HANDLE, WTS_SESSIONSTATE_LOCK, WTSFreeMemory,
+        WTSGetActiveConsoleSessionId, WTSINFOEXW, WTSQuerySessionInformationW, WTSSessionInfoEx,
+    };
+
+    unsafe {
+        let session = WTSGetActiveConsoleSessionId();
+        if session == u32::MAX {
+            return (false, false);
+        }
+
+        let mut buffer = std::ptr::null_mut();
+        let mut size = 0;
+        if WTSQuerySessionInformationW(
+            WTS_CURRENT_SERVER_HANDLE,
+            session,
+            WTSSessionInfoEx,
+            &mut buffer,
+            &mut size,
+        ) == 0
+            || buffer.is_null()
+        {
+            return (false, false);
+        }
+
+        let info = &*(buffer as *const WTSINFOEXW);
+        let result = if info.Level == 1 {
+            let level1 = &info.Data.WTSInfoExLevel1;
+            let logged_in = level1.UserName[0] != 0;
+            let locked = logged_in && level1.SessionFlags as u32 == WTS_SESSIONSTATE_LOCK;
+            (logged_in, locked)
+        } else {
+            (false, false)
+        };
+        WTSFreeMemory(buffer as _);
+        result
+    }
+}
+
+#[cfg(not(windows))]
+fn session_state() -> (bool, bool) {
+    (true, false)
 }
 
 // -- Sleep
