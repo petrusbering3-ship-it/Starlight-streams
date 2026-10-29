@@ -107,7 +107,62 @@ if (-not $adapters) {
 # Hurtig opstart forhindrer ofte Wake-on-LAN
 Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -Value 0 -Type DWord
 
-# 5. Vis PC'ens adresse
+# 5. Automatisk Windows-login, så PC'en er klar uden at nogen skriver password
+. (Join-Path $src "autologon.ps1")
+Write-Host ""
+Write-Host "Automatisk login: når PC'en tænder, logger Windows selv ind og låser skærmen med det samme." -ForegroundColor Cyan
+Write-Host "Så kører Steam og spil allerede, når du streamer. Ved selve PC'en skal man stadig bruge password/PIN."
+Write-Host "Advarsel: alle der kan tænde PC'en får en logget ind (men låst) Windows." -ForegroundColor Yellow
+$autologon = Read-Host "Log ind i Windows automatisk ved opstart? (J/N)"
+if ($autologon -match '^[JjYy]') {
+    $userName = Read-Host "Windows-brugernavn (tryk Enter for '$env:USERNAME', eller skriv din email hvis du bruger Microsoft-konto)"
+    if ([string]::IsNullOrWhiteSpace($userName)) {
+        $userName = $env:USERNAME
+    }
+    $userName = $userName.Trim()
+
+    if ($userName -like "*@*") {
+        $domain = "MicrosoftAccount"
+        # The lock task runs for the Windows account you are installing from
+        $taskUser = "$env:USERDOMAIN\$env:USERNAME"
+    } else {
+        $domain = $env:COMPUTERNAME
+        $taskUser = "$env:COMPUTERNAME\$userName"
+    }
+
+    do {
+        Write-Host "Skriv dit Windows-PASSWORD (ikke PIN-koden). Med Microsoft-konto er det passwordet til kontoen."
+        $first = Read-Host "Password" -AsSecureString
+        $second = Read-Host "Skriv det igen" -AsSecureString
+        $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($first))
+        $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($second))
+        $same = ($plain1 -ceq $plain2) -and $plain1.Length -gt 0
+        if (-not $same) {
+            Write-Warning "De to passwords er ikke ens (eller tomme). Prøv igen."
+        }
+    } until ($same)
+
+    Enable-StarlightAutologon -UserName $userName -Domain $domain -Password $plain1 -TaskUser $taskUser
+    $plain1 = $null
+    $plain2 = $null
+    Write-Host "Automatisk login er slået til." -ForegroundColor Green
+} else {
+    Disable-StarlightAutologon
+    Write-Host "Automatisk login er slået fra."
+}
+
+# Sunshine must run as a service, so it can stream the lock screen
+$sunshineService = Get-Service -Name "SunshineService" -ErrorAction SilentlyContinue
+if ($sunshineService) {
+    Set-Service -Name "SunshineService" -StartupType Automatic
+    if ($sunshineService.Status -ne "Running") {
+        Start-Service -Name "SunshineService" -ErrorAction SilentlyContinue
+    }
+} else {
+    Write-Warning "Sunshine kører ikke som en Windows-tjeneste. Geninstaller Sunshine, så den starter før login."
+}
+
+# 6. Vis PC'ens adresse
 # Prefer the cable network card: Wake-on-LAN goes to the card the pc is added with
 $configs = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" }
 $wired = $configs | Where-Object { $_.NetAdapter.MediaType -eq "802.3" -and $_.NetAdapter.InterfaceDescription -notmatch "Virtual|Hyper-V|VPN|Tailscale|VMware|VirtualBox" } | Select-Object -First 1

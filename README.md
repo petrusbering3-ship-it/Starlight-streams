@@ -56,9 +56,10 @@ Installationsprogrammet sørger også for, at Starlight starter af sig selv, nå
 1. Pak `Starlight-Streams-PC.zip` ud og dobbeltklik på **`Install.bat`**. Tryk **Ja**.
 2. Skriv **det samme sluk-password** som på laptoppen.
 3. Installationsprogrammet installerer **Sunshine** (programmet der streamer skærmen) og sluk-programmet. Det slår også Wake-on-LAN til i Windows.
-4. Skriv den **IP-adresse** ned, der vises til sidst (fx `192.168.1.20`).
-5. Åbn **https://localhost:47990** på gaming PC'en og opret et brugernavn og password til Sunshine. Browseren advarer om certifikatet; tryk **Avanceret** og fortsæt.
-6. **Genstart gaming PC'en** én gang.
+4. **Automatisk login** (anbefalet): svar **J**. Så logger Windows selv ind, når PC'en tænder, og låser skærmen med det samme. Steam og spil kører allerede, når du streamer, og ved selve PC'en skal man stadig bruge password/PIN. Det kræver dit **Windows-password, ikke PIN-koden** (med Microsoft-konto: din email og kontoens password). Passwordet gemmes krypteret af Windows.
+5. Skriv den **IP-adresse** ned, der vises til sidst (fx `192.168.1.20`).
+6. Åbn **https://localhost:47990** på gaming PC'en og opret et brugernavn og password til Sunshine. Browseren advarer om certifikatet; tryk **Avanceret** og fortsæt.
+7. **Genstart gaming PC'en** én gang.
 
 ### Trin 4: BIOS-indstillinger (så PC'en kan tændes igen)
 
