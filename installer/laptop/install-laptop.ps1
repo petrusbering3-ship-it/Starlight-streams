@@ -130,10 +130,27 @@ if (-not (Test-Path $ts)) {
 if (Test-Path $ts) {
     Write-Host ""
     Write-Host "Log ind i Tailscale (gratis konto). Åbn linket der vises herunder, hvis browseren ikke åbner af sig selv." -ForegroundColor Yellow
-    & $ts up
+    # The Tailscale service has to be running, otherwise it answers "unexpected state: NoState"
+    Set-Service -Name "Tailscale" -StartupType Automatic -ErrorAction SilentlyContinue
+    Start-Service -Name "Tailscale" -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt 15; $i++) {
+        & $ts up
+        if ($LASTEXITCODE -eq 0) {
+            break
+        }
+        Write-Host "Venter på Tailscale ..."
+        Start-Sleep -Seconds 2
+    }
     Write-Host ""
     Write-Host "Slår Tailscale Funnel til. Første gang skal du åbne linket og trykke 'Enable'." -ForegroundColor Yellow
-    & $ts funnel --bg 8080
+    for ($i = 0; $i -lt 15; $i++) {
+        & $ts funnel --bg 8080
+        if ($LASTEXITCODE -eq 0) {
+            break
+        }
+        Write-Host "Venter på Tailscale ..."
+        Start-Sleep -Seconds 2
+    }
     Write-Host ""
     & $ts funnel status
 } else {
