@@ -18,6 +18,7 @@ use tokio::{
 use tracing::{info, warn};
 
 use crate::{
+    api::bindings::GetHostSessionResponse,
     app::{AppError, AppRef, guest::remove_expired_guests, host::HostId},
     config::AutoShutdownAction,
 };
@@ -302,6 +303,25 @@ pub async fn agent_request(
     }
 }
 
+/// The mouse or keyboard was used at the pc this recently: somebody is sitting there
+const IN_USE_IDLE_SECONDS: u32 = 5 * 60;
+
+/// Whether somebody is using the pc itself (logged in, unlocked and recent mouse or keyboard input)
+async fn pc_in_use(host_address: &str, port: u16, token: &str) -> bool {
+    let Ok(body) = agent_request(host_address, port, token, "GET", "/session").await else {
+        return false;
+    };
+    let Ok(session) = serde_json::from_str::<GetHostSessionResponse>(&body) else {
+        return false;
+    };
+
+    session.logged_in
+        && !session.locked
+        && session
+            .idle_seconds
+            .is_some_and(|idle| idle < IN_USE_IDLE_SECONDS)
+}
+
 /// Runs every minute: shuts down hosts nobody streamed to for `auto_shutdown_minutes`
 /// and removes expired guest users.
 pub(super) fn spawn_background_tasks(app_ref: AppRef) {
@@ -354,6 +374,22 @@ pub(super) fn spawn_background_tasks(app_ref: AppRef) {
                         continue;
                     }
                 };
+
+                // Somebody is using the pc at home: wait until it's unused for the whole time again
+                if pc_in_use(&host.address, config.power_agent_port, token).await {
+                    info!("auto shutdown: host {host_id:?} is in use at the pc, waiting");
+                    app.host_activity
+                        .hosts
+                        .lock()
+                        .expect("host activity lock")
+                        .entry(host_id)
+                        .or_insert(ActivityEntry {
+                            active_streams: 0,
+                            last_stream_end: Instant::now(),
+                            relock: false,
+                        });
+                    continue;
+                }
 
                 let command = match config.auto_shutdown_action {
                     AutoShutdownAction::Shutdown => PowerCommand::AutoShutdown,

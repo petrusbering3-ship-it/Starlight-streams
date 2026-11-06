@@ -275,6 +275,9 @@ pub struct GetHostSessionResponse {
     pub logged_in: bool,
     /// The lock screen is shown
     pub locked: bool,
+    /// Seconds since the mouse or keyboard was last used at the pc (unknown when nobody is logged in)
+    #[serde(default)]
+    pub idle_seconds: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, TS)]

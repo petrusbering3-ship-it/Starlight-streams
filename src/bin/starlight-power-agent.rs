@@ -35,6 +35,33 @@ fn default_displays_file() -> PathBuf {
         .join("displays.json")
 }
 
+/// Written next to displays.json by the copy running in the user's session
+fn activity_file(displays_file: &std::path::Path) -> PathBuf {
+    displays_file.with_file_name("activity.json")
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|time| time.as_secs())
+        .unwrap_or_default()
+}
+
+/// Seconds since the mouse or keyboard was last used at the pc, if the user session reported it recently
+fn idle_seconds(displays_file: &std::path::Path) -> Option<u64> {
+    let path = activity_file(displays_file);
+    let fresh = std::fs::metadata(&path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_some_and(|age| age < Duration::from_secs(60));
+    if !fresh {
+        return None;
+    }
+    let last_input: u64 = std::fs::read_to_string(path).ok()?.trim().parse().ok()?;
+    Some(unix_now().saturating_sub(last_input))
+}
+
 fn usage() -> ! {
     eprintln!(
         "Usage: starlight-power-agent --token MY_SECRET [--port 47900] [--displays-file PATH]\n       starlight-power-agent --write-displays PATH"
@@ -131,10 +158,15 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
         }
         ("GET", "/session") => {
             let (logged_in, locked) = session_state();
+            let idle = idle_seconds(displays_file)
+                .map(|idle| idle.to_string())
+                .unwrap_or_else(|| "null".into());
             respond(
                 &mut stream,
                 "200 OK",
-                &format!("{{\"logged_in\":{logged_in},\"locked\":{locked}}}"),
+                &format!(
+                    "{{\"logged_in\":{logged_in},\"locked\":{locked},\"idle_seconds\":{idle}}}"
+                ),
             )
         }
         ("POST", "/lock") => {
@@ -338,14 +370,46 @@ fn write_displays_forever(path: &PathBuf) -> ! {
         let _ = std::fs::create_dir_all(parent);
     }
 
+    let activity = activity_file(path);
     let mut last = String::new();
     loop {
         let json = serde_json::to_string(&list_displays()).unwrap_or_else(|_| "[]".into());
         if json != last && std::fs::write(path, &json).is_ok() {
             last = json;
         }
+        // When the mouse or keyboard was last used, so auto-off can tell somebody is at the pc
+        if let Some(idle) = user_idle_time() {
+            let last_input = unix_now().saturating_sub(idle.as_secs());
+            let _ = std::fs::write(&activity, last_input.to_string());
+        }
         thread::sleep(DISPLAYS_UPDATE_INTERVAL);
     }
+}
+
+#[cfg(windows)]
+fn user_idle_time() -> Option<Duration> {
+    use windows_sys::Win32::{
+        System::SystemInformation::GetTickCount,
+        UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO},
+    };
+
+    unsafe {
+        let mut info = LASTINPUTINFO {
+            cbSize: size_of::<LASTINPUTINFO>() as u32,
+            dwTime: 0,
+        };
+        if GetLastInputInfo(&mut info) == 0 {
+            return None;
+        }
+        Some(Duration::from_millis(
+            GetTickCount().wrapping_sub(info.dwTime) as u64,
+        ))
+    }
+}
+
+#[cfg(not(windows))]
+fn user_idle_time() -> Option<Duration> {
+    None
 }
 
 #[cfg(windows)]
