@@ -156,49 +156,10 @@ $multimedia = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\Sys
 Set-ItemProperty $multimedia -Name NetworkThrottlingIndex -Value 0xffffffff -Type DWord
 Set-ItemProperty $multimedia -Name SystemResponsiveness -Value 10 -Type DWord
 
-# 6. Automatisk Windows-login, så PC'en er klar uden at nogen skriver password
+# 6. Automatisk Windows-login er fjernet: slå det fra, hvis en ældre version slog det til.
+# Only the automatic login setting is removed, the Windows account itself is not touched.
 . (Join-Path $src "autologon.ps1")
-Write-Host ""
-Write-Host "Automatisk login: når PC'en tænder, logger Windows selv ind og låser skærmen med det samme." -ForegroundColor Cyan
-Write-Host "Så kører Steam og spil allerede, når du streamer. Ved selve PC'en skal man stadig bruge password/PIN."
-Write-Host "Advarsel: alle der kan tænde PC'en får en logget ind (men låst) Windows." -ForegroundColor Yellow
-$autologon = Read-Host "Log ind i Windows automatisk ved opstart? (J/N)"
-if ($autologon -match '^[JjYy]') {
-    $userName = Read-Host "Windows-brugernavn (tryk Enter for '$env:USERNAME', eller skriv din email hvis du bruger Microsoft-konto)"
-    if ([string]::IsNullOrWhiteSpace($userName)) {
-        $userName = $env:USERNAME
-    }
-    $userName = $userName.Trim()
-
-    if ($userName -like "*@*") {
-        $domain = "MicrosoftAccount"
-        # The lock task runs for the Windows account you are installing from
-        $taskUser = "$env:USERDOMAIN\$env:USERNAME"
-    } else {
-        $domain = $env:COMPUTERNAME
-        $taskUser = "$env:COMPUTERNAME\$userName"
-    }
-
-    do {
-        Write-Host "Skriv dit Windows-PASSWORD (ikke PIN-koden). Med Microsoft-konto er det passwordet til kontoen."
-        $first = Read-Host "Password" -AsSecureString
-        $second = Read-Host "Skriv det igen" -AsSecureString
-        $plain1 = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($first))
-        $plain2 = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($second))
-        $same = ($plain1 -ceq $plain2) -and $plain1.Length -gt 0
-        if (-not $same) {
-            Write-Warning "De to passwords er ikke ens (eller tomme). Prøv igen."
-        }
-    } until ($same)
-
-    Enable-StarlightAutologon -UserName $userName -Domain $domain -Password $plain1 -TaskUser $taskUser
-    $plain1 = $null
-    $plain2 = $null
-    Write-Host "Automatisk login er slået til." -ForegroundColor Green
-} else {
-    Disable-StarlightAutologon
-    Write-Host "Automatisk login er slået fra."
-}
+Disable-StarlightAutologon
 
 # Sunshine must run as a service, so it can stream the lock screen
 $sunshineService = Get-Service -Name "SunshineService" -ErrorAction SilentlyContinue
