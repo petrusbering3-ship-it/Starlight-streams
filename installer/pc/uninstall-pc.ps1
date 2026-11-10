@@ -1,4 +1,6 @@
 ﻿# Starlight Streams - afinstaller sluk-programmet fra gaming PC'en
+# -Embedded is used by the all-in-one uninstaller (uninstall-allinone.ps1)
+param([switch]$Embedded)
 
 # Run as administrator: start an elevated copy of this script in its own window
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -39,4 +41,6 @@ Remove-Item (Join-Path $env:ProgramFiles "Starlight Power Agent") -Recurse -Forc
 Write-Host "Sluk-programmet er fjernet. Sunshine kan fjernes under Apps i Windows-indstillinger." -ForegroundColor Green
 
 Stop-Transcript | Out-Null
-Read-Host "Tryk Enter for at lukke"
+if (-not $Embedded) {
+    Read-Host "Tryk Enter for at lukke"
+}

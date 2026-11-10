@@ -1,4 +1,6 @@
 ﻿# Starlight Streams - installation på laptoppen (serveren)
+# -Token, -Minutes and -Embedded are used by the all-in-one installer (install-allinone.ps1)
+param([string]$Token, [string]$Minutes, [switch]$Embedded)
 $ErrorActionPreference = "Stop"
 
 # Run as administrator: start an elevated copy of this script in its own window
@@ -34,14 +36,14 @@ Write-Host ""
 Get-ChildItem $src -Recurse | Unblock-File
 
 # 1. Sluk-password
-do {
+while ($token -notmatch '^[A-Za-z0-9]+$') {
     $token = Read-Host "Vælg et sluk-password (kun bogstaver a-z og tal, samme skal bruges på gaming PC'en)"
-} until ($token -match '^[A-Za-z0-9]+$')
+}
 
-do {
+while ($minutes -notmatch '^[0-9]+$') {
     $minutes = Read-Host "Auto-sluk: sluk gaming PC'en efter hvor mange minutter uden stream? (0 = aldrig, tryk Enter for 30)"
     if (-not $minutes) { $minutes = "30" }
-} until ($minutes -match '^[0-9]+$')
+}
 
 # 2. Kopier programmet
 Write-Host "Installerer Starlight Streams i $dest ..."
@@ -162,7 +164,11 @@ Write-Host "=== Færdig! ===" -ForegroundColor Green
 Write-Host "Åbn https-adressen ovenfor (den der slutter på .ts.net) i en browser - hvor som helst."
 Write-Host "Hjemme kan du også bruge http://localhost:8080 på laptoppen."
 Write-Host "Første gang du logger ind, bliver det navn og password du skriver til din admin-konto."
-Write-Host "Husk at installere Starlight PC-delen på gaming PC'en med samme sluk-password: $token"
+if (-not $Embedded) {
+    Write-Host "Husk at installere Starlight PC-delen på gaming PC'en med samme sluk-password: $token"
+}
 
 Stop-Transcript | Out-Null
-Read-Host "Tryk Enter for at lukke"
+if (-not $Embedded) {
+    Read-Host "Tryk Enter for at lukke"
+}

@@ -66,7 +66,7 @@ jobs:
       - name: Build
         env:
           # Shown in Starlight Streams and compared with the latest release for the Update button
-          STARLIGHT_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.1.{0}', github.run_number) }}
+          STARLIGHT_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.2.{0}', github.run_number) }}
         run: |
           cargo build --release --target x86_64-pc-windows-gnu
           npm ci
@@ -76,7 +76,7 @@ jobs:
         run: |
           BIN=target/x86_64-pc-windows-gnu/release
 
-          mkdir -p out/Starlight-Streams-Laptop out/Starlight-Streams-PC
+          mkdir -p out/Starlight-Streams-Laptop out/Starlight-Streams-PC out/Starlight-Streams-AllInOne
 
           cp $BIN/web-server.exe out/Starlight-Streams-Laptop/
           cp -r dist out/Starlight-Streams-Laptop/static
@@ -85,9 +85,16 @@ jobs:
           cp $BIN/starlight-power-agent.exe out/Starlight-Streams-PC/
           cp installer/pc/* LICENSE out/Starlight-Streams-PC/
 
+          # Everything on the gaming pc, no laptop (the all-in-one Install.bat replaces the other two)
+          cp $BIN/web-server.exe $BIN/starlight-power-agent.exe out/Starlight-Streams-AllInOne/
+          cp -r dist out/Starlight-Streams-AllInOne/static
+          cp installer/laptop/* installer/pc/* LICENSE out/Starlight-Streams-AllInOne/
+          cp installer/allinone/* out/Starlight-Streams-AllInOne/
+
           cd out
           zip -r Starlight-Streams-Laptop.zip Starlight-Streams-Laptop
           zip -r Starlight-Streams-PC.zip Starlight-Streams-PC
+          zip -r Starlight-Streams-AllInOne.zip Starlight-Streams-AllInOne
 
       - name: Upload installers
         uses: actions/upload-artifact@v7
@@ -96,18 +103,20 @@ jobs:
           path: |
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
+            out/Starlight-Streams-AllInOne.zip
 
       # Every push to main publishes a new release, so the latest release always has the newest installers
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.1.{0}', github.run_number) }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.2.{0}', github.run_number) }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           generate_release_notes: true
           files: |
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
+            out/Starlight-Streams-AllInOne.zip
             installer/laptop/update.ps1
             installer/laptop/Update-Starlight.bat
         env:

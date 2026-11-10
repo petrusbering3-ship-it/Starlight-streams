@@ -78,6 +78,20 @@ Færdig! Tryk på den grønne **▶ Stream** under **Display 1** eller **Display
 
 ---
 
+## Ingen laptop? Alt-i-én
+
+Har du kun en gaming PC, kan alt køre på den. Så streamer du til fx en Chromebook i browseren.
+
+1. Hent **`Starlight-Streams-AllInOne.zip`** fra [Releases](https://github.com/petrusbering3-ship-it/Starlight-streams/releases/latest), pak den ud og dobbeltklik på **`Install.bat`**. Tryk **Ja**.
+2. Vælg et sluk-password, og tryk Enter ved auto-sluk (så slukker PC'en aldrig af sig selv).
+3. Log ind i **Tailscale**, når browseren åbner, og tryk **Enable** ved Funnel.
+4. Følg de 5 trin, der vises til sidst: opret Sunshine-login, åbn `http://localhost:8080`, tilføj PC'en og par den.
+5. På Chromebooken: åbn adressen, der slutter på **`.ts.net`**.
+
+**Husk:** PC'en skal være tændt, når du vil streame. Den kan ikke tændes på afstand, fordi Starlight selv kører på PC'en. Sluk virker fint.
+
+---
+
 ## Sådan bruger du det
 
 | Det vil du | Sådan gør du |

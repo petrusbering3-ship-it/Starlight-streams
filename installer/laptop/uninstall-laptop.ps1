@@ -1,4 +1,6 @@
 ﻿# Starlight Streams - afinstaller fra laptoppen
+# -Embedded is used by the all-in-one uninstaller (uninstall-allinone.ps1)
+param([switch]$Embedded)
 
 # Run as administrator: start an elevated copy of this script in its own window
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -35,4 +37,6 @@ Remove-Item (Join-Path $env:ProgramFiles "Starlight Streams") -Recurse -Force -E
 Write-Host "Starlight Streams er fjernet. Tailscale kan fjernes under Apps i Windows-indstillinger." -ForegroundColor Green
 
 Stop-Transcript | Out-Null
-Read-Host "Tryk Enter for at lukke"
+if (-not $Embedded) {
+    Read-Host "Tryk Enter for at lukke"
+}

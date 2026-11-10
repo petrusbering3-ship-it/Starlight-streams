@@ -1,4 +1,6 @@
 ﻿# Starlight Streams - installation på gaming PC'en
+# -Token and -Embedded are used by the all-in-one installer (install-allinone.ps1)
+param([string]$Token, [switch]$Embedded)
 $ErrorActionPreference = "Stop"
 
 # Run as administrator: start an elevated copy of this script in its own window
@@ -35,9 +37,9 @@ Write-Host ""
 Get-ChildItem $src -Recurse | Unblock-File
 
 # 1. Sluk-password
-do {
+while ($token -notmatch '^[A-Za-z0-9]+$') {
     $token = Read-Host "Skriv sluk-passwordet (det samme som du valgte på laptoppen)"
-} until ($token -match '^[A-Za-z0-9]+$')
+}
 
 # 2. Sunshine (det program der streamer skærmen)
 $sunshine = Join-Path $env:ProgramFiles "Sunshine\sunshine.exe"
@@ -193,4 +195,6 @@ Write-Host "4. Slå 'Wake on LAN' til i BIOS og slå 'ErP' / 'Deep Sleep' fra, s
 Write-Host "Genstart PC'en én gang, så alt er slået til."
 
 Stop-Transcript | Out-Null
-Read-Host "Tryk Enter for at lukke"
+if (-not $Embedded) {
+    Read-Host "Tryk Enter for at lukke"
+}
