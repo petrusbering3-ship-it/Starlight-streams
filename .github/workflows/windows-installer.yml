@@ -88,7 +88,8 @@ jobs:
           # Everything on the gaming pc, no laptop (the all-in-one Install.bat replaces the other two)
           cp $BIN/web-server.exe $BIN/starlight-power-agent.exe out/Starlight-Streams-AllInOne/
           cp -r dist out/Starlight-Streams-AllInOne/static
-          cp installer/laptop/* installer/pc/* LICENSE out/Starlight-Streams-AllInOne/
+          cp installer/laptop/* LICENSE out/Starlight-Streams-AllInOne/
+          cp installer/pc/* out/Starlight-Streams-AllInOne/
           cp installer/allinone/* out/Starlight-Streams-AllInOne/
 
           cd out
