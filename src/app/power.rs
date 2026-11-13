@@ -303,11 +303,12 @@ pub async fn agent_request(
     }
 }
 
-/// The mouse or keyboard was used at the pc this recently: somebody is sitting there
-const IN_USE_IDLE_SECONDS: u32 = 5 * 60;
+/// Input in the first moments after a stream ends still belongs to the stream
+const STREAM_END_GRACE_SECONDS: u64 = 60;
 
-/// Whether somebody is using the pc itself (logged in, unlocked and recent mouse or keyboard input)
-async fn pc_in_use(host_address: &str, port: u16, token: &str) -> bool {
+/// Whether the mouse or keyboard was used at the pc after the stream ended `since` ago
+/// (only counted while somebody is logged in and the pc isn't locked)
+async fn pc_used_since(host_address: &str, port: u16, token: &str, since: Duration) -> bool {
     let Ok(body) = agent_request(host_address, port, token, "GET", "/session").await else {
         return false;
     };
@@ -319,7 +320,7 @@ async fn pc_in_use(host_address: &str, port: u16, token: &str) -> bool {
         && !session.locked
         && session
             .idle_seconds
-            .is_some_and(|idle| idle < IN_USE_IDLE_SECONDS)
+            .is_some_and(|idle| (idle as u64) + STREAM_END_GRACE_SECONDS < since.as_secs())
 }
 
 /// Runs every minute: shuts down hosts nobody streamed to for `auto_shutdown_minutes`
@@ -356,17 +357,17 @@ pub(super) fn spawn_background_tasks(app_ref: AppRef) {
                     .filter(|(_, entry)| {
                         entry.active_streams == 0 && entry.last_stream_end.elapsed() >= idle_limit
                     })
-                    .map(|(host_id, _)| *host_id)
+                    .map(|(host_id, entry)| (*host_id, entry.last_stream_end.elapsed()))
                     .collect::<Vec<_>>();
 
-                for host_id in &due_hosts {
+                for (host_id, _) in &due_hosts {
                     hosts.remove(host_id);
                 }
 
                 due_hosts
             };
 
-            for host_id in due_hosts {
+            for (host_id, since_stream_end) in due_hosts {
                 let host = match app.storage.get_host(host_id).await {
                     Ok(host) => host,
                     Err(err) => {
@@ -375,19 +376,17 @@ pub(super) fn spawn_background_tasks(app_ref: AppRef) {
                     }
                 };
 
-                // Somebody is using the pc at home: wait until it's unused for the whole time again
-                if pc_in_use(&host.address, config.power_agent_port, token).await {
-                    info!("auto shutdown: host {host_id:?} is in use at the pc, waiting");
-                    app.host_activity
-                        .hosts
-                        .lock()
-                        .expect("host activity lock")
-                        .entry(host_id)
-                        .or_insert(ActivityEntry {
-                            active_streams: 0,
-                            last_stream_end: Instant::now(),
-                            relock: false,
-                        });
+                // Somebody used the mouse or keyboard after the stream: no auto shutdown until
+                // the next stream (it was already removed from the tracked hosts)
+                if pc_used_since(
+                    &host.address,
+                    config.power_agent_port,
+                    token,
+                    since_stream_end,
+                )
+                .await
+                {
+                    info!("auto shutdown: host {host_id:?} was used after the stream, cancelled");
                     continue;
                 }
 

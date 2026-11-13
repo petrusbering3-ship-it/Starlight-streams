@@ -11,7 +11,7 @@ Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001
 - **Auto-kvalitet:** Før hver stream testes forbindelsen, og opløsning, fps og bitrate vælges automatisk. Bliver nettet dårligere under spillet, sænkes kvaliteten af sig selv (og hæves igen bagefter), uden at fuld skærm eller musen slippes. Du kan stadig vælge selv under **Quick Setup**: svagt net, balanceret eller bedste kvalitet.
 - **Find PC'er automatisk:** "Tilføj PC" viser gaming PC'erne på dit netværk. Klik på én, og så er den tilføjet.
 - **Opdater med ét klik:** Når der er en ny version, viser Starlight en grøn **⬆ Update**-knap.
-- **Auto-sluk:** PC'en slukker selv, når ingen har streamet i 30 minutter. Sidder nogen ved PC'en og bruger den, slukker den ikke. Den viser først en advarsel på 2 minutter på PC'en.
+- **Auto-sluk:** PC'en slukker selv, når ingen har streamet i 30 minutter. Bruger nogen musen eller tastaturet på PC'en efter streamen, slukker den ikke, før du har streamet igen og ingen har rørt den i 30 minutter. Den viser først en advarsel på 2 minutter på PC'en.
 - **Gæste-link:** Lad en ven spille i nogle timer via et link. Linket udløber af sig selv, og gæster kan ikke slukke din PC.
 - **Skarpere billede:** Når billedet forstørres, gøres det skarpere i browseren (som AMD FSR). Indstillinger, **Picture Sharpening**.
 - **Hurtigere lyd:** Lyden holdes tæt på billedet, også efter et hak i nettet.
