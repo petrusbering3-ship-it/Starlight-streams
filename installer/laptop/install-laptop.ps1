@@ -97,6 +97,9 @@ $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName
 
+# Opdaterer selv hver nat (kun når der er en ny version)
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest "update.ps1") -RegisterAutoUpdate
+
 # 5. Firewall
 Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Program (Join-Path $dest "web-server.exe") -Action Allow -Profile Any | Out-Null

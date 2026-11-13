@@ -26,6 +26,12 @@ use std::{
 use serde::Serialize;
 
 const DEFAULT_PORT: u16 = 47900;
+
+/// Set by the release build, compared with the latest release by update-pc.ps1
+const STARLIGHT_VERSION: &str = match option_env!("STARLIGHT_VERSION") {
+    Some(version) => version,
+    None => "dev",
+};
 const DISPLAYS_UPDATE_INTERVAL: Duration = Duration::from_secs(15);
 
 fn default_displays_file() -> PathBuf {
@@ -100,6 +106,15 @@ fn main() {
     let Some(token) = token.filter(|token| !token.is_empty()) else {
         usage();
     };
+
+    // The auto update (update-pc.ps1) compares this with the latest release
+    if STARLIGHT_VERSION != "dev"
+        && let Some(dir) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
+    {
+        let _ = std::fs::write(dir.join("version.txt"), STARLIGHT_VERSION);
+    }
 
     let listener = TcpListener::bind(("0.0.0.0", port)).expect("failed to bind port");
     println!("Starlight power agent listening on port {port}");

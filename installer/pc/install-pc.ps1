@@ -64,6 +64,8 @@ Start-Sleep -Seconds 1
 
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item (Join-Path $src "starlight-power-agent.exe") $dest -Force
+Copy-Item (Join-Path $src "update-pc.ps1") $dest -Force
+Copy-Item (Join-Path $src "autologon.ps1") $dest -Force
 
 $action = New-ScheduledTaskAction -Execute (Join-Path $dest "starlight-power-agent.exe") -Argument "--token $token --port $port"
 $trigger = New-ScheduledTaskTrigger -AtStartup
@@ -89,6 +91,12 @@ Start-ScheduledTask -TaskName $displaysTask -ErrorAction SilentlyContinue
 $lockAction = New-ScheduledTaskAction -Execute "rundll32.exe" -Argument "user32.dll,LockWorkStation"
 $lockPrincipal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
 Register-ScheduledTask -TaskName "Starlight Lock" -Action $lockAction -Principal $lockPrincipal -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) -Force | Out-Null
+
+# Opdaterer selv hver nat, eller næste gang PC'en tænder (kun når der er en ny version)
+$updateAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dest "update-pc.ps1")`""
+$updateTrigger = New-ScheduledTaskTrigger -Daily -At "04:40"
+$updateSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName "Starlight Power Agent Auto Update" -Action $updateAction -Trigger $updateTrigger -Principal $principal -Settings $updateSettings -Force | Out-Null
 
 Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow -Profile Any | Out-Null

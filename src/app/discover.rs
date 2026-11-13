@@ -24,11 +24,14 @@ pub struct DiscoveredHost {
     pub already_added: bool,
 }
 
-/// The ip address of the network card used for the local network
-async fn local_ipv4() -> Option<Ipv4Addr> {
+/// The direct cable network between a Raspberry Pi and the pc (see installer/pi/install-pi.sh)
+const CABLE_NETWORK_TARGET: &str = "192.168.50.2:9";
+
+/// The ip address of the network card used to reach `target`
+async fn local_ipv4(target: &str) -> Option<Ipv4Addr> {
     // Connecting an udp socket sends nothing, it only picks the network card for that route
     let socket = UdpSocket::bind("0.0.0.0:0").await.ok()?;
-    socket.connect("8.8.8.8:53").await.ok()?;
+    socket.connect(target).await.ok()?;
 
     match socket.local_addr().ok()?.ip() {
         IpAddr::V4(ip) if ip.is_private() => Some(ip),
@@ -47,17 +50,26 @@ impl AuthenticatedUser {
             return Err(AppError::Forbidden);
         }
 
-        let Some(local_ip) = local_ipv4().await else {
-            return Ok(Vec::new());
-        };
-        let [a, b, c, _] = local_ip.octets();
+        // The home network, and a pc connected directly with a cable
+        let mut networks = Vec::new();
+        for target in ["8.8.8.8:53", CABLE_NETWORK_TARGET] {
+            if let Some(ip) = local_ipv4(target).await {
+                let [a, b, c, _] = ip.octets();
+                if !networks.contains(&(a, b, c)) {
+                    networks.push((a, b, c));
+                }
+            }
+        }
 
         let unique_id = self.host_unique_id().await?;
 
-        let checks = (1..=254u8).map(|d| {
+        let checks = networks
+            .into_iter()
+            .flat_map(|(a, b, c)| (1..=254u8).map(move |d| Ipv4Addr::new(a, b, c, d)));
+        let checks = checks.map(|ip| {
             let unique_id = unique_id.clone();
             async move {
-                let address = Ipv4Addr::new(a, b, c, d).to_string();
+                let address = ip.to_string();
 
                 let client = RequestClient::with_defaults().ok()?;
                 let info = timeout(

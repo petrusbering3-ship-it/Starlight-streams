@@ -269,6 +269,8 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     let app = App::new(config.clone()).await?;
     let app = Data::new(app);
 
+    api::starlight::on_startup();
+
     let bind_address = app.config().web_server.bind_address;
     let server = HttpServer::new({
         let url_path_prefix = config.web_server.url_path_prefix.clone();

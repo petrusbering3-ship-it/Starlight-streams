@@ -1,0 +1,3 @@
+# Starlight Streams: the release version is shown in the app and used by the auto update
+[build.env]
+passthrough = ["STARLIGHT_VERSION"]

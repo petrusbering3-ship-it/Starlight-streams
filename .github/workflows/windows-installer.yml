@@ -62,6 +62,11 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
       - name: Install Wasm-Bindgen
         run: cargo binstall --no-confirm --force wasm-bindgen-cli@0.2.128
+      # Builds the Raspberry Pi version (64-bit Linux on ARM)
+      - name: Install Cross
+        run: |
+          cargo binstall --no-confirm --force cross
+          rustup target add aarch64-unknown-linux-gnu
 
       - name: Build
         env:
@@ -69,6 +74,7 @@ jobs:
           STARLIGHT_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.2.{0}', github.run_number) }}
         run: |
           cargo build --release --target x86_64-pc-windows-gnu
+          cross build --release --target aarch64-unknown-linux-gnu --bin web-server
           npm ci
           npm run build
 
@@ -92,7 +98,15 @@ jobs:
           cp installer/pc/* out/Starlight-Streams-AllInOne/
           cp installer/allinone/* out/Starlight-Streams-AllInOne/
 
+          # Raspberry Pi (tar keeps the scripts executable)
+          mkdir -p out/Starlight-Streams-Pi
+          cp target/aarch64-unknown-linux-gnu/release/web-server out/Starlight-Streams-Pi/
+          cp -r dist out/Starlight-Streams-Pi/static
+          cp installer/pi/* LICENSE out/Starlight-Streams-Pi/
+          chmod +x out/Starlight-Streams-Pi/web-server out/Starlight-Streams-Pi/*.sh
+
           cd out
+          tar -czf Starlight-Streams-Pi.tar.gz Starlight-Streams-Pi
           zip -r Starlight-Streams-Laptop.zip Starlight-Streams-Laptop
           zip -r Starlight-Streams-PC.zip Starlight-Streams-PC
           zip -r Starlight-Streams-AllInOne.zip Starlight-Streams-AllInOne
@@ -105,6 +119,7 @@ jobs:
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
             out/Starlight-Streams-AllInOne.zip
+            out/Starlight-Streams-Pi.tar.gz
 
       # Every push to main publishes a new release, so the latest release always has the newest installers
       - name: Publish release
@@ -118,6 +133,7 @@ jobs:
             out/Starlight-Streams-Laptop.zip
             out/Starlight-Streams-PC.zip
             out/Starlight-Streams-AllInOne.zip
+            out/Starlight-Streams-Pi.tar.gz
             installer/laptop/update.ps1
             installer/laptop/Update-Starlight.bat
         env:

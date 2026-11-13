@@ -25,6 +25,7 @@ trap {
 $name = "Starlight Streams Server"
 Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName "Starlight Streams Auto Update" -Confirm:$false -ErrorAction SilentlyContinue
 Get-Process web-server -ErrorAction SilentlyContinue | Stop-Process -Force
 Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
 

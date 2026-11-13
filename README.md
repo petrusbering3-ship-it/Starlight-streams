@@ -92,6 +92,60 @@ Har du kun en gaming PC, kan alt køre på den. Så streamer du til fx en Chrome
 
 ---
 
+## Raspberry Pi i stedet for laptoppen
+
+En Raspberry Pi kan være serveren. Den er lille og lydløs og bruger næsten ingen strøm, så den kan altid stå tændt. Den tænder PC'en, ligesom laptoppen gjorde.
+
+### Det skal du bruge
+
+- En **Raspberry Pi 4 eller 5** (en Pi 3 virker også, men langsommere) med strømforsyning og et SD-kort på mindst 16 GB.
+- **Kabel-tricket** (anbefalet): et netværkskabel direkte fra Pi'en til gaming PC'en. Pi'en er på Wi-Fi, og PC'en får internet gennem Pi'en.
+
+### Trin 1: Gør SD-kortet klar
+
+1. Hent **Raspberry Pi Imager** (raspberrypi.com/software) på en computer.
+2. Vælg din Pi, vælg **Raspberry Pi OS Lite (64-bit)** og dit SD-kort.
+3. Tryk **Rediger indstillinger**. Vælg et brugernavn og password, skriv **dit Wi-Fi-navn og -password**, og slå **SSH** til under Tjenester.
+4. Skriv kortet, sæt det i Pi'en og tænd den. Vent 2 minutter.
+
+### Trin 2: Kabel-tricket
+
+1. Tag netværkskablet fra gaming PC'en ud af routeren, og sæt det i **Pi'en** i stedet.
+2. Det er det hele. Pi'en giver PC'en en adresse (`192.168.50.x`) og internet gennem sin Wi-Fi.
+   - Har PC'en også Wi-Fi, kan den bruge det til internet. Så går kun Starlight gennem kablet.
+3. Fordele: tænd-signalet (Wake-on-LAN) går direkte gennem kablet og virker altid, og billedet fra PC'en til Pi'en får aldrig forsinkelse fra Wi-Fi.
+
+### Trin 3: Installer på Pi'en
+
+1. Åbn **PowerShell** på en computer på samme Wi-Fi, og skriv `ssh dit-brugernavn@raspberrypi.local`. Skriv `yes`, og så dit password.
+2. Kopier disse 3 linjer ind og tryk Enter:
+   ```
+   curl -L -o pi.tar.gz https://github.com/petrusbering3-ship-it/Starlight-streams/releases/latest/download/Starlight-Streams-Pi.tar.gz
+   tar -xzf pi.tar.gz
+   bash Starlight-Streams-Pi/install-pi.sh
+   ```
+3. Svar på spørgsmålene: sluk-password, auto-sluk, og **J** til kabel-tricket, hvis du bruger det.
+4. Log ind i **Tailscale** med linket, der vises, og tryk **Enable** ved Funnel.
+5. Til sidst vises din Starlight-adresse (den der slutter på **`.ts.net`**).
+
+### Trin 4: Gaming PC'en
+
+1. Kør **`Install.bat`** fra `Starlight-Streams-PC.zip` på PC'en (som i trin 3 længere oppe) med **samme sluk-password**.
+2. Slå Wake on LAN til i BIOS (trin 4 længere oppe).
+3. Åbn din `.ts.net`-adresse, log ind, tryk **tilføj PC** og klik på PC'en på listen. Par den med PIN-koden.
+
+Har du brugt laptoppen før, så afinstaller Starlight på den (`Uninstall.bat`), så du kun har én server. Brugere og PC'er skal sættes op igen på Pi'en.
+
+**Fejlfinding:** Hvis PC'en ikke tænder med kabel-tricket, så tjek at lyset ved netværksstikket på PC'en lyser, mens den er slukket. Gør det ikke, så slå "ErP" fra i BIOS.
+
+---
+
+## Automatiske opdateringer
+
+Starlight opdaterer sig selv hver nat kl. 4:30, men kun når der er en ny version. Det gælder laptoppen, Pi'en og alt-i-én. Gaming PC'ens sluk-program opdaterer sig selv kl. 4:40, eller næste gang PC'en tænder, hvis den var slukket om natten. Du kan stadig opdatere med det samme med **⬆ Update**.
+
+---
+
 ## Sådan bruger du det
 
 | Det vil du | Sådan gør du |

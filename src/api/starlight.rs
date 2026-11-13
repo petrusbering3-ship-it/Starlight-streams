@@ -47,10 +47,41 @@ pub async fn discover_hosts(
     }))
 }
 
-/// The installed update script, only present when installed with the Windows installer
+/// The installed update script: update.ps1 from the Windows installer, update-pi.sh from the
+/// Raspberry Pi installer
 fn update_script() -> Option<std::path::PathBuf> {
-    let script = std::env::current_exe().ok()?.parent()?.join("update.ps1");
-    (cfg!(windows) && script.exists()).then_some(script)
+    let name = if cfg!(windows) {
+        "update.ps1"
+    } else {
+        "update-pi.sh"
+    };
+    let script = std::env::current_exe().ok()?.parent()?.join(name);
+    script.exists().then_some(script)
+}
+
+/// Writes the running version next to the program (the auto update compares it with the
+/// latest release) and makes sure the nightly auto update is set up
+pub fn on_startup() {
+    let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
+    else {
+        return;
+    };
+    if STARLIGHT_VERSION != "dev" {
+        let _ = std::fs::write(dir.join("version.txt"), STARLIGHT_VERSION);
+    }
+
+    // Installs from before auto updates existed get the nightly update task here
+    if cfg!(windows)
+        && let Some(script) = update_script()
+    {
+        let _ = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+            .arg(&script)
+            .arg("-RegisterAutoUpdate")
+            .spawn();
+    }
 }
 
 #[get("/starlight/info")]
@@ -61,8 +92,8 @@ pub async fn starlight_info(_user: AuthenticatedUser) -> Json<GetStarlightInfoRe
     })
 }
 
-/// Runs update.ps1 as its own scheduled task: it stops this server, replaces it with the
-/// latest release and starts it again
+/// Runs the update script outside of this server (it stops this server, replaces it with the
+/// latest release and starts it again)
 #[post("/starlight/update")]
 pub async fn starlight_update(
     _admin: Admin,
@@ -70,6 +101,17 @@ pub async fn starlight_update(
     let Some(script) = update_script() else {
         return Ok(Json(PostStarlightUpdateResponse { started: false }));
     };
+
+    if !cfg!(windows) {
+        // Its own systemd unit, so stopping the server's service doesn't stop the update
+        let started = tokio::process::Command::new("systemd-run")
+            .args(["--unit", "starlight-streams-update", "--collect"])
+            .arg(&script)
+            .status()
+            .await?
+            .success();
+        return Ok(Json(PostStarlightUpdateResponse { started }));
+    }
 
     const TASK: &str = "Starlight Streams Update";
     let run = format!(

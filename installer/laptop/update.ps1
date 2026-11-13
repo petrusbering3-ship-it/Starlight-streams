@@ -4,12 +4,15 @@
 # - the Update button in Starlight Streams runs it as the scheduled task "Starlight Streams Update" (-Silent)
 # - the "Opdater Starlight Streams" shortcut on the desktop
 # - Update-Starlight.bat from the latest release, also for installs that are too old to update themselves
-param([switch]$Silent)
+# - every night as the scheduled task "Starlight Streams Auto Update" (-Silent -Auto: only when there is a new version)
+# -RegisterAutoUpdate only sets up that nightly task (the server does this when it starts)
+param([switch]$Silent, [switch]$Auto, [switch]$RegisterAutoUpdate)
 $ErrorActionPreference = "Stop"
 
 $repository = "petrusbering3-ship-it/Starlight-streams"
 $serverTask = "Starlight Streams Server"
 $updateTask = "Starlight Streams Update"
+$autoUpdateTask = "Starlight Streams Auto Update"
 $shortcutName = "Opdater Starlight Streams.lnk"
 
 # Run as administrator: start an elevated copy of this script in its own window
@@ -23,6 +26,16 @@ if (-not $isAdmin) {
 $dir = $PSScriptRoot
 if (-not $dir -or -not (Test-Path (Join-Path $dir "web-server.exe"))) {
     $dir = Join-Path $env:ProgramFiles "Starlight Streams"
+}
+
+# Nightly auto update, and at the next start when the computer was off at night
+if ($RegisterAutoUpdate) {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dir "update.ps1")`" -Silent -Auto"
+    $trigger = New-ScheduledTaskTrigger -Daily -At "04:30"
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName $autoUpdateTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    exit
 }
 
 Start-Transcript -Path (Join-Path $env:TEMP "starlight-update.log") -Force | Out-Null
@@ -43,6 +56,25 @@ if (-not (Test-Path (Join-Path $dir "web-server.exe"))) {
     Stop-Transcript | Out-Null
     Wait-ForUser
     exit 1
+}
+
+# Auto update: only when there is a newer release than the installed one (version.txt is written by the server)
+if ($Auto) {
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $latest = (Invoke-RestMethod "https://api.github.com/repos/$repository/releases/latest" -UseBasicParsing).tag_name
+        $installed = Get-Content (Join-Path $dir "version.txt") -ErrorAction SilentlyContinue
+        if (-not $latest -or $latest -eq $installed) {
+            Write-Host "Starlight Streams er allerede opdateret ($installed)."
+            Stop-Transcript | Out-Null
+            exit
+        }
+        Write-Host "Ny version: $latest (installeret: $installed)"
+    } catch {
+        Write-Host "Kunne ikke tjekke for opdateringer: $_"
+        Stop-Transcript | Out-Null
+        exit
+    }
 }
 
 $tmp = Join-Path $env:TEMP "starlight-update"

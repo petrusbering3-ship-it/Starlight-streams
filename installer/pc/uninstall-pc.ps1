@@ -25,6 +25,7 @@ trap {
 $name = "Starlight Power Agent"
 Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName "Starlight Power Agent Auto Update" -Confirm:$false -ErrorAction SilentlyContinue
 Stop-ScheduledTask -TaskName "Starlight Display Info" -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName "Starlight Display Info" -Confirm:$false -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $env:ProgramData "Starlight") -Recurse -Force -ErrorAction SilentlyContinue
