@@ -12,6 +12,12 @@ DEST=/opt/starlight-streams
 LATEST=$(curl -fsSL "https://api.github.com/repos/$REPOSITORY/releases/latest" \
     | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])')
 INSTALLED=$(cat "$DEST/version.txt" 2>/dev/null || true)
+# Never in the middle of a stream (streams.txt is written every minute by the server while streaming)
+if [ "$1" = "--auto" ] && [ -n "$(find "$DEST/streams.txt" -mmin -3 2>/dev/null)" ] \
+    && [ "$(cat "$DEST/streams.txt")" -gt 0 ]; then
+    echo "Nogen streamer lige nu. Opdaterer næste nat."
+    exit 0
+fi
 if [ "$1" = "--auto" ] && [ "$LATEST" = "$INSTALLED" ]; then
     echo "Starlight Streams er allerede opdateret ($INSTALLED)."
     exit 0

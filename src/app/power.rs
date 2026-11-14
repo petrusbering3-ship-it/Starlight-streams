@@ -327,12 +327,33 @@ async fn pc_used_since(host_address: &str, port: u16, token: &str, since: Durati
 /// and removes expired guest users.
 pub(super) fn spawn_background_tasks(app_ref: AppRef) {
     spawn(async move {
+        let streams_file = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|dir| dir.join("streams.txt")));
+        let mut last_active_streams = 0;
+
         loop {
             sleep(Duration::from_secs(60)).await;
 
             let Ok(app) = app_ref.access() else {
                 return;
             };
+
+            // The nightly auto update reads this file and waits while somebody is streaming
+            let active_streams: u32 = app
+                .host_activity
+                .hosts
+                .lock()
+                .expect("host activity lock")
+                .values()
+                .map(|entry| entry.active_streams)
+                .sum();
+            if (active_streams > 0 || last_active_streams > 0)
+                && let Some(file) = &streams_file
+            {
+                let _ = std::fs::write(file, active_streams.to_string());
+            }
+            last_active_streams = active_streams;
 
             if let Err(err) = remove_expired_guests(&app).await {
                 warn!("failed to remove expired guests: {err}");

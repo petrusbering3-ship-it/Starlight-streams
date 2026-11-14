@@ -48,9 +48,34 @@ export function pickQuality(mbps: number): Partial<Settings> {
     }
 }
 
+/// A measurement is reused this long, so the next stream starts without waiting for a new one
+const CACHE_MS = 10 * 60_000
+const CACHE_KEY = "starlight-speedtest"
+
+function cachedMbps(): number | null {
+    try {
+        const saved = JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null")
+        // Only on the same address: at home and away are different connections
+        if (saved && saved.origin == location.origin && Date.now() - saved.at < CACHE_MS && saved.mbps > 0) {
+            return saved.mbps
+        }
+    } catch (e) {
+        // storage might be unavailable
+    }
+    return null
+}
+
 export async function measureAutoQuality(api: Api): Promise<AutoQuality | null> {
     try {
-        const mbps = await measureMbps(api)
+        let mbps = cachedMbps()
+        if (mbps == null) {
+            mbps = await measureMbps(api)
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ mbps, at: Date.now(), origin: location.origin }))
+            } catch (e) {
+                // storage might be unavailable
+            }
+        }
         return { mbps, settings: pickQuality(mbps) }
     } catch (e) {
         console.warn("auto quality: speed test failed, using the saved settings", e)

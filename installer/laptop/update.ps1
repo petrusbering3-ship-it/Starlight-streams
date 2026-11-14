@@ -60,6 +60,13 @@ if (-not (Test-Path (Join-Path $dir "web-server.exe"))) {
 
 # Auto update: only when there is a newer release than the installed one (version.txt is written by the server)
 if ($Auto) {
+    # Never in the middle of a stream (streams.txt is written every minute by the server while streaming)
+    $streams = Get-Item (Join-Path $dir "streams.txt") -ErrorAction SilentlyContinue
+    if ($streams -and ((Get-Date) - $streams.LastWriteTime).TotalMinutes -lt 3 -and [int](Get-Content $streams.FullName) -gt 0) {
+        Write-Host "Nogen streamer lige nu. Opdaterer næste nat."
+        Stop-Transcript | Out-Null
+        exit
+    }
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $latest = (Invoke-RestMethod "https://api.github.com/repos/$repository/releases/latest" -UseBasicParsing).tag_name

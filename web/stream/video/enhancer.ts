@@ -73,6 +73,9 @@ export class VideoEnhancer {
     private sharpnessLocation: WebGLUniformLocation | null = null
 
     private video: HTMLVideoElement | null = null
+    /// The video's size on screen, measured again only after it changed
+    private videoRect: DOMRect | null = null
+    private resizeObserver = new ResizeObserver(() => this.videoRect = null)
     private findVideoTimer: number | null = null
     private active = false
 
@@ -100,6 +103,8 @@ export class VideoEnhancer {
         }
         this.setActive(false)
         this.canvas.remove()
+        this.resizeObserver.disconnect()
+        this.video = null
     }
 
     setMode(mode: SharpeningMode) {
@@ -173,7 +178,10 @@ export class VideoEnhancer {
             return
         }
         this.video = video
+        this.videoRect = null
+        this.resizeObserver.disconnect()
         if (video) {
+            this.resizeObserver.observe(video)
             // Right after the video: on top of it, but below the menus and stats
             video.after(this.canvas)
             this.scheduleFrame(video)
@@ -228,7 +236,7 @@ export class VideoEnhancer {
 
         // Size the canvas to the screen's real pixels. Measure the video: it has the same size,
         // and the canvas has none while it is hidden
-        const rect = video.getBoundingClientRect()
+        const rect = this.videoRect ??= video.getBoundingClientRect()
         const scale = window.devicePixelRatio || 1
         const width = Math.max(1, Math.round(rect.width * scale))
         const height = Math.max(1, Math.round(rect.height * scale))

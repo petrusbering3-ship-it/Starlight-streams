@@ -293,7 +293,7 @@ class ViewerApp implements Component {
         this.streamSettings = settings
 
         // Picture sharpening; HDR would lose its colors in the 8 bit canvas
-        this.enhancer = new VideoEnhancer(settings.hdr ? "off" : settings.sharpening ?? "auto")
+        this.enhancer = new VideoEnhancer(settings.hdr ? "off" : settings.sharpening ?? "off")
         this.enhancer.start()
         this.startStream(settings)
 
@@ -611,6 +611,10 @@ class ViewerApp implements Component {
 
             showNotification(I.stream.unlockUnlocking, "info")
             const ok = await unlockPc(this.api, this.hostId, this.stream.getInput(), pin)
+            if (!ok) {
+                // Don't type a wrong PIN again at the next stream: Windows blocks the PIN after a few tries
+                setUnlockPin(this.hostId, null)
+            }
             showNotification(ok ? I.stream.unlockDone : I.stream.unlockFailed, ok ? "info" : "error")
         } finally {
             this.unlocking = false

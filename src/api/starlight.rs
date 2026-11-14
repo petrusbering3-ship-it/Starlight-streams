@@ -103,10 +103,10 @@ pub async fn starlight_update(
     };
 
     if !cfg!(windows) {
-        // Its own systemd unit, so stopping the server's service doesn't stop the update
-        let started = tokio::process::Command::new("systemd-run")
-            .args(["--unit", "starlight-streams-update", "--collect"])
-            .arg(&script)
+        // The unit of the nightly update (see installer/pi/install-pi.sh): its own unit, so
+        // stopping the server's service doesn't stop the update
+        let started = tokio::process::Command::new("systemctl")
+            .args(["start", "--no-block", "starlight-streams-update.service"])
             .status()
             .await?
             .success();
