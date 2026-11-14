@@ -54,8 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-pc-windows-gnu
-            app-suffix: .exe
+          # Windows is built by windows-installer.yml (the MinGW in the cross image is too old)
           - target: x86_64-unknown-linux-gnu
             app-suffix: ""
           - target: x86_64-unknown-linux-musl
