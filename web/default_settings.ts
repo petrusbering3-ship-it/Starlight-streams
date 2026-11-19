@@ -46,7 +46,6 @@ const trueDefaultSettings: Settings =
     "enterFullscreenOnStreamStart": false,
     "toggleFullscreenWithKeybind": false,
     // possible values: "standard", "old"
-    "pageStyle": "standard",
     "hdr": false,
     "useSelectElementPolyfill": false
 }

@@ -13,7 +13,7 @@ import { getLocalStreamSettings, globalDefaultSettings, setLocalStreamSettings, 
 import { adoptRoleDefaultLanguage, getCurrentLanguage, getTranslations } from "./i18n"
 import { setTouchContextMenuEnabled } from "./polyfill/ios_right_click"
 import { buildUrl } from "./config_"
-import { setStyle as setPageStyle } from "./styles/index"
+import "./styles/index"
 
 // TODO: look at this? https://developer.mozilla.org/en-US/docs/Web/API/Web_components
 
@@ -363,7 +363,6 @@ class MainApp implements Component {
         // store settings in localStorage
         setLocalStreamSettings(newSettings)
         // apply style
-        setPageStyle(newSettings.pageStyle)
 
         if (previousLanguage !== newSettings.language) {
             window.location.reload()

@@ -21,9 +21,14 @@
             document.documentElement.classList.add("notranslate");
         } catch (_err) { }
     </script>
+    <!-- Swiss Console fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Loaded without blocking the page: without internet the system fonts are used -->
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 </head>
 
-<body>
+<body class="sl">
     <!-- Modal -->
     <div id="modal-overlay" class="modal-background modal-disabled">
         <!-- Modal Content -->

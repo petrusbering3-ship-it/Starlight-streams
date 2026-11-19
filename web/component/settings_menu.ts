@@ -1,6 +1,5 @@
 import { ControllerConfig } from "../stream/gamepad"
 import { MouseMode, MouseScrollMode, TouchMode } from "../stream/input"
-import { PageStyle } from "../styles/index"
 import { getLanguageOptions, getTranslations, Language, normalizeLanguage } from "../i18n"
 import { Component, ComponentEvent } from "./index"
 import { InputComponent, SelectComponent } from "./input"
@@ -37,7 +36,6 @@ export type Settings = {
     language: Language
     enterFullscreenOnStreamStart: boolean
     toggleFullscreenWithKeybind: boolean
-    pageStyle: PageStyle
     hdr: boolean
     useSelectElementPolyfill: boolean
 }
@@ -98,11 +96,6 @@ export function getLocalStreamSettings(defaultSettings: Settings) {
         }
     } catch (e) {
         localStorage.removeItem("mlSettings")
-    }
-
-    // Migration
-    if (settings?.pageStyle === "old") {
-        settings.pageStyle = "moonlight"
     }
 
     return settings
@@ -201,7 +194,6 @@ export class StreamSettingsComponent implements Component {
     private enterFullscreenOnStreamStart: InputComponent
     private toggleFullscreenWithKeybind: InputComponent
 
-    private pageStyle: SelectComponent
 
     private useSelectElementPolyfill: InputComponent
 
@@ -568,17 +560,6 @@ export class StreamSettingsComponent implements Component {
         this.toggleFullscreenWithKeybind.addChangeListener(this.onSettingsChange.bind(this))
         this.toggleFullscreenWithKeybind.mount(this.divElement)
 
-        // Page Style
-        this.pageStyle = new SelectComponent("pageStyle", [
-            { value: "standard", name: "Standard" },
-            { value: "moonlight", name: "Moonlight" },
-        ], {
-            displayName: i.style,
-            preSelectedOption: settings?.pageStyle ?? defaultSettings_.pageStyle
-        })
-        this.pageStyle.addChangeListener(this.onSettingsChange.bind(this))
-        this.pageStyle.mount(this.divElement)
-
         // Custom Select Element
         this.useSelectElementPolyfill = new InputComponent("useSelectElementPolyfill", "checkbox", i.useCustomDropdown, {
             checked: settings?.useSelectElementPolyfill ?? defaultSettings_.useSelectElementPolyfill
@@ -650,7 +631,6 @@ export class StreamSettingsComponent implements Component {
         settings.enterFullscreenOnStreamStart = this.enterFullscreenOnStreamStart.isChecked()
         settings.toggleFullscreenWithKeybind = this.toggleFullscreenWithKeybind.isChecked()
 
-        settings.pageStyle = this.pageStyle.getValue() as any
 
         settings.hdr = this.hdr.isChecked()
 
