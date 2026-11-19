@@ -5,16 +5,25 @@ import { Modal } from "./index"
 export abstract class FormModal<Output> implements Component, Modal<Output | null> {
 
     private formElement: HTMLFormElement = document.createElement("form")
+    private bodyElement: HTMLDivElement = document.createElement("div")
+    private footElement: HTMLDivElement = document.createElement("div")
     private mounted: boolean = false
-    private submitButton: HTMLButtonElement = document.createElement("button")
-    private cancelButton: HTMLButtonElement = document.createElement("button")
+    protected submitButton: HTMLButtonElement = document.createElement("button")
+    protected cancelButton: HTMLButtonElement = document.createElement("button")
 
     constructor() {
         const i = getTranslations(getCurrentLanguage()).modal
         this.submitButton.type = "submit"
+        this.submitButton.className = "sl-btn sl-btn-ink"
         this.submitButton.innerText = i.ok
 
+        this.cancelButton.type = "button"
+        this.cancelButton.className = "sl-btn sl-btn-quiet"
         this.cancelButton.innerText = i.cancel
+
+        this.formElement.className = "sl-modal-form"
+        this.bodyElement.className = "sl-modal-body"
+        this.footElement.className = "sl-modal-foot"
 
         this.formElement.addEventListener("submit", (event) => event.preventDefault())
     }
@@ -22,13 +31,16 @@ export abstract class FormModal<Output> implements Component, Modal<Output | nul
     abstract reset(): void
     abstract submit(): Output | null
 
-    abstract mountForm(form: HTMLFormElement): void
+    abstract mountForm(form: HTMLElement): void
 
     mount(parent: Element): void {
         if (!this.mounted) {
-            this.mountForm(this.formElement)
-            this.formElement.appendChild(this.submitButton)
-            this.formElement.appendChild(this.cancelButton)
+            this.mounted = true
+            this.mountForm(this.bodyElement)
+            this.footElement.appendChild(this.cancelButton)
+            this.footElement.appendChild(this.submitButton)
+            this.formElement.appendChild(this.bodyElement)
+            this.formElement.appendChild(this.footElement)
         }
 
         this.reset()

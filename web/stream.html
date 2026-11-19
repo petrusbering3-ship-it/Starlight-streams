@@ -23,29 +23,33 @@
             document.documentElement.classList.add("notranslate");
         } catch (_err) { }
     </script>
+    <!-- Swiss Console fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Loaded without blocking the page: without internet the system fonts are used -->
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 </head>
 
-<body class="stream">
+<body class="sl stream">
     <!-- Modal -->
-    <div id="modal-overlay" class="modal-background modal-disabled">
+    <div id="modal-overlay" class="sl-scrim" hidden>
         <!-- Modal Content -->
-        <div id="modal-parent" class="modal-content">
+        <div id="modal-parent" class="sl-modal" role="dialog" aria-modal="true">
         </div>
     </div>
 
-    <!-- Sidebar -->
-    <div class="sidebar-overlay prevent-start-transition" id="sidebar-root">
-        <div class="sidebar-background prevent-start-transition">
-            <button id="sidebar-button" class="sidebar-button">
-                <div class="sidebar-button-image prevent-start-transition"></div>
-            </button>
-            <div id="sidebar-parent" class="sidebar-content">
-            </div>
-        </div>
+    <!-- Sidebar (Swiss Console, design/screens/S-Sidebar) -->
+    <div id="sidebar-root" class="sl-sidebar-root">
+        <div id="sidebar-backdrop" class="sl-sidebar-backdrop"></div>
+        <button id="sidebar-button" class="sl-handle" type="button" aria-label="Open stream controls">
+            <svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <aside id="sidebar-parent" class="sl-sidebar" data-open="false" aria-label="Stream controls">
+        </aside>
     </div>
 
     <!-- Notification -->
-    <div id="notification-list">
+    <div id="notification-list" class="sl-toasts" aria-live="polite">
     </div>
 
     <!-- A dummy element for capturing inputs -->

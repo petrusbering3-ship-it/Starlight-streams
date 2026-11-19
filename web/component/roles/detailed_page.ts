@@ -1,18 +1,23 @@
 import { Component, ComponentEvent } from "../index"
-import { Api, apiPatchRole, apiPutDefaultRole } from "../../api"
+import { Api, apiGetDefaultRole, apiPatchRole, apiPutDefaultRole } from "../../api"
 import { DetailedRole, PatchRoleRequest, RoleType } from "../../api_bindings"
 import { getCurrentLanguage, getTranslations } from "../../i18n"
 import { InputComponent, SelectComponent } from "../input"
 import { tryDeleteRole, RoleEventListener } from "./index"
 import { RolePermissionsMenu } from "./permissions"
 import { StreamSettingsComponent } from "../settings_menu"
-import { showPrompt } from "../modal"
+import { button, el } from "../../icons"
+import { confirmDialog } from "../sl_modal"
+import { showNotification } from "../notification"
 
 export class DetailedRolePage implements Component {
 
     private api: Api
 
     private formRoot = document.createElement("form")
+    private grid = el("div", "sl-admin-grid")
+    private defaultTag = el("span", "sl-tag")
+    private role: DetailedRole
 
     // -- General role info
     private id
@@ -22,36 +27,48 @@ export class DetailedRolePage implements Component {
     private ty: SelectComponent
 
     // -- Permissions
-    private permissionsHeader = document.createElement("h3")
+    private permissionsHeader = el("h3", "sl-h3 sl-admin-section")
     private permissions: RolePermissionsMenu
 
     // -- Default Settings
-    private defaultSettingsHeader = document.createElement("h3")
+    private defaultSettingsHeader = el("h3", "sl-h3 sl-admin-section")
+    private permissionsSlot = el("div")
+    private defaultSettingsSlot = el("div", "sl-admin-settings")
     private defaultSettings: StreamSettingsComponent
 
     // -- Apply buttons
-    private applyButton = document.createElement("button")
-    private deleteButton = document.createElement("button")
-    private setDefaultButton = document.createElement("button")
+    private applyButton = el("button", "sl-btn sl-btn-ink")
+    private deleteButton = button("sl-btn sl-btn-danger", "", "trash")
+    private resetButton = el("button", "sl-btn sl-btn-quiet")
+    private setDefaultButton = el("button", "sl-btn")
 
     constructor(api: Api, role: DetailedRole) {
         this.api = api
         this.id = role.id
         const i = getTranslations(getCurrentLanguage()).admin
 
-        this.formRoot.classList.add("role-info")
+        this.role = role
+        this.formRoot.classList.add("sl-admin-detail")
+
+        // Title (design/screens/S-Admin-Roles)
+        const head = el("div", "sl-admin-detail-head")
+        const titles = el("div", "sl-admin-detail-titles")
+        titles.append(el("span", "sl-label", i.roleLabel), el("h1", "sl-h1 sl-admin-name", role.name))
+        this.defaultTag.textContent = i.defaultRoleTag
+        this.defaultTag.hidden = true
+        head.append(titles, this.defaultTag)
+        this.formRoot.append(head, el("div", "sl-rule"), this.grid)
 
         // Role stuff
         this.idElement = new InputComponent("roleId", "number", i.roleId, {
             defaultValue: `${role.id}`
         })
         this.idElement.setEnabled(false)
-        this.idElement.mount(this.formRoot)
 
         this.name = new InputComponent("roleName", "text", i.roleName, {
             defaultValue: role.name,
         })
-        this.name.mount(this.formRoot)
+        this.name.mount(this.grid)
 
         this.ty = new SelectComponent("roleTy", [
             { value: "User", name: "User" },
@@ -60,14 +77,16 @@ export class DetailedRolePage implements Component {
             displayName: i.roleType,
             preSelectedOption: role.ty,
         })
-        this.ty.mount(this.formRoot)
+        this.ty.mount(this.grid)
+        this.idElement.mount(this.grid)
 
         // Permissions
         this.permissionsHeader.innerText = i.permissions
         this.formRoot.appendChild(this.permissionsHeader)
 
         this.permissions = new RolePermissionsMenu(role.permissions)
-        this.permissions.mount(this.formRoot)
+        this.permissions.mount(this.permissionsSlot)
+        this.formRoot.appendChild(this.permissionsSlot)
         this.permissions.addChangeListener(this.onPermissionsChange.bind(this))
 
         // Default Settings
@@ -75,23 +94,32 @@ export class DetailedRolePage implements Component {
         this.formRoot.appendChild(this.defaultSettingsHeader)
 
         this.defaultSettings = new StreamSettingsComponent(role.permissions, role.default_settings)
-        this.defaultSettings.mount(this.formRoot)
+        this.defaultSettings.mount(this.defaultSettingsSlot)
+        this.formRoot.appendChild(this.defaultSettingsSlot)
 
-        // Apply / Delete
-        this.applyButton.innerText = i.apply
-        this.applyButton.type = "submit"
-        this.formRoot.appendChild(this.applyButton)
-
-        this.deleteButton.addEventListener("click", this.delete.bind(this))
-        this.deleteButton.classList.add("role-info-delete")
-        this.deleteButton.innerText = i.delete
-        this.deleteButton.type = "button"
-        this.formRoot.appendChild(this.deleteButton)
-
-        this.setDefaultButton.addEventListener("click", this.setDefault.bind(this))
-        this.setDefaultButton.innerText = i.setDefault
+        // Default role
+        const defaultRow = el("div", "sl-setting sl-admin-default")
+        const defaultText = el("div", "txt")
+        defaultText.append(el("span", "title", i.setDefaultRole), el("span", "sl-help", i.setDefaultRoleHelp))
         this.setDefaultButton.type = "button"
-        this.formRoot.appendChild(this.setDefaultButton)
+        this.setDefaultButton.textContent = i.setDefaultRole
+        this.setDefaultButton.addEventListener("click", this.setDefault.bind(this))
+        defaultRow.append(defaultText, this.setDefaultButton)
+        this.formRoot.appendChild(defaultRow)
+
+        // Delete · Reset · Apply
+        const foot = el("div", "sl-admin-foot")
+        this.deleteButton.append(i.delete)
+        this.deleteButton.addEventListener("click", this.delete.bind(this))
+        this.resetButton.type = "button"
+        this.resetButton.textContent = i.reset
+        this.resetButton.addEventListener("click", () => this.reset())
+        this.applyButton.type = "submit"
+        this.applyButton.append(i.apply, el("span", undefined, "→"))
+        foot.append(this.deleteButton, el("span", "sl-admin-foot-gap"), this.resetButton, this.applyButton)
+        this.formRoot.appendChild(foot)
+
+        this.updateDefault()
 
         this.formRoot.addEventListener("submit", this.apply.bind(this))
     }
@@ -99,10 +127,34 @@ export class DetailedRolePage implements Component {
     private onPermissionsChange() {
         const currentSettings = this.defaultSettings.getStreamSettings()
 
-        this.defaultSettings.unmount(this.formRoot)
+        this.defaultSettings.unmount(this.defaultSettingsSlot)
 
         this.defaultSettings = new StreamSettingsComponent(this.permissions.getPermissions(), currentSettings)
-        this.defaultSettings.mountBefore(this.formRoot, this.applyButton)
+        this.defaultSettings.mount(this.defaultSettingsSlot)
+    }
+
+    private async updateDefault() {
+        try {
+            const isDefault = (await apiGetDefaultRole(this.api)).id == this.id
+            this.defaultTag.hidden = !isDefault
+            this.setDefaultButton.hidden = isDefault
+        } catch {
+            // Keep the button
+        }
+    }
+
+    private reset() {
+        this.name.setValue(this.role.name)
+        this.ty.reset()
+
+        this.permissions.unmount(this.permissionsSlot)
+        this.permissions = new RolePermissionsMenu(this.role.permissions)
+        this.permissions.addChangeListener(this.onPermissionsChange.bind(this))
+        this.permissions.mount(this.permissionsSlot)
+
+        this.defaultSettings.unmount(this.defaultSettingsSlot)
+        this.defaultSettings = new StreamSettingsComponent(this.role.permissions, this.role.default_settings)
+        this.defaultSettings.mount(this.defaultSettingsSlot)
     }
 
     private async apply(event: SubmitEvent) {
@@ -116,10 +168,21 @@ export class DetailedRolePage implements Component {
             permissions: this.permissions.getPermissions()
         };
 
-        await apiPatchRole(this.api, request)
+        this.applyButton.classList.add("is-loading")
+        try {
+            await apiPatchRole(this.api, request)
+            showNotification(getTranslations(getCurrentLanguage()).admin.saved, "ok")
+        } finally {
+            this.applyButton.classList.remove("is-loading")
+        }
     }
 
     private async delete() {
+        const i = getTranslations(getCurrentLanguage()).admin
+        const confirmed = await confirmDialog({ title: i.deleteRoleConfirm(this.role.name), text: i.deleteConfirmText, confirm: i.delete, danger: true, icon: "trash" })
+        if (!confirmed) {
+            return
+        }
         if (!await tryDeleteRole(this.api, this.id)) {
             return
         }
@@ -131,6 +194,7 @@ export class DetailedRolePage implements Component {
         await apiPutDefaultRole(this.api, {
             id: this.id,
         })
+        await this.updateDefault()
     }
 
     addDeletedListener(listener: RoleEventListener, options?: EventListenerOptions) {

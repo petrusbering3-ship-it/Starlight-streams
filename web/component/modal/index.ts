@@ -32,7 +32,7 @@ export async function showModal<Output>(modal: Modal<Output> | null): Promise<Ou
     }
 
     if (modalAbort != null) {
-        modalBackground?.classList.add("modal-disabled")
+        if (modalBackground) modalBackground.hidden = true
         modalAbort.abort()
         modalAbort = null
     }
@@ -50,11 +50,12 @@ export async function showModal<Output>(modal: Modal<Output> | null): Promise<Ou
 
     modalAbort = abortController
     modal.mount(modalParent)
-    modalBackground?.classList.remove("modal-disabled")
+    if (modalBackground) modalBackground.hidden = false
+    modalParent.querySelector<HTMLElement>("input, select, textarea, button[type=submit]")?.focus({ preventScroll: true })
 
     const output = await modal.onFinish(abortController.signal)
 
-    modalBackground?.classList.add("modal-disabled")
+    if (modalBackground) modalBackground.hidden = true
     abortController.abort()
     if (modalAbort === abortController) {
         modalAbort = null
@@ -86,6 +87,8 @@ class PromptModal extends FormModal<string> {
         super()
 
         this.message.innerText = prompt
+        this.message.className = "sl-ink2"
+        this.textInput.className = "sl-input"
 
         if (init?.type) {
             this.textInput.type = init?.type
@@ -105,7 +108,7 @@ class PromptModal extends FormModal<string> {
         return this.textInput.value
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         form.appendChild(this.message)
         form.appendChild(this.textInput)
     }
@@ -124,25 +127,34 @@ export async function showMessage(message: string, init?: MessageInit) {
 class MessageModal implements Component, Modal<void> {
 
     private signal?: AbortSignal
+    private body: HTMLElement = document.createElement("div")
     private textElement: HTMLElement = document.createElement("p")
+    private foot: HTMLElement = document.createElement("div")
     private okButton: HTMLButtonElement = document.createElement("button")
 
     constructor(message: string, init?: MessageInit) {
         const i = getTranslations(getCurrentLanguage()).modal
         this.textElement.innerText = message
+        this.textElement.className = "sl-message"
+        this.body.className = "sl-modal-body"
+        this.body.appendChild(this.textElement)
 
         this.okButton.innerText = i.ok
+        this.okButton.type = "button"
+        this.okButton.className = "sl-btn sl-btn-ink"
+        this.foot.className = "sl-modal-foot"
+        this.foot.appendChild(this.okButton)
 
         this.signal = init?.signal
     }
 
     mount(parent: Element): void {
-        parent.appendChild(this.textElement)
-        parent.appendChild(this.okButton)
+        parent.appendChild(this.body)
+        parent.appendChild(this.foot)
     }
     unmount(parent: Element): void {
-        parent.removeChild(this.textElement)
-        parent.removeChild(this.okButton)
+        parent.removeChild(this.body)
+        parent.removeChild(this.foot)
     }
 
     onFinish(abort: AbortSignal): Promise<void> {

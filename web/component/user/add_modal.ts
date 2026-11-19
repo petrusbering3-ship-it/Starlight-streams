@@ -19,9 +19,11 @@ export class AddUserModal extends FormModal<PostUserRequest> {
 
     constructor(api: Api) {
         super()
+        this.header.classList.add("sl-h3")
+        this.modalRoot.classList.add("sl-admin-add-form")
         const i = getTranslations(getCurrentLanguage()).admin
 
-        this.header.innerText = i.user
+        this.header.innerText = i.addUser
         this.modalRoot.appendChild(this.header)
 
         this.name = new InputComponent("userName", "text", i.name, {
@@ -57,7 +59,7 @@ export class AddUserModal extends FormModal<PostUserRequest> {
         this.clientUniqueId.setPlaceholder(this.name.getValue())
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         form.appendChild(this.modalRoot)
     }
 

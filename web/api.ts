@@ -1,7 +1,6 @@
 import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, GetHostDisplaysResponse, GetHostSessionResponse, GetDiscoverHostsResponse, GetStarlightInfoResponse, PostStarlightUpdateResponse, PostGuestRequest, PostGuestResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
 import { showNotification } from "./component/notification"
-import { showMessage, showModal } from "./component/modal/index"
-import { ApiUserPasswordPrompt } from "./component/modal/login"
+import { showLoginPage } from "./component/login_page"
 import { buildUrl } from "./config_"
 import { WebRtcLinkHeader_Tags, webrtcLinkHeaderParse } from "./uniffi/moonlight_common_bindings"
 
@@ -48,27 +47,23 @@ export async function getApi(): Promise<Api> {
 
     return newApi
 }
-export async function tryLogin(): Promise<Api | null> {
+/// Shows the login page until the login works. cancellable: the page can be closed without logging in
+export async function tryLogin(cancellable = false): Promise<Api | null> {
     const host_url = buildUrl("/api")
 
     let api = { host_url, bearer: null, user: null, role: null }
 
-    const prompt = new ApiUserPasswordPrompt()
-    const userAuth = await showModal(prompt)
-
-    if (userAuth == null) {
-        return null
-    }
-
-    if (await apiLogin(api, userAuth)) {
+    const loggedIn = await showLoginPage(async userAuth => {
+        if (!await apiLogin(api, userAuth)) {
+            return false
+        }
         if (!await apiAuthenticate(api)) {
             showNotification("Login was successful but authentication doesn't work!")
         }
-        return api
-    } else {
-        await showMessage("Credentials are not Valid")
-        return null
-    }
+        return true
+    }, cancellable)
+
+    return loggedIn ? api : null
 }
 
 const OPTIONS = "OPTIONS"

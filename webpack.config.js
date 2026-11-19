@@ -25,7 +25,13 @@ export default {
                 exclude: /node_modules/,
             },
             {
+                // Starlight Streams: the Swiss Console design system, on every page
+                test: /(starlight-swiss|swiss-pages|stream-base)\.css$/i,
+                use: ['style-loader', 'css-loader']
+            },
+            {
                 test: /\.css$/i,
+                exclude: /(starlight-swiss|swiss-pages|stream-base)\.css$/i,
                 use: [
                     {
                         loader: 'style-loader',

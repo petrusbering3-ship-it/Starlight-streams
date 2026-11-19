@@ -1,95 +1,99 @@
 import { DiscoveredHost, PostHostRequest } from "../../api_bindings"
 import { Api, apiDiscoverHosts } from "../../api"
 import { getCurrentLanguage, getTranslations } from "../../i18n"
-import { InputComponent } from "../input"
-import { FormModal } from "../modal/form"
+import { button, el, icon } from "../../icons"
+import { openSlModal } from "../sl_modal"
 
-export class AddHostModal extends FormModal<PostHostRequest> {
+// Starlight Streams: Add PC (design/screens/S-Home-Modals, 01): searches the network and
+// lists the PCs it finds, or takes an address typed by hand.
 
-    private api: Api
+export function showAddPcDialog(api: Api): Promise<PostHostRequest | null> {
+    const i = getTranslations(getCurrentLanguage()).addHost
+    const modal = openSlModal({ title: getTranslations(getCurrentLanguage()).home.addPc })
 
-    private header: HTMLElement = document.createElement("h2")
+    // Found on the network
+    const searching = el("div", "sl-add-searching")
+    searching.append(el("span", "sl-spinner"), el("span", "sl-ink2", i.searching))
+    const found = el("div", "sl-add-found")
 
-    // Starlight Streams: pcs found on the local network
-    private discoveredHeader: HTMLElement = document.createElement("p")
-    private discoveredList: HTMLDivElement = document.createElement("div")
-    private manualHeader: HTMLElement = document.createElement("p")
+    // Typed by hand
+    const or = el("div", "sl-add-or")
+    or.appendChild(el("span", "sl-label", i.manual))
+    const manual = el("div", "sl-add-manual")
+    const addressField = el("div", "sl-field")
+    const addressLabel = el("label", "sl-label", i.address)
+    addressLabel.htmlFor = "sl-add-address"
+    const address = el("input", "sl-input sl-input-sm")
+    address.id = "sl-add-address"
+    address.placeholder = i.addressPlaceholder
+    address.autocomplete = "off"
+    addressField.append(addressLabel, address)
+    const portField = el("div", "sl-field")
+    const portLabel = el("label", "sl-label", i.port)
+    portLabel.htmlFor = "sl-add-port"
+    const port = el("input", "sl-input sl-input-sm")
+    port.id = "sl-add-port"
+    port.inputMode = "numeric"
+    port.placeholder = "47989"
+    portField.append(portLabel, port)
+    manual.append(addressField, portField)
 
-    private address: InputComponent
-    private httpPort: InputComponent
+    modal.body.append(searching, found, or, manual)
 
-    constructor(api: Api) {
-        super()
-        this.api = api
-        const i = getTranslations(getCurrentLanguage()).addHost
+    const cancel = button("sl-btn sl-btn-quiet", getTranslations(getCurrentLanguage()).modal.cancel)
+    const add = el("button", "sl-btn sl-btn-ink sl-add-submit")
+    add.type = "button"
+    add.append(i.add, el("span", undefined, "→"))
+    add.disabled = true
+    modal.foot.append(cancel, add)
 
-        this.header.innerText = i.header
+    const portValue = () => port.value.trim() == "" ? NaN : parseInt(port.value)
+    const valid = () => address.value.trim() != "" && (port.value.trim() == "" || (portValue() > 0 && portValue() < 65536))
+    const update = () => add.disabled = !valid()
+    address.addEventListener("input", update)
+    port.addEventListener("input", update)
 
-        this.discoveredHeader.classList.add("add-host-section")
-        this.discoveredList.classList.add("add-host-discovered")
-        this.manualHeader.classList.add("add-host-section")
-        this.manualHeader.innerText = i.manual
-
-        this.address = new InputComponent("address", "text", i.address, {
-            formRequired: true
-        })
-
-        this.httpPort = new InputComponent("httpPort", "text", i.port, {
-            inputMode: "numeric"
-        })
-    }
-
-    private async discover() {
-        const i = getTranslations(getCurrentLanguage()).addHost
-
-        this.discoveredHeader.innerText = i.searching
-        this.discoveredList.replaceChildren()
-
-        let hosts: Array<DiscoveredHost>
-        try {
-            hosts = (await apiDiscoverHosts(this.api)).hosts
-        } catch (e) {
-            hosts = []
+    return new Promise(resolve => {
+        let result: PostHostRequest | null = null
+        const finish = (request: PostHostRequest) => {
+            result = request
+            modal.close()
         }
-
-        this.discoveredHeader.innerText = hosts.length > 0 ? i.found : i.nothingFound
-
-        for (const host of hosts) {
-            const button = document.createElement("button")
-            button.type = "button"
-            button.classList.add("add-host-discovered-host")
-            button.innerText = host.already_added ? i.alreadyAdded(host.name) : `🖥 ${host.name}  ·  ${host.address}`
-            button.disabled = host.already_added
-            button.addEventListener("click", () => {
-                this.address.setValue(host.address)
-                this.httpPort.setValue(`${host.http_port}`)
-                button.form?.requestSubmit()
+        cancel.addEventListener("click", () => modal.close())
+        add.addEventListener("click", () => {
+            if (valid()) {
+                finish({ address: address.value.trim(), http_port: portValue() })
+            }
+        })
+        for (const input of [address, port]) {
+            input.addEventListener("keydown", event => {
+                if (event.key == "Enter" && valid()) {
+                    finish({ address: address.value.trim(), http_port: portValue() })
+                }
             })
-            this.discoveredList.appendChild(button)
         }
-    }
+        modal.closed.then(() => resolve(result))
 
-    reset(): void {
-        this.address.reset()
-        this.httpPort.reset()
-        this.discover()
-    }
-    submit(): PostHostRequest | null {
-        const address = this.address.getValue()
-        const httpPort = parseInt(this.httpPort.getValue())
-
-        return {
-            address,
-            http_port: httpPort
-        }
-    }
-
-    mountForm(form: HTMLFormElement): void {
-        form.appendChild(this.header)
-        form.appendChild(this.discoveredHeader)
-        form.appendChild(this.discoveredList)
-        form.appendChild(this.manualHeader)
-        this.address.mount(form)
-        this.httpPort.mount(form)
-    }
+        apiDiscoverHosts(api).then(response => response.hosts).catch(() => [] as Array<DiscoveredHost>).then(hosts => {
+            searching.replaceChildren(el("span", "sl-ink2", hosts.length > 0 ? i.found : i.nothingFound))
+            hosts.forEach((host, index) => {
+                const row = el("button", "sl-index-row sl-add-host")
+                row.type = "button"
+                row.disabled = host.already_added
+                const name = el("span", "sl-add-host-name")
+                const title = el("span", "name", host.name)
+                name.appendChild(title)
+                if (host.already_added) {
+                    name.appendChild(el("span", "sl-muted sl-add-already", ` ${i.alreadyAddedSuffix}`))
+                }
+                name.appendChild(el("span", "sl-mono sl-muted sl-add-ip", host.address))
+                row.append(el("span", "sl-mono sl-muted", String(index + 1).padStart(2, "0")), name)
+                if (!host.already_added) {
+                    row.appendChild(icon("chevronRight"))
+                }
+                row.addEventListener("click", () => finish({ address: host.address, http_port: host.http_port }))
+                found.appendChild(row)
+            })
+        })
+    })
 }

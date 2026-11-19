@@ -1,0 +1,35 @@
+/* Starlight Streams: the stream page's functional styles (video, keyboards, touch cursor,
+   select polyfill). Kept from the old theme; colours moved to the Swiss Console palette. */
+html.stream, body.stream { overscroll-behavior: none !important; }
+.root:not(input) { -webkit-touch-callout: none; -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }
+.list-like { list-style-type: none; margin: 0; padding: 0; }
+.prevent-start-transition { transition: none; }
+
+.video-stream { position: fixed; top: var(--stream-video-middle); left: 50%; transform: translate(-50%, -50%); max-width: 100vw; max-height: var(--stream-video-height); width: auto; height: auto; outline: none; }
+canvas.video-stream { width: 100%; height: 100%; object-fit: contain; }
+video.video-stream, canvas.video-enhancer { width: 100vw; height: var(--stream-video-height); max-width: none; max-height: none; object-fit: contain; }
+canvas.video-enhancer { pointer-events: none; background-color: #000; }
+.audio-stream { display: none; }
+.hiddeninput { position: absolute; z-index: -1000; resize: none; translate: 200vw 200vh; }
+
+.local-touch-cursor { position: fixed; width: 10px; height: 15px; pointer-events: none; z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath fill='%23fff' d='M0 0L0 13L3.8 9.8L6.1 17L8.5 15.9L6.2 8.9L11 8.9Z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 100% 100%; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45)); }
+
+.stream-keyboard-native { position: fixed; }
+.stream-keyboard-native button { position: fixed; top: calc(var(--stream-video-middle) + (var(--stream-video-height) / 2) - 44px - 12px); right: 12px; width: 44px; height: 44px; z-index: 1000; display: none; align-items: center; justify-content: center; border: 1px solid #fff; border-radius: 0; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; opacity: 0.8; cursor: pointer; contain: layout paint style; touch-action: none; will-change: transform; }
+.stream-keyboard-native button.visible { display: flex; }
+.stream-keyboard-native button:active { opacity: 1; }
+.stream-keyboard-simulated { position: fixed; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; background: var(--sl-ink); border-top: 1px solid #333; }
+.stream-keyboard-simulated.hidden { display: none; }
+.stream-keyboard-simulated div { display: flex; flex-direction: row; justify-content: space-evenly; }
+.stream-keyboard-simulated-key { flex: 1; min-width: 0; margin: 2px; padding: 12px 4px; background: #1c1c1c; color: #fff; border: 1px solid #333; border-radius: 0; font: 500 1rem var(--sl-font-ui); cursor: pointer; }
+.stream-keyboard-simulated-key:hover { border-color: #fff; }
+.stream-keyboard-simulated-key:active { background: #333; }
+.stream-keyboard-simulated-key.toggle-on { background: #fff; color: var(--sl-ink); }
+
+.select-polyfill-wrapper { position: relative; }
+.select-polyfill-display { cursor: pointer; margin: 0; }
+.select-polyfill-list { position: absolute; left: 0; right: 0; z-index: 5; margin-top: 4px; max-height: 200px; overflow-y: auto; background: var(--sl-white); border: 1px solid var(--sl-ink); cursor: pointer; }
+.select-polyfill-list.bottom { top: 100%; bottom: auto; }
+.select-polyfill-list.top { bottom: 100%; top: auto; }
+.select-polyfill-list p { margin: 0; padding: 8px 12px; color: var(--sl-ink); }
+.select-polyfill-list p:hover, .select-polyfill-wrapper:hover:not(:has(.select-polyfill-list p:hover)) .select-polyfill-selected { background: var(--sl-ink); color: #fff; }

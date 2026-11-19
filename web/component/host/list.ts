@@ -2,86 +2,190 @@ import { DetailedHost, UndetailedHost } from "../../api_bindings"
 import { Api, apiGetHosts } from "../../api"
 import { ComponentEvent } from "../index"
 import { Host, HostEventListener } from "./index"
-import { FetchListComponent } from "../fetch_list"
+import { getCurrentLanguage, getTranslations } from "../../i18n"
+import { el } from "../../icons"
 
-export class HostList extends FetchListComponent<DetailedHost | UndetailedHost, Host> {
+// Starlight Streams: the home page (design/screens/S-Home): the PC index on the left and the
+// selected PC on the right.
+
+const SELECTED_KEY = "starlight-selected-host"
+
+export class HostList {
     private api: Api
+    private hosts: Array<Host> = []
+    private selectedId: number | null = null
+    private canAddHosts = true
 
-    private eventTarget = new EventTarget()
+    private events = new EventTarget()
+
+    private root = el("div", "sl-main")
+    private nav = el("nav", "sl-index")
+    private count = el("div", "sl-label sl-index-label")
+    private rows = el("div", "sl-index-rows")
+    private addRow = el("button", "sl-index-row sl-index-add")
+    private detailSlot = el("div", "sl-pc-slot")
+    private empty = el("div", "sl-state")
+    private error = el("div", "sl-state sl-state--error")
+    private hasError = false
 
     constructor(api: Api) {
-        super({
-            listClasses: ["host-list"],
-            elementLiClasses: ["animated-list-element", "host-element"]
-        })
-
+        const i = getTranslations(getCurrentLanguage()).home
         this.api = api
+
+        try {
+            this.selectedId = Number(localStorage.getItem(SELECTED_KEY)) || null
+        } catch (e) {
+            // storage might be unavailable
+        }
+
+        this.nav.setAttribute("aria-label", i.pcs)
+        this.addRow.type = "button"
+        this.addRow.append(el("span", "sl-mono sl-muted", "+"), el("span", "sl-index-add-text", i.addPc), el("span"))
+        this.addRow.addEventListener("click", () => this.events.dispatchEvent(new Event("ml-hostadd")))
+        this.nav.append(this.count, this.rows, this.addRow, el("p", "sl-muted sl-index-hint", i.offHint))
+
+        // Empty: no PCs yet
+        const emptyAdd = el("button", "sl-btn sl-btn-ink")
+        emptyAdd.type = "button"
+        emptyAdd.append(i.addPc, el("span", undefined, "→"))
+        emptyAdd.addEventListener("click", () => this.events.dispatchEvent(new Event("ml-hostadd")))
+        this.empty.append(el("span", "sl-num sl-state-num", "0"), el("h2", "sl-h3", i.noPcs), el("p", "sl-ink2", i.noPcsText), emptyAdd)
+
+        this.root.append(this.nav, this.detailSlot)
+        this.render()
     }
 
     async forceFetch() {
-        const hosts = await apiGetHosts(this.api)
+        let hosts
+        try {
+            hosts = await apiGetHosts(this.api)
+        } catch (e) {
+            this.setError(true)
+            throw e
+        }
+        this.setError(false)
 
         this.updateCache(hosts.response.hosts)
 
         let update
         while (update = await hosts.next()) {
-            const host = this.getHost(update.host_id)
+            this.getHost(update.host_id)?.updateCache(update, null)
+        }
+    }
+
+    private updateCache(cache: Array<DetailedHost | UndetailedHost>) {
+        // Removed PCs
+        for (const host of [...this.hosts]) {
+            if (!cache.some(data => data.host_id == host.getHostId())) {
+                this.removeHost(host)
+            }
+        }
+        // New and changed PCs
+        for (const data of cache) {
+            const host = this.getHost(data.host_id)
             if (host) {
-                this.updateComponentData(host, update)
+                host.updateCache(data, null)
+            } else {
+                this.insertList(data.host_id, data)
             }
         }
     }
 
-    protected updateComponentData(component: Host, data: DetailedHost | UndetailedHost): void {
-        component.updateCache(data, null)
-    }
-    protected getComponentDataId(component: Host): number {
-        return component.getHostId()
-    }
-    protected getDataId(data: DetailedHost | UndetailedHost): number {
-        return data.host_id
-    }
-
     public insertList(dataId: number, data: DetailedHost | UndetailedHost | null): void {
-        const newHost = new Host(this.api, dataId, data)
+        const host = new Host(this.api, dataId, data)
+        host.addHostRemoveListener(event => this.removeHost(event.component))
+        host.addHostOpenListener(event => this.events.dispatchEvent(new ComponentEvent("ml-hostopen", event.component)))
+        host.indexRow.addEventListener("click", () => this.select(host.getHostId()))
+        this.hosts.push(host)
 
-        this.list.append(newHost)
-
-        newHost.addHostRemoveListener(this.removeHostListener.bind(this))
-        newHost.addHostOpenListener(this.onHostOpenEvent.bind(this))
+        // A newly added PC is shown right away
+        if (data && this.hosts.length > 1 && this.selectedId != null && this.getHost(this.selectedId)) {
+            // keep the current selection
+        }
+        this.render()
     }
-    public removeList(listIndex: number): void {
-        const hostComponent = this.list.remove(listIndex)
 
-        hostComponent?.addHostOpenListener(this.onHostOpenEvent.bind(this))
-        hostComponent?.removeHostRemoveListener(this.removeHostListener.bind(this))
-    }
-
-    private removeHostListener(event: ComponentEvent<Host>) {
-        const listIndex = this.list.get().findIndex(component => component.getHostId() == event.component.getHostId())
-
-        this.removeList(listIndex)
+    private removeHost(host: Host) {
+        this.hosts = this.hosts.filter(other => other != host)
+        host.indexRow.remove()
+        host.detail.remove()
+        this.render()
     }
 
     getHost(hostId: number): Host | undefined {
-        return this.list.get().find(host => host.getHostId() == hostId)
+        return this.hosts.find(host => host.getHostId() == hostId)
     }
 
-    private onHostOpenEvent(event: ComponentEvent<Host>) {
-        this.eventTarget.dispatchEvent(new ComponentEvent("ml-hostopen", event.component))
+    select(hostId: number) {
+        this.selectedId = hostId
+        try {
+            localStorage.setItem(SELECTED_KEY, `${hostId}`)
+        } catch (e) {
+            // storage might be unavailable
+        }
+        this.render()
+    }
+
+    setCanAddHosts(canAdd: boolean) {
+        this.canAddHosts = canAdd
+        this.render()
+    }
+
+    /// The server can't be reached: the error state instead of the selected PC
+    setError(error: boolean) {
+        this.hasError = error
+        this.render()
+    }
+    setErrorContent(...content: Array<Node>) {
+        this.error.replaceChildren(...content)
+    }
+
+    private render() {
+        const i = getTranslations(getCurrentLanguage()).home
+        this.count.textContent = `${i.pcs} · ${this.hosts.length}`
+        this.addRow.hidden = !this.canAddHosts
+
+        this.rows.replaceChildren(...this.hosts.map((host, index) => {
+            host.setNumber(index + 1)
+            return host.indexRow
+        }))
+
+        let selected = this.selectedId != null ? this.getHost(this.selectedId) : undefined
+        if (!selected) {
+            selected = this.hosts[0]
+        }
+        for (const host of this.hosts) {
+            host.setSelected(host == selected)
+        }
+
+        if (this.hasError) {
+            this.detailSlot.replaceChildren(this.error)
+        } else if (selected) {
+            if (this.detailSlot.firstChild != selected.detail) {
+                this.detailSlot.replaceChildren(selected.detail)
+            }
+        } else {
+            this.detailSlot.replaceChildren(this.empty)
+            this.empty.querySelector("button")!.hidden = !this.canAddHosts
+        }
     }
 
     addHostOpenListener(listener: HostEventListener, options?: EventListenerOptions) {
-        this.eventTarget.addEventListener("ml-hostopen", listener as EventListenerOrEventListenerObject, options)
+        this.events.addEventListener("ml-hostopen", listener as EventListenerOrEventListenerObject, options)
     }
     removeHostOpenListener(listener: HostEventListener, options?: EventListenerOptions) {
-        this.eventTarget.removeEventListener("ml-hostopen", listener as EventListenerOrEventListenerObject, options)
+        this.events.removeEventListener("ml-hostopen", listener as EventListenerOrEventListenerObject, options)
+    }
+    addHostAddListener(listener: () => void) {
+        this.events.addEventListener("ml-hostadd", listener)
     }
 
     mount(parent: Element): void {
-        this.list.mount(parent)
+        parent.appendChild(this.root)
     }
     unmount(parent: Element): void {
-        this.list.unmount(parent)
+        if (this.root.parentElement == parent) {
+            parent.removeChild(this.root)
+        }
     }
 }

@@ -18,11 +18,27 @@ export class User implements Component {
 
     private div = document.createElement("div")
     private nameElement = document.createElement("p")
+    private subElement = document.createElement("span")
 
     constructor(api: Api, user: DetailedUser | { id: number }) {
         this.api = api
 
-        this.div.appendChild(this.nameElement)
+        // Swiss Console index row (design/screens/S-Admin-Users)
+        this.div.className = "sl-admin-row"
+        this.div.tabIndex = 0
+        this.div.setAttribute("role", "button")
+        this.nameElement.className = "name"
+        this.subElement.className = "sl-muted sub"
+        const text = document.createElement("span")
+        text.className = "sl-admin-row-text"
+        text.append(this.nameElement, this.subElement)
+        this.div.appendChild(text)
+        this.div.addEventListener("keydown", event => {
+            if (event.key == "Enter" || event.key == " ") {
+                event.preventDefault()
+                this.div.click()
+            }
+        })
         this.div.addEventListener("click", this.onClick.bind(this))
         this.div.addEventListener("contextmenu", this.onContextMenu.bind(this))
 
@@ -46,6 +62,7 @@ export class User implements Component {
         this.user = user
 
         this.nameElement.innerText = user.name
+        this.subElement.innerText = user.role
     }
 
     private onClick() {
@@ -94,6 +111,10 @@ export class User implements Component {
 
     getUserId(): number {
         return this.user.id
+    }
+
+    setSelected(selected: boolean) {
+        this.div.setAttribute("aria-current", selected ? "true" : "false")
     }
 
     mount(parent: HTMLElement): void {
