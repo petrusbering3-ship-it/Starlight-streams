@@ -40,7 +40,8 @@ jobs:
 
       # Cargo Shear
       - name: Install cargo-shear
-        run: cargo binstall --force --no-confirm cargo-shear
+        # --locked: with the newest versions of its dependencies it doesn't compile
+        run: cargo install cargo-shear --locked
       - name: Cargo Shear
         run: cargo shear
   
