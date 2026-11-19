@@ -113,7 +113,9 @@ class MainApp implements Component {
     private hostList: HostList
     private gameList: GameList | null = null
     private settings: StreamSettingsComponent | null = null
-    private settingsView = el("div", "sl-settings-view")
+    private settingsView = el("div", "sl sl-panel-scrim")
+    private settingsBody = el("div", "sl-panel-body")
+    private adminBlock = el("div", "sl-panel-admin")
     private saveRoleDefaultsButton = button("sl-btn sl-btn-ink", "", "save")
 
     constructor(api: Api, bootstrapRole: DetailedRole) {
@@ -189,6 +191,39 @@ class MainApp implements Component {
             getLocalStreamSettings(bootstrapRole.default_settings)
         )
         this.settings.addChangeListener(this.onSettingsChange.bind(this))
+
+        // Settings side panel (design/screens/S-Settings)
+        const panel = el("aside", "sl-panel")
+        panel.setAttribute("role", "dialog")
+        panel.setAttribute("aria-label", I.settings.settingsTitle)
+        const panelHead = el("div", "sl-panel-head")
+        const closePanel = el("button", "sl-btn sl-btn-quiet sl-btn-icon sl-btn-sm")
+        closePanel.type = "button"
+        closePanel.setAttribute("aria-label", I.modal.close)
+        closePanel.appendChild(icon("close"))
+        closePanel.addEventListener("click", () => this.closeSettings())
+        panelHead.append(el("h2", "sl-h3", I.settings.settingsTitle), closePanel)
+        const adminTitle = el("div", "sl-panel-admin-title")
+        adminTitle.append(el("h3", "sl-h3", I.settings.adminOnly), el("span", "sl-tag sl-tag--role", "Admin"))
+        this.adminBlock.append(adminTitle, el("p", "sl-help", I.settings.adminHelp), this.saveRoleDefaultsButton)
+        const panelFoot = el("div", "sl-panel-foot")
+        const done = el("button", "sl-btn sl-btn-ink")
+        done.type = "button"
+        done.append(I.settings.done, el("span", undefined, "→"))
+        done.addEventListener("click", () => this.closeSettings())
+        panelFoot.appendChild(done)
+        panel.append(panelHead, this.settingsBody, panelFoot)
+        this.settingsView.appendChild(panel)
+        this.settingsView.addEventListener("mousedown", event => {
+            if (event.target == this.settingsView) {
+                this.closeSettings()
+            }
+        })
+        document.addEventListener("keydown", event => {
+            if (event.key == "Escape" && this.currentDisplay == "settings") {
+                this.closeSettings()
+            }
+        })
 
         this.divElement.append(this.statusBar, this.header, this.content)
 
@@ -489,6 +524,10 @@ class MainApp implements Component {
         }
     }
 
+    private closeSettings() {
+        this.setCurrentDisplay("hosts")
+    }
+
     private setCurrentDisplay(display: "hosts",
         extraInfo?: null,
         pushIntoHistory?: boolean
@@ -529,20 +568,27 @@ class MainApp implements Component {
 
         // Unmount the current display
         if (this.currentDisplay == "hosts") {
-            this.hostList.unmount(this.content)
+            // Settings opens over the home page
+            if (display != "settings") {
+                this.hostList.unmount(this.content)
+            }
         } else if (this.currentDisplay == "games") {
             this.gameList?.unmount(this.content)
         } else if (this.currentDisplay == "settings") {
-            this.settings?.unmount(this.settingsView)
+            this.settings?.unmount(this.settingsBody)
             this.settingsView.remove()
+            if (display != "hosts") {
+                this.hostList.unmount(this.content)
+            }
         }
 
-        this.backButton.hidden = display == "hosts"
-        this.settingsButton.hidden = display == "settings"
 
-        // Sub pages: "← Back" and a title instead of the wordmark and links
-        this.header.classList.toggle("is-sub", display != "hosts")
-        this.pageTitle.hidden = display == "hosts"
+        // Sub pages: "← Back" and a title instead of the wordmark and links (settings opens over the home page)
+        const sub = display == "games"
+        this.backButton.hidden = !sub
+        this.settingsButton.hidden = false
+        this.header.classList.toggle("is-sub", sub)
+        this.pageTitle.hidden = !sub
         if (display == "games" && extraInfo?.hostId != null) {
             this.pageTitle.textContent = this.hostList.getHost(extraInfo.hostId)?.getCache()?.name ?? ""
         } else if (display == "settings") {
@@ -551,7 +597,9 @@ class MainApp implements Component {
 
         // Mount the new display
         if (display == "hosts") {
-            this.hostList.mount(this.content)
+            if (this.currentDisplay != "settings") {
+                this.hostList.mount(this.content)
+            }
 
             setAppState({ display: "hosts" }, pushIntoHistory)
         } else if (display == "games" && extraInfo?.hostId != null) {
@@ -566,12 +614,17 @@ class MainApp implements Component {
 
             setAppState({ display: "games", hostId: this.gameList?.getHostId() }, pushIntoHistory)
         } else if (display == "settings") {
-            this.settingsView.replaceChildren()
-            this.settings?.mount(this.settingsView)
-            if (this.user?.role == "Admin") {
-                this.settingsView.appendChild(this.saveRoleDefaultsButton)
+            // The home page stays below the panel
+            if (this.currentDisplay != "hosts") {
+                this.hostList.mount(this.content)
             }
-            this.content.appendChild(this.settingsView)
+            this.settingsBody.replaceChildren()
+            this.settings?.mount(this.settingsBody)
+            if (this.user?.role == "Admin") {
+                this.settingsBody.appendChild(this.adminBlock)
+            }
+            document.body.appendChild(this.settingsView)
+            this.settingsView.querySelector<HTMLElement>(".sl-panel-head button")?.focus()
 
             setAppState({ display: "settings" }, pushIntoHistory)
         }
@@ -616,11 +669,11 @@ class MainApp implements Component {
         this.adminButton.hidden = !admin
         if (admin) {
             this.checkForUpdate()
-            if (this.currentDisplay == "settings" && !this.settingsView.contains(this.saveRoleDefaultsButton)) {
-                this.settingsView.appendChild(this.saveRoleDefaultsButton)
+            if (this.currentDisplay == "settings" && !this.settingsBody.contains(this.adminBlock)) {
+                this.settingsBody.appendChild(this.adminBlock)
             }
         } else {
-            this.saveRoleDefaultsButton.remove()
+            this.adminBlock.remove()
         }
     }
     private async refreshUserPermissions() {
