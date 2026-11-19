@@ -136,7 +136,7 @@ class MainApp implements Component {
         this.logoutButton.classList.add("logout-button")
 
         this.loginButton.addEventListener("click", async () => {
-            const success = await tryLogin()
+            const success = await tryLogin(true)
             if (success) {
                 window.location.reload()
             }

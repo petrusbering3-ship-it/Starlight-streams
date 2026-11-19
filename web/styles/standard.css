@@ -1,5 +1,5 @@
 :root {
-    /* Colors - Dark Theme */
+    
     --bg-0: #0b0b0f;
     --bg-1: #16161c;
     --bg-2: #0b0b0f;
@@ -18,19 +18,19 @@
     --status-offline: #757575;
     --status-connecting: #ffc107;
 
-    /* Spacing */
+    
     --space-xs: 4px;
     --space-sm: 8px;
     --space-md: 16px;
     --space-lg: 24px;
     --space-xl: 32px;
 
-    /* Radii */
+    
     --radius-sm: 6px;
     --radius-md: 12px;
     --radius-lg: 16px;
 
-    /* Shadows */
+    
     --shadow-1: 0 4px 12px rgba(0, 0, 0, 0.6);
     --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.7);
     --shadow-3: 0 12px 36px rgba(0, 0, 0, 0.8);
@@ -38,54 +38,28 @@
     --glow-cyan: 0 0 20px rgba(255, 45, 85, 0.18);
     --glow-cyan-bright: 0 0 30px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.15);
 
-    /* Animation durations */
+    
     --dur-fast: 0.18s;
     --dur-med: 0.25s;
     --dur-slow: 0.4s;
 }
 
-body {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-top: env(safe-area-inset-top);
-    box-sizing: border-box;
-    font-size: 1.2rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    transition: background-color var(--dur-med) ease, color var(--dur-med) ease;
-    color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    min-height: 100vh;
-}
 
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%);
-}
-
-/* Global smooth animations for interactive changes */
-*,
-*::before,
-*::after {
+*, *::before, *::after {
     touch-action: manipulation;
     transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
 
-    *,
-    *::before,
-    *::after {
+    *, *::before, *::after {
         transition: none !important;
         animation: none !important;
     }
 }
 
-/* Prevent pull down refresh when Streaming */
-html.stream,
-body.stream {
+
+html.stream, body.stream {
     overscroll-behavior: none !important;
 }
 
@@ -99,39 +73,21 @@ body.stream {
     user-select: none;
 }
 
-img {
-    -webkit-user-drag: none;
-}
 
-h2,
-h3 {
-    margin-top: 12px;
-    margin-bottom: 8px;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-}
-
-/** Input Div */
 .input-div {
     display: flex;
     flex-direction: row;
     align-items: center;
 }
 
-/** Hide the file input */
-input[type="file"] {
-    display: none;
-}
 
-/** Label */
-.file-label,
-label {
+.file-label {
     cursor: default;
     margin-right: 5px;
 }
 
-/** Button */
-.file-button,
-button {
+
+.file-button {
     background-color: #1f1f27;
     background-size: 60px;
     background-position: center;
@@ -149,8 +105,7 @@ button {
     font-weight: 500;
 }
 
-.file-button:hover:not(:disabled),
-button:hover:not(:disabled) {
+.file-button:hover:not(:disabled) {
     transition: all var(--dur-med) ease;
     box-shadow: 0 0 30px rgba(255, 45, 85, 0.6), 0 0 60px rgba(255, 45, 85, 0.4);
     transform: translateY(-3px) scale(1.05);
@@ -162,102 +117,13 @@ button:hover:not(:disabled) {
     height: fit-content;
 }
 
-/* Ensure all button-like controls have polished shadows */
-button,
-.file-button,
-.logout-button,
-.login-button,
-.admin-button,
-.sidebar-button,
-.user-button {
+
+.file-button, .logout-button, .login-button, .admin-button, .sidebar-button, .user-button {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 45, 85, 0.12);
 }
 
-/* Disable all fancy effects when the button is disabled */
-button:disabled {
-    background-color: gray;
-    border-color: gray;
-}
 
-/** Checkbox */
-input[type="checkbox"] {
-    /* remove native box */
-    appearance: none;
-    vertical-align: middle;
-    width: 24px;
-    height: 24px;
-    border: 2px solid #ff2d55;
-    border-radius: 6px;
-    cursor: pointer;
-    position: relative;
-    display: inline-block;
-    background: rgba(31, 31, 39, 0.8);
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(255, 45, 85, 0.3) inset;
-}
-
-input[type="checkbox"]:hover {
-    border-color: #ff5577;
-    box-shadow: 0 0 15px rgba(255, 45, 85, 0.5) inset;
-}
-
-input[type="checkbox"]::after {
-    content: "✓";
-    color: white;
-    font-size: 18px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    /* start hidden */
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-input[type="checkbox"]:checked {
-    /* box fill */
-    background: linear-gradient(135deg, #ff2d55 0%, #c41e45 100%);
-    border-color: #ff5577;
-    box-shadow: 0 0 15px rgba(255, 45, 85, 0.6), 0 0 20px rgba(255, 85, 119, 0.4);
-}
-
-input[type="checkbox"]:checked::after {
-    /* scale in */
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-}
-
-input[type="checkbox"]:disabled {
-    color: lightgray;
-    border-color: gray;
-    box-shadow: none;
-}
-
-/** Slider */
-input[type="range"] {
-    accent-color: #ff2d55;
-
-    width: 200px;
-    height: 32px;
-    margin: 8px;
-
-    overflow: hidden;
-
-    cursor: grab;
-}
-
-input[type="range"]:active {
-    cursor: grabbing;
-}
-
-/** Text Field likes  */
-.textlike,
-textarea,
-select,
-.select-polyfill-display,
-input[type=text],
-input[type=password],
-input[type=number] {
+.textlike, .select-polyfill-display {
     width: 100%;
     max-width: 200px;
     color: #ffffff;
@@ -266,7 +132,7 @@ input[type=number] {
     background-color: rgba(31, 31, 39, 0.7);
     border-radius: 8px;
     border: 1.5px solid #ffffff;
-    /* multiline */
+    
     overflow-x: auto;
     overflow-y: auto;
     white-space: pre-wrap;
@@ -277,50 +143,15 @@ input[type=number] {
     max-height: max-content;
 }
 
-.textlike:hover,
-textarea:hover:enabled,
-select:hover:enabled,
-.select-polyfill-display:hover,
-input[type=text]:hover:enabled,
-input[type=password]:hover:enabled,
-input[type="number"]:hover:enabled {
+.textlike:hover, .select-polyfill-display:hover {
     transition: all 0.3s ease;
     background-color: rgba(42, 42, 52, 0.9);
     border-color: #ff5577;
     box-shadow: 0 0 20px rgba(255, 45, 85, 0.3) inset;
 }
 
-textarea:disabled,
-select:disabled,
-.select-polyfill-display:disabled,
-input[type=text]:disabled,
-input[type=password]:disabled,
-input[type=number]:disabled {
+.select-polyfill-display:disabled {
     color: gray;
-}
-
-input[type=range]:disabled {
-    color: gray;
-}
-
-select option {
-    background-color: #16161c;
-    color: #ff2d55;
-}
-
-/** Hide the number up down thingy on number inputs */
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-    /* display: none; <- Crashes Chrome on hover */
-    -webkit-appearance: none;
-    /* <-- Apparently some margin are still there even though it's hidden */
-    margin: 0;
-}
-
-input[type=number] {
-    appearance: textfield;
-    /* Firefox */
-    -moz-appearance: textfield;
 }
 
 .list-like {
@@ -329,7 +160,7 @@ input[type=number] {
     padding: 0;
 }
 
-/** Select element (dropdown) polyfill */
+
 .select-polyfill-display::after {
     content: "▾";
     float: right;
@@ -381,7 +212,7 @@ input[type=number] {
     color: white;
 }
 
-/** Modal */
+
 .modal-background {
     display: block;
     position: fixed;
@@ -392,7 +223,7 @@ input[type=number] {
     height: 100vh;
     background-color: rgba(10, 0, 20, 0.6);
     backdrop-filter: blur(8px);
-    /** animation */
+    
     visibility: visible;
     opacity: 1;
     transition: visibility 0s, background 0.1s linear, opacity 0.1s linear;
@@ -415,14 +246,14 @@ input[type=number] {
 }
 
 .modal-disabled {
-    /** animation */
+    
     visibility: hidden;
     background-color: rgba(0, 0, 0, 0);
     opacity: 0;
     transition: all 0.1s linear;
 }
 
-/** Context Menu */
+
 .context-menu-background {
     display: block;
     position: fixed;
@@ -432,7 +263,7 @@ input[type=number] {
     backdrop-filter: blur(15px);
     border: 2px solid #ff2d55;
     box-shadow: 0 0 30px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.15);
-    /** animation */
+    
     scale: 1;
     opacity: 1;
     translate: 0 0;
@@ -449,14 +280,14 @@ input[type=number] {
     min-width: 110px;
     cursor: pointer;
     border-radius: 6px;
-    /** animation */
+    
     transition: all 0.2s ease;
     background-color: rgba(255, 255, 255, 0);
     color: #e6e6ee;
 }
 
 .context-menu-element:hover {
-    /** animation */
+    
     transition: all 0.2s ease;
     background: linear-gradient(135deg, rgba(255, 45, 85, 0.3) 0%, rgba(255, 45, 85, 0.2) 100%);
     transform: translateX(6px);
@@ -475,14 +306,14 @@ input[type=number] {
 
 .context-menu-disabled {
     visibility: hidden;
-    /** animation */
+    
     opacity: 0;
     scale: 0.7;
     translate: -30% -30%;
     transition: all 0.1s linear, opacity 0.1s ease-out;
 }
 
-/** Sidebar */
+
 .sidebar-overlay {
     position: fixed;
     z-index: 1;
@@ -493,7 +324,7 @@ input[type=number] {
     display: flex;
     align-items: center;
     gap: 5px;
-    /** animation */
+    
     transition: all 0.2s 0s linear;
 }
 
@@ -521,8 +352,7 @@ input[type=number] {
     transform: translate(calc(100% - 40px), -50%);
 }
 
-.sidebar-edge-left.sidebar-show .sidebar-background,
-.sidebar-edge-right.sidebar-show .sidebar-background {
+.sidebar-edge-left.sidebar-show .sidebar-background, .sidebar-edge-right.sidebar-show .sidebar-background {
     transform: translate(0, -50%);
 }
 
@@ -546,13 +376,12 @@ input[type=number] {
     transform: translate(-50%, calc(100% - 40px));
 }
 
-.sidebar-edge-down.sidebar-show .sidebar-background,
-.sidebar-edge-up.sidebar-show .sidebar-background {
+.sidebar-edge-down.sidebar-show .sidebar-background, .sidebar-edge-up.sidebar-show .sidebar-background {
     transform: translate(-50%, 0);
 }
 
 .sidebar-button {
-    /** Note: Button full size: 30px(width / height) + 5px(padding as in button selector) + 5px(.sidebar-background gap) = 40px */
+    
     width: 30px;
     height: 30px;
     display: flex;
@@ -570,16 +399,13 @@ input[type=number] {
     transition: all 0.3s linear;
 }
 
-/** "Hide sidebar button" stream setting: invisible until hovered or focused,
-    so it never overlays the game but stays reachable in the same spot. */
+
 .sidebar-button.sidebar-button-unobtrusive {
     opacity: 0;
     transition: opacity 0.2s linear;
 }
 
-.sidebar-button.sidebar-button-unobtrusive:hover,
-.sidebar-button.sidebar-button-unobtrusive:focus-visible,
-.sidebar-show .sidebar-button.sidebar-button-unobtrusive {
+.sidebar-button.sidebar-button-unobtrusive:hover, .sidebar-button.sidebar-button-unobtrusive:focus-visible, .sidebar-show .sidebar-button.sidebar-button-unobtrusive {
     opacity: 1;
 }
 
@@ -615,7 +441,7 @@ input[type=number] {
     box-shadow: 0 0 25px rgba(255, 45, 85, 0.3), 0 0 50px rgba(255, 45, 85, 0.15);
 }
 
-/** Notification */
+
 .notification-list {
     visibility: hidden;
     position: fixed;
@@ -653,19 +479,19 @@ input[type=number] {
     margin-right: 0.3cm;
 }
 
-/** Animated Lists */
+
 .animated-list-element {
-    /** animation */
+    
     opacity: 0;
 }
 
 .animated-list-element.list-show {
-    /** animation */
+    
     opacity: 1;
     transition: opacity 0.3s ease-in;
 }
 
-/** Top Line & Controls */
+
 .top-line {
     display: flex;
     flex-direction: row;
@@ -712,7 +538,7 @@ input[type=number] {
     outline-offset: 2px;
 }
 
-/** Search/Filter */
+
 .host-search {
     width: 250px;
     padding: var(--space-sm) var(--space-md);
@@ -783,7 +609,7 @@ input[type=number] {
     height: 70px;
 }
 
-/** Actions */
+
 .actions-list {
     display: flex;
     flex-direction: row;
@@ -791,7 +617,7 @@ input[type=number] {
     align-items: center;
 }
 
-/** Settings */
+
 .open-settings {
     background-image: url("../resources/settings.svg");
     background-position: center;
@@ -856,7 +682,7 @@ input[type=number] {
     box-shadow: 0 0 12px rgba(255, 140, 66, 0.4);
 }
 
-/** Toast Notifications */
+
 .toast-container {
     position: fixed;
     bottom: var(--space-lg);
@@ -1051,7 +877,7 @@ input[type=number] {
     }
 }
 
-/** Apps */
+
 .app-list {
     list-style-type: none;
     display: flex;
@@ -1062,7 +888,7 @@ input[type=number] {
 
 .app-element {
     flex: 0 1 200px;
-    /** subtract half the flex gap */
+    
     max-width: calc(50% - (10px / 2));
 }
 
@@ -1080,17 +906,17 @@ input[type=number] {
 }
 
 .app-image {
-    /** Ratio: w:h 200:266 */
+    
     width: 100%;
     aspect-ratio: 200 / 266;
     object-fit: cover;
-    /** animation */
+    
     transition: all 0.4s linear;
     opacity: 0;
 }
 
 .app-image-loaded {
-    /** animation */
+    
     opacity: 1;
     transition: opacity 0.1s ease-in;
 }
@@ -1114,7 +940,7 @@ input[type=number] {
     transition: all 0.2s ease-in;
 }
 
-/** Stream Connect Modal */
+
 .modal-video-connect {
     display: flex;
     flex-direction: column;
@@ -1135,7 +961,7 @@ input[type=number] {
     max-height: 40vh;
 }
 
-/* Connecting spinner overlay for host tiles */
+
 @keyframes moonlight-spin {
     to {
         transform: rotate(360deg);
@@ -1170,7 +996,7 @@ input[type=number] {
     box-shadow: 0 0 12px #ff2d55;
 }
 
-/* Loading Overlay */
+
 .host-loading-overlay {
     position: absolute;
     inset: 0;
@@ -1231,7 +1057,7 @@ input[type=number] {
     box-shadow: 0 0 0 4px rgba(255, 140, 66, 0.12), 0 8px 20px rgba(0, 0, 0, 0.55);
 }
 
-/** Stream */
+
 .video-stream {
     position: fixed;
     top: var(--stream-video-middle);
@@ -1358,8 +1184,7 @@ canvas.video-stream {
     justify-content: space-evenly;
 }
 
-.stream-keyboard-simulated-key:hover,
-.stream-keyboard-simulated-key:active {
+.stream-keyboard-simulated-key:hover, .stream-keyboard-simulated-key:active {
     transform: none !important;
     box-shadow: none;
 }
@@ -1370,7 +1195,7 @@ canvas.video-stream {
     margin: 3px;
     padding: 12px 4px;
     background: #16161c;
-    /* Matches --bg-1 */
+    
     color: var(--text-1);
     border: 1px solid rgba(255, 45, 85, 0.3);
     border-radius: 4px;
@@ -1406,12 +1231,12 @@ canvas.video-stream {
     box-shadow: inset 0 0 8px rgba(255, 45, 85, 0.12);
 }
 
-/* Prevent starting animation for elements */
+
 .prevent-start-transition {
     transition: none;
 }
 
-/* Admin */
+
 .user-button {
     background-image: url("../resources/new/user.svg");
     background-position: center;
@@ -1421,15 +1246,13 @@ canvas.video-stream {
     height: 70px;
 }
 
-.user-panel,
-.role-panel {
+.user-panel, .role-panel {
     display: flex;
     flex-direction: column;
     max-width: 225px;
 }
 
-.user-list,
-.role-list {
+.user-list, .role-list {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -1437,43 +1260,37 @@ canvas.video-stream {
     overflow-y: auto;
 }
 
-.user-element,
-.role-element {
+.user-element, .role-element {
     margin: 0;
     padding: 10px;
     min-width: 110px;
     cursor: pointer;
     border-radius: 6px;
-    /** animation */
+    
     transition: all 0.15s;
     background-color: rgba(255, 255, 255, 0);
 }
 
-.user-element:hover,
-.role-element:hover {
-    /** animation */
+.user-element:hover, .role-element:hover {
+    
     transition: all 0.2s;
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-.user-element p,
-.role-element p {
+.user-element p, .role-element p {
     padding: 0;
     margin: 0;
 }
 
-.admin-panel-users,
-.admin-panel-roles {
+.admin-panel-users, .admin-panel-roles {
     display: flex;
     flex-direction: row;
 }
 
-.user-info-delete,
-.user-info-remove-as-default,
-.role-info-delete {
+.user-info-delete, .user-info-remove-as-default, .role-info-delete {
     background-color: red;
 }
-/** Starlight Streams: display selection */
+
 .sidebar-stream-displays p {
     margin: 6px 0;
 }
@@ -1498,10 +1315,7 @@ canvas.video-stream {
     opacity: 0.7;
 }
 
-/* ==========================================================================
-   Starlight Streams theme (inspired by the "Climax" streaming UI kit):
-   near black, bold white type, hot pink/red accent, green stream buttons
-   ========================================================================== */
+
 :root {
     --sl-bg: #0b0b0f;
     --sl-surface: #16161c;
@@ -1515,34 +1329,8 @@ canvas.video-stream {
     --sl-muted: #9a9aa8;
 }
 
-body {
-    color: var(--sl-text);
-    text-shadow: none;
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-}
 
-body::before {
-    background:
-        radial-gradient(900px 500px at 100% 0%, rgba(255, 45, 85, 0.22), transparent 60%),
-        radial-gradient(700px 400px at 0% 100%, rgba(255, 45, 85, 0.08), transparent 60%),
-        var(--sl-bg);
-}
-
-h1 {
-    font-size: 2.4rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-}
-
-h2,
-h3 {
-    text-shadow: none;
-    font-weight: 800;
-}
-
-/* Buttons */
-.file-button,
-button {
+.file-button {
     background-color: var(--sl-surface-2);
     border: 1px solid var(--sl-border);
     border-radius: 14px;
@@ -1550,41 +1338,25 @@ button {
     font-weight: 600;
 }
 
-button,
-.file-button,
-.logout-button,
-.login-button,
-.admin-button,
-.sidebar-button,
-.user-button {
+.file-button, .logout-button, .login-button, .admin-button, .sidebar-button, .user-button {
     box-shadow: none;
 }
 
-.file-button:hover:not(:disabled),
-button:hover:not(:disabled) {
+.file-button:hover:not(:disabled) {
     background-color: var(--sl-accent);
     border-color: var(--sl-accent);
     box-shadow: 0 8px 24px rgba(255, 45, 85, 0.35);
     transform: translateY(-2px);
 }
 
-button:disabled {
-    background-color: #2a2a30;
-    border-color: #2a2a30;
-    color: #666;
-}
-
-.logout-button,
-.admin-button {
+.logout-button, .admin-button {
     background-color: var(--sl-surface-2);
     background-size: 40px;
     width: 56px;
     height: 56px;
 }
 
-.login-button,
-.open-settings,
-.host-add {
+.login-button, .open-settings, .host-add {
     background-size: 40px;
     width: 56px;
     height: 56px;
@@ -1599,32 +1371,12 @@ button:disabled {
     font-weight: 700;
 }
 
-/* Inputs */
-input[type=text],
-input[type=password],
-input[type=number],
-input:not([type]),
-select {
-    background: var(--sl-surface-2);
-    color: var(--sl-text);
-    border: 1px solid var(--sl-border);
-    border-radius: 10px;
-    padding: 6px 10px;
-}
 
-input[type="checkbox"]:checked {
-    background-color: var(--sl-accent);
-    border-color: var(--sl-accent);
-}
-
-/* Modal, context menu, sidebar */
 .modal-background {
     background-color: rgba(0, 0, 0, 0.6);
 }
 
-.modal-content,
-.context-menu-background,
-.sidebar-content {
+.modal-content, .context-menu-background, .sidebar-content {
     background: var(--sl-surface);
     border: 1px solid var(--sl-border);
     border-radius: 20px;
@@ -1645,7 +1397,7 @@ input[type="checkbox"]:checked {
     color: var(--sl-accent-2);
 }
 
-/* Host cards */
+
 .host-list {
     gap: 20px;
     padding: 8px;
@@ -1668,9 +1420,8 @@ input[type="checkbox"]:checked {
     box-shadow: 0 16px 50px rgba(255, 45, 85, 0.18);
 }
 
-/* The display boxes replace the big monitor picture */
-.host-element .host-image,
-.host-element .host-image-overlay {
+
+.host-element .host-image, .host-element .host-image-overlay {
     display: none;
 }
 
@@ -1684,7 +1435,7 @@ input[type="checkbox"]:checked {
     letter-spacing: -0.3px;
 }
 
-/* Host status, display boxes and the green stream buttons */
+
 .host-status {
     margin: 2px 0 14px;
     font-size: 0.9rem;
@@ -1780,7 +1531,7 @@ input[type="checkbox"]:checked {
     color: #fff;
 }
 
-/* Games */
+
 .app-element {
     border-radius: 16px;
 }
@@ -1793,7 +1544,7 @@ input[type="checkbox"]:checked {
     border-radius: 12px;
 }
 
-/* Stream sidebar display buttons */
+
 .sidebar-stream-display-buttons button.sidebar-stream-display-active {
     outline: none;
     background: var(--sl-accent);
@@ -1804,7 +1555,7 @@ input[type="checkbox"]:checked {
     align-items: center;
 }
 
-/** Starlight Streams: game mouse */
+
 .sidebar-stream-game-mouse {
     margin: 8px 0;
 }
@@ -1815,7 +1566,7 @@ input[type="checkbox"]:checked {
     color: #fff;
 }
 
-/** Starlight Streams: quick setup presets */
+
 .settings-presets {
     display: flex;
     flex-wrap: wrap;
@@ -1826,7 +1577,7 @@ input[type="checkbox"]:checked {
     margin: 0;
 }
 
-/** Starlight Streams: add pc with discovery */
+
 .add-host-section {
     margin: 12px 0 6px;
     opacity: 0.85;
@@ -1843,7 +1594,7 @@ input[type="checkbox"]:checked {
     text-align: left;
 }
 
-/** Starlight Streams: update button */
+
 .update-button {
     background-color: #22c55e;
     border-color: #22c55e;
@@ -1853,7 +1604,7 @@ input[type="checkbox"]:checked {
     font-weight: 700;
 }
 
-/** Starlight Streams: display details and sleep */
+
 .host-displays {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
@@ -1893,7 +1644,7 @@ input[type="checkbox"]:checked {
     color: #fff;
 }
 
-/* All display boxes in one row, the card grows with the number of displays */
+
 .host-displays {
     grid-template-columns: none;
     grid-auto-flow: column;
@@ -1912,10 +1663,8 @@ input[type="checkbox"]:checked {
     }
 }
 
-/** Starlight Streams: the picture fills the screen (keeping its proportions), also when the
-    stream is smaller than the screen, and the sharpening canvas lies exactly on top of it */
-video.video-stream,
-canvas.video-enhancer {
+
+video.video-stream, canvas.video-enhancer {
     width: 100vw;
     height: var(--stream-video-height);
     max-width: none;

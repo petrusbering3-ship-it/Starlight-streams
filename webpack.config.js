@@ -26,12 +26,12 @@ export default {
             },
             {
                 // Starlight Streams: the Swiss Console design system, on every page
-                test: /starlight-swiss\.css$/i,
+                test: /(starlight-swiss|swiss-pages)\.css$/i,
                 use: ['style-loader', 'css-loader']
             },
             {
                 test: /\.css$/i,
-                exclude: /starlight-swiss\.css$/i,
+                exclude: /(starlight-swiss|swiss-pages)\.css$/i,
                 use: [
                     {
                         loader: 'style-loader',

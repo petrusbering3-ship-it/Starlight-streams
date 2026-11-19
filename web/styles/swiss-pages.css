@@ -1,0 +1,25 @@
+/* Starlight Streams: page layouts for the Swiss Console design.
+   Only layout lives here; colours, type, space and components come from design/starlight-swiss.css. */
+
+/* ---------- login (S-Login) ---------- */
+.sl-login{position:fixed;inset:0;z-index:100;display:grid;grid-template-columns:minmax(0,1fr) 520px;background:var(--sl-paper);overflow:auto}
+.sl-login-intro{display:flex;flex-direction:column;justify-content:space-between;gap:var(--sl-10);padding:var(--sl-10) var(--sl-12);border-right:var(--sl-rule);min-width:0}
+.sl-login-top{display:flex;justify-content:space-between;gap:var(--sl-4);flex-wrap:wrap}
+.sl-login-wordmark{font-size:var(--sl-fs-hero);line-height:.86;letter-spacing:-.055em}
+.sl-login-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sl-6);border-top:var(--sl-rule);padding-top:14px}
+.sl-login-step{display:flex;flex-direction:column;gap:var(--sl-1)}
+.sl-login-step .title{font-weight:600}
+.sl-login-step .text{font-size:12.5px}
+.sl-login-form{display:flex;flex-direction:column;justify-content:center;gap:22px;padding:var(--sl-14);background:var(--sl-white);min-height:100%}
+.sl-login-spacer{margin-bottom:auto}
+.sl-login-title{font-size:34px}
+.sl-login-file{align-self:flex-start;height:auto;color:var(--sl-grey);font-size:var(--sl-fs-xs)}
+.sl-login-foot{margin-top:auto;font-size:var(--sl-fs-xs)}
+@media (max-width:820px){
+  .sl-login{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .sl-login-intro{padding:var(--sl-6) var(--sl-4);border-right:0;border-bottom:var(--sl-rule)}
+  .sl-login-wordmark{font-size:56px}
+  .sl-login-steps{display:none}
+  .sl-login-form{padding:var(--sl-8) var(--sl-4);justify-content:flex-start}
+  .sl-login-spacer{display:none}
+}
