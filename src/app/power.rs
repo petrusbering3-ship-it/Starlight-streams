@@ -267,6 +267,18 @@ pub async fn agent_request(
     method: &str,
     path: &str,
 ) -> Result<String, AppError> {
+    let body = agent_request_bytes(host_address, port, token, method, path).await?;
+    Ok(String::from_utf8_lossy(&body).into_owned())
+}
+
+/// Like [agent_request], for binary bodies (display screenshots)
+pub async fn agent_request_bytes(
+    host_address: &str,
+    port: u16,
+    token: &str,
+    method: &str,
+    path: &str,
+) -> Result<Vec<u8>, AppError> {
     let address = if host_address.contains(':') && !host_address.starts_with('[') {
         format!("[{host_address}]:{port}")
     } else {
@@ -289,16 +301,17 @@ pub async fn agent_request(
     .await
     .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))??;
 
-    let response = String::from_utf8_lossy(&response);
     let status_ok = response
-        .lines()
+        .split(|byte| *byte == b'\n')
         .next()
+        .and_then(|line| std::str::from_utf8(line).ok())
         .is_some_and(|line| line.split_whitespace().nth(1) == Some("200"));
 
     if status_ok {
         let body = response
-            .split_once("\r\n\r\n")
-            .map(|(_, body)| body.to_string())
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|end| response[end + 4..].to_vec())
             .unwrap_or_default();
         Ok(body)
     } else {

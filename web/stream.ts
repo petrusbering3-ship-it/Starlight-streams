@@ -15,6 +15,7 @@ import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
 import { DisplaySwitcher, getDisplayCount, setCachedDisplays } from "./stream/display"
+import { DisplayOverview } from "./stream/display_overview"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { VideoEnhancer } from "./stream/video/enhancer"
@@ -187,6 +188,7 @@ class ViewerApp implements Component {
     private localTouchCursorDiv = document.createElement("div")
     private stream: Stream
     private displaySwitcher: DisplaySwitcher
+    private displayOverview: DisplayOverview
     private enhancer: VideoEnhancer
 
     // Starlight Streams: auto quality during the stream
@@ -225,6 +227,7 @@ class ViewerApp implements Component {
         this.api = api
         this.hostId = hostId
         this.displaySwitcher = new DisplaySwitcher(hostId)
+        this.displayOverview = new DisplayOverview(api, hostId, () => this.getCurrentDisplay(), display => this.switchDisplay(display))
 
         const defaultSettings = getLocalStreamSettings(bootstrapRole.default_settings)
         const settings = {
@@ -675,16 +678,6 @@ class ViewerApp implements Component {
         this.displaySwitcher.switchTo(this.stream.getInput(), display)
         this.sidebar.onDisplayChange(display)
     }
-    switchToOtherDisplay() {
-        if (this.getDisplayCount() < 2) {
-            showNotification(I.stream.onlyOneDisplay, "info")
-            return
-        }
-        const display = this.displaySwitcher.switchToOther(this.stream.getInput())
-        this.sidebar.onDisplayChange(display)
-        showNotification(I.stream.displaySwitched(display), "info")
-    }
-
     setInputConfig(config: StreamInputConfig) {
         Object.assign(this.inputConfig, config)
 
@@ -692,9 +685,30 @@ class ViewerApp implements Component {
         this.renderLocalTouchCursor()
     }
 
+    /// Starlight Streams: the display overview (Ctrl+Shift+D), the mouse is needed to pick a display
+    async toggleDisplayOverview() {
+        if (this.displayOverview.isOpen()) {
+            this.displayOverview.close()
+            return
+        }
+        this.stream.getInput().raiseAllKeys()
+        await this.exitPointerLock()
+        await this.displayOverview.open()
+    }
+
     // Keyboard
     onKeyDown(event: KeyboardEvent) {
         this.onUserInteraction()
+
+        // The display overview is open: keys are not for the pc, Esc closes it
+        if (this.displayOverview.isOpen()) {
+            event.preventDefault()
+            event.stopPropagation()
+            if (!event.repeat && (event.code == "Escape" || (event.ctrlKey && event.shiftKey && event.code == "KeyD"))) {
+                this.displayOverview.close()
+            }
+            return
+        }
 
         console.debug(event)
         if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyM") {
@@ -706,11 +720,11 @@ class ViewerApp implements Component {
             }
             return
         } else if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyD") {
-            // Starlight Streams: quick switch to the other display
+            // Starlight Streams: display overview
             event.preventDefault()
             event.stopPropagation()
             if (!event.repeat) {
-                this.switchToOtherDisplay()
+                void this.toggleDisplayOverview()
             }
             return
         } else if (event.shiftKey && event.ctrlKey && event.code == "KeyV") {

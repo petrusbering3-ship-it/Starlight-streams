@@ -259,6 +259,11 @@ pub struct HostDisplay {
     pub height: u32,
     pub refresh_rate: u32,
     pub primary: bool,
+    /// Position on the desktop, as in the Windows display settings (0 from older power agents)
+    #[serde(default)]
+    pub x: i32,
+    #[serde(default)]
+    pub y: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, TS)]

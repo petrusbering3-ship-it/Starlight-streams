@@ -241,6 +241,28 @@ async fn host_displays(
     Ok(Json(GetHostDisplaysResponse { displays }))
 }
 
+#[derive(serde::Deserialize)]
+struct DisplayThumbnailQuery {
+    host_id: u32,
+    index: u32,
+}
+
+/// A small screenshot of a display of the pc (Starlight Streams display overview)
+#[get("/host/display-thumbnail")]
+async fn host_display_thumbnail(
+    mut user: AuthenticatedUser,
+    Query(query): Query<DisplayThumbnailQuery>,
+) -> Result<HttpResponse, AppError> {
+    let host = user.host(HostId(query.host_id)).await?;
+
+    let jpeg = host.display_thumbnail(&mut user, query.index).await?;
+
+    Ok(HttpResponse::Ok()
+        .content_type("image/jpeg")
+        .insert_header(("Cache-Control", "no-store"))
+        .body(jpeg))
+}
+
 #[get("/host/session")]
 async fn host_session(
     mut user: AuthenticatedUser,

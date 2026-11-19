@@ -32,7 +32,7 @@ export const zhCN: Translations = {
         serverMessage: (message: string) => `服务器：${message}`,
         sendKeycode: "发送按键码",
         display: "Display",
-        displayHotkeyHint: "Ctrl+Shift+D switches between the last two displays",
+        displayHotkeyHint: "Ctrl+Shift+D shows all displays: click one to switch",
         onlyOneDisplay: "The pc only has one display",
         autoQualityMeasuring: "Testing your connection...",
         qualityLowered: (quality: string) => `The connection got worse, lowering quality: ${quality}`,

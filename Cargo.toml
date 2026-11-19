@@ -77,7 +77,10 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System_RemoteDesktop",
     "Win32_System_SystemInformation",
     "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_HiDpi",
 ] }
+# Screenshots of the displays for the display overview in the stream
+jpeg-encoder = "0.7.1"
 
 [lints.clippy]
 too_many_arguments = "allow"

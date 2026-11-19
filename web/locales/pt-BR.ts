@@ -32,7 +32,7 @@ export const ptBR: Translations = {
         serverMessage: (message: string) => `Servidor: ${message}`,
         sendKeycode: "Enviar Código de Tecla",
         display: "Display",
-        displayHotkeyHint: "Ctrl+Shift+D switches between the last two displays",
+        displayHotkeyHint: "Ctrl+Shift+D shows all displays: click one to switch",
         onlyOneDisplay: "The pc only has one display",
         autoQualityMeasuring: "Testing your connection...",
         qualityLowered: (quality: string) => `The connection got worse, lowering quality: ${quality}`,

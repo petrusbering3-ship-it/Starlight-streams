@@ -9,8 +9,9 @@ use crate::api::{
     app::{get_app_image, get_apps},
     auth::auth_middleware,
     host::{
-        cancel_host, delete_host, get_host, host_displays, host_session, host_unlocked, list_hosts,
-        pair_host, patch_host, post_host, shutdown_host, sleep_host, wake_host,
+        cancel_host, delete_host, get_host, host_display_thumbnail, host_displays, host_session,
+        host_unlocked, list_hosts, pair_host, patch_host, post_host, shutdown_host, sleep_host,
+        wake_host,
     },
     role::{
         add_role, delete_default_role, delete_role, get_default_role, get_role, list_roles,
@@ -70,6 +71,7 @@ pub fn api_service() -> impl HttpServiceFactory {
             // -- Starlight Streams
             host_session,
             host_unlocked,
+            host_display_thumbnail,
             starlight::discover_hosts,
             starlight::starlight_info,
             starlight::starlight_update,

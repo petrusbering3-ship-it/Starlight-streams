@@ -159,6 +159,30 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
         format!("Bearer {token}").as_bytes(),
     );
 
+    if method == "GET"
+        && let Some(index) = path.strip_prefix("/thumbnail?index=")
+    {
+        if !authorized {
+            return respond(&mut stream, "401 Unauthorized", "");
+        }
+        // Tells the copy in the user's session to take screenshots for a few seconds
+        let _ = std::fs::write(thumbnails_request_file(displays_file), "");
+
+        let index: u32 = index.parse().unwrap_or(0);
+        let file = thumbnail_file(displays_file, index);
+        return match std::fs::read(&file) {
+            Ok(jpeg) if is_fresh(&file, Duration::from_secs(10)) => {
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    jpeg.len()
+                )?;
+                stream.write_all(&jpeg)
+            }
+            _ => respond(&mut stream, "404 Not Found", ""),
+        };
+    }
+
     match (method, path) {
         ("GET", "/displays" | "/session")
         | ("POST", "/shutdown" | "/auto-shutdown" | "/sleep" | "/lock" | "/update")
@@ -389,6 +413,9 @@ struct Display {
     height: u32,
     refresh_rate: u32,
     primary: bool,
+    /// Position on the desktop, as in the Windows display settings
+    x: i32,
+    y: i32,
 }
 
 fn write_displays_forever(path: &PathBuf) -> ! {
@@ -396,20 +423,169 @@ fn write_displays_forever(path: &PathBuf) -> ! {
         let _ = std::fs::create_dir_all(parent);
     }
 
+    // Real pixels for the screenshots, also on displays with scaling
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::UI::HiDpi::{
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
+        };
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+
     let activity = activity_file(path);
     let mut last = String::new();
+    let mut last_update: Option<std::time::Instant> = None;
     loop {
-        let json = serde_json::to_string(&list_displays()).unwrap_or_else(|_| "[]".into());
-        if json != last && std::fs::write(path, &json).is_ok() {
-            last = json;
+        if last_update.is_none_or(|time| time.elapsed() >= DISPLAYS_UPDATE_INTERVAL) {
+            last_update = Some(std::time::Instant::now());
+
+            let json = serde_json::to_string(&list_displays()).unwrap_or_else(|_| "[]".into());
+            if json != last && std::fs::write(path, &json).is_ok() {
+                last = json;
+            }
+            // When the mouse or keyboard was last used, so auto-off can tell somebody is at the pc
+            if let Some(idle) = user_idle_time() {
+                let last_input = unix_now().saturating_sub(idle.as_secs());
+                let _ = std::fs::write(&activity, last_input.to_string());
+            }
         }
-        // When the mouse or keyboard was last used, so auto-off can tell somebody is at the pc
-        if let Some(idle) = user_idle_time() {
-            let last_input = unix_now().saturating_sub(idle.as_secs());
-            let _ = std::fs::write(&activity, last_input.to_string());
+
+        // Screenshots only while somebody has the display overview open in a stream
+        if is_fresh(&thumbnails_request_file(path), THUMBNAILS_REQUEST_TIMEOUT) {
+            for display in list_displays() {
+                if let Some(jpeg) = capture_display(&display) {
+                    let file = thumbnail_file(path, display.index);
+                    let temporary = file.with_extension("tmp");
+                    if std::fs::write(&temporary, jpeg).is_ok() {
+                        let _ = std::fs::rename(&temporary, &file);
+                    }
+                }
+            }
+            thread::sleep(THUMBNAILS_INTERVAL);
+        } else {
+            thread::sleep(Duration::from_millis(500));
         }
-        thread::sleep(DISPLAYS_UPDATE_INTERVAL);
     }
+}
+
+// -- Display overview screenshots
+
+/// Screenshots are taken this often while the overview is open
+const THUMBNAILS_INTERVAL: Duration = Duration::from_millis(1500);
+/// The overview asks for screenshots at least this often while it's open
+const THUMBNAILS_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Touched by the agent while the overview is open, read by the copy in the user's session
+fn thumbnails_request_file(displays_file: &std::path::Path) -> PathBuf {
+    displays_file.with_file_name("thumbnails-request")
+}
+
+fn thumbnail_file(displays_file: &std::path::Path, index: u32) -> PathBuf {
+    displays_file.with_file_name(format!("thumbnail-{index}.jpg"))
+}
+
+fn is_fresh(path: &std::path::Path, max_age: Duration) -> bool {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_some_and(|age| age < max_age)
+}
+
+/// A small jpeg of what the display shows right now
+#[cfg(windows)]
+fn capture_display(display: &Display) -> Option<Vec<u8>> {
+    use windows_sys::Win32::Graphics::Gdi::{
+        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CAPTUREBLT, CreateCompatibleBitmap,
+        CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, HALFTONE,
+        ReleaseDC, SRCCOPY, SelectObject, SetStretchBltMode, StretchBlt,
+    };
+
+    const THUMBNAIL_WIDTH: i32 = 384;
+
+    let (width, height) = (display.width as i32, display.height as i32);
+    if width <= 0 || height <= 0 {
+        return None;
+    }
+    let thumbnail_width = THUMBNAIL_WIDTH.min(width);
+    let thumbnail_height = (height * thumbnail_width / width).max(1);
+
+    let mut pixels = vec![0u8; (thumbnail_width * thumbnail_height * 4) as usize];
+    unsafe {
+        // The whole desktop: display positions are relative to the primary display
+        let screen = GetDC(std::ptr::null_mut());
+        if screen.is_null() {
+            return None;
+        }
+        let memory = CreateCompatibleDC(screen);
+        let bitmap = CreateCompatibleBitmap(screen, thumbnail_width, thumbnail_height);
+        let old = SelectObject(memory, bitmap);
+        SetStretchBltMode(memory, HALFTONE);
+
+        let copied = StretchBlt(
+            memory,
+            0,
+            0,
+            thumbnail_width,
+            thumbnail_height,
+            screen,
+            display.x,
+            display.y,
+            width,
+            height,
+            SRCCOPY | CAPTUREBLT,
+        ) != 0;
+
+        let mut info: BITMAPINFO = std::mem::zeroed();
+        info.bmiHeader = BITMAPINFOHEADER {
+            biSize: size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: thumbnail_width,
+            // Negative: rows from top to bottom
+            biHeight: -thumbnail_height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            ..std::mem::zeroed()
+        };
+        let lines = if copied {
+            GetDIBits(
+                memory,
+                bitmap,
+                0,
+                thumbnail_height as u32,
+                pixels.as_mut_ptr().cast(),
+                &mut info,
+                DIB_RGB_COLORS,
+            )
+        } else {
+            0
+        };
+
+        SelectObject(memory, old);
+        DeleteObject(bitmap);
+        DeleteDC(memory);
+        ReleaseDC(std::ptr::null_mut(), screen);
+
+        if lines == 0 {
+            return None;
+        }
+    }
+
+    let mut jpeg = Vec::new();
+    jpeg_encoder::Encoder::new(&mut jpeg, 70)
+        .encode(
+            &pixels,
+            thumbnail_width as u16,
+            thumbnail_height as u16,
+            jpeg_encoder::ColorType::Bgra,
+        )
+        .ok()?;
+    Some(jpeg)
+}
+
+#[cfg(not(windows))]
+fn capture_display(_display: &Display) -> Option<Vec<u8>> {
+    None
 }
 
 #[cfg(windows)]
@@ -552,6 +728,8 @@ fn list_displays() -> Vec<Display> {
             height: mode.dmPelsHeight,
             refresh_rate: mode.dmDisplayFrequency,
             primary: device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE != 0,
+            x: unsafe { mode.Anonymous1.Anonymous2.dmPosition.x },
+            y: unsafe { mode.Anonymous1.Anonymous2.dmPosition.y },
         });
     }
 

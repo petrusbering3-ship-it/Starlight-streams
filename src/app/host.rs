@@ -20,7 +20,8 @@ use crate::app::{
     AppError, AppInner, AppRef, RequestClient,
     guest::guest_expiry,
     power::{
-        PowerCommand, StreamActivityGuard, agent_request, send_magic_packet, send_power_command,
+        PowerCommand, StreamActivityGuard, agent_request, agent_request_bytes, send_magic_packet,
+        send_power_command,
     },
     storage::{StorageHost, StorageHostModify, StorageHostPairInfo},
     user::{AuthenticatedUser, RoleType, UserId},
@@ -507,6 +508,31 @@ impl Host {
         }
 
         Ok(cache.get(&self.id.0).cloned().unwrap_or_default())
+    }
+
+    /// A small screenshot of a display of the pc (jpeg), for the display overview in the stream
+    pub async fn display_thumbnail(
+        &self,
+        user: &mut AuthenticatedUser,
+        index: u32,
+    ) -> Result<Vec<u8>, AppError> {
+        self.can_use(user).await?;
+
+        let app = self.app.access()?;
+
+        let storage = self.storage_host(&app).await?;
+
+        let config = &app.config.moonlight;
+        let token = config.power_agent_token.as_deref().unwrap_or_default();
+
+        agent_request_bytes(
+            &storage.address,
+            config.power_agent_port,
+            token,
+            "GET",
+            &format!("/thumbnail?index={index}"),
+        )
+        .await
     }
 
     /// Whether the host pc is logged in and locked, as reported by the Starlight power agent

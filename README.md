@@ -4,7 +4,7 @@ Stream spil fra din gaming PC til en hvilken som helst browser, derhjemme eller 
 
 Starlight Streams er bygget på [Moonlight Web](https://github.com/MrCreativ3001/moonlight-web-stream) af MrCreativ3001 (GPL-3.0). Den har alle funktionerne fra Moonlight Web, og derudover:
 
-- **Smarte skærm-bokse:** PC-kortet viser præcis så mange bokse, som PC'en har skærme, med navn, opløsning og Hz. Under streamen skifter **Ctrl+Shift+D** mellem dine to sidste skærme.
+- **Smarte skærm-bokse:** PC-kortet viser præcis så mange bokse, som PC'en har skærme, med navn, opløsning og Hz. Under streamen viser **Ctrl+Shift+D** alle dine skærme, som de står i Windows, med et live billede: klik på en skærm for at skifte til den, eller tryk Esc.
 - **Stream-knappen tænder PC'en:** Er PC'en slukket, bliver den tændt. Når den er klar, starter det spil du spillede sidst.
 - **Sluk og Dvale:** Sluk PC'en eller sæt den i dvale fra browseren. Fra dvale vågner den på få sekunder.
 - **Game Mouse:** Til spil som Minecraft. Laptoppens musemarkør forsvinder, og musen styrer kun PC'en. Tænd og sluk med **Ctrl+Shift+M**.
