@@ -33,9 +33,16 @@ async function measureMbps(api: Api): Promise<number> {
     return mbps
 }
 
+/// Through Tailscale Funnel (the .ts.net address) the stream goes over a Web Socket: a short
+/// dip makes the picture queue up and look like input lag, so it needs more headroom
+function usesFunnel(): boolean {
+    return location.hostname.endsWith(".ts.net")
+}
+
 export function pickQuality(mbps: number): Partial<Settings> {
-    // Use ~60% of the measured speed, so short dips don't make the stream stutter
-    const bitrate = Math.round(Math.min(50000, Math.max(3000, mbps * 1000 * 0.6)) / 500) * 500
+    // Use ~60% of the measured speed (~40% through Funnel), so short dips don't make the stream stutter
+    const share = usesFunnel() ? 0.4 : 0.6
+    const bitrate = Math.round(Math.min(50000, Math.max(3000, mbps * 1000 * share)) / 500) * 500
 
     if (mbps >= 45) {
         return { videoSize: "native", fps: 60, bitrate }
