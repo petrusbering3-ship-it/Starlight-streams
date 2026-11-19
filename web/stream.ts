@@ -1,4 +1,5 @@
-import { Api, apiGetRole, apiHostDisplays, getApi } from "./api"
+import { Api, apiGetHost, apiGetRole, apiHostDisplays, getApi } from "./api"
+import { openSlModal } from "./component/sl_modal"
 import { DetailedRole, StreamKeys } from "./api_bindings"
 import { Component } from "./component/index"
 import { SelectComponent } from "./component/input"
@@ -27,6 +28,7 @@ import { LogLevel, uniffiInitAsync, Logger as UniffiLogger, setLogger as uniffiS
 import { NativeScreenKeyboard } from "./keyboard/native_keyboard"
 import { SimulatedKeyboard } from "./keyboard/simulated_keyboard"
 import { buildUrl } from "./config_"
+import { button, el, icon } from "./icons"
 
 let I = getTranslations(getCurrentLanguage())
 
@@ -103,13 +105,16 @@ async function startApp() {
     let options = parseSettingsFromQuery(queryParams)
     const effectiveSettings = { ...getLocalStreamSettings(bootstrapRole.role.default_settings), ...options }
     if (effectiveSettings.autoQuality) {
-        showNotification(I.stream.autoQualityMeasuring, "info")
+        CONNECT_CARD.setStep(0)
+        showModal(CONNECT_CARD)
         const auto = await measureAutoQuality(api)
         if (auto) {
             options = { ...options, ...auto.settings }
-            showNotification(I.stream.autoQualityResult(auto.settings.videoSize ?? "", auto.settings.fps ?? 0, auto.settings.bitrate ?? 0, auto.mbps), "info")
+            showNotification(I.stream.autoQualityResult(auto.settings.videoSize ?? "", auto.settings.fps ?? 0, auto.settings.bitrate ?? 0, auto.mbps), "ok")
         }
     }
+    CONNECT_CARD.setStep(effectiveSettings.autoQuality ? 1 : 1)
+    CONNECT_CARD.setSubtitle(getTranslations(getCurrentLanguage()).host.displayName(new DisplaySwitcher(hostId).getCurrent()))
 
     // Start and Mount App
     const app = new ViewerApp(api, hostId, appId, bootstrapRole.role, options)
@@ -181,7 +186,7 @@ class ViewerApp implements Component {
 
     private div = document.createElement("div")
 
-    private connectionInfoModal = new ConnectionInfoModal()
+    private connectionInfoModal = CONNECT_CARD
     private screenKeyboard: ScreenKeyboard
 
     private statsDiv = document.createElement("div")
@@ -250,6 +255,9 @@ class ViewerApp implements Component {
         this.sidebar = new ViewerSidebar(this)
         setSidebar(this.sidebar)
 
+        // The pc's name in the sidebar
+        apiGetHost(api, { host_id: hostId }).then(host => this.sidebar.setTitle(host.name)).catch(() => { })
+
         // The displays the pc has (the server remembers them, also between browsers)
         apiHostDisplays(api, { host_id: hostId }).then(({ displays }) => {
             if (displays.length > 0 && displays.length != this.getDisplayCount()) {
@@ -264,7 +272,7 @@ class ViewerApp implements Component {
 
         // Configure stats element
         this.statsDiv.hidden = true
-        this.statsDiv.classList.add("video-stats")
+        this.statsDiv.classList.add("video-stats", "sl-stats")
         this.localTouchCursorDiv.hidden = true
         this.localTouchCursorDiv.classList.add("local-touch-cursor")
 
@@ -367,7 +375,7 @@ class ViewerApp implements Component {
 
         // Optionally keep the sidebar toggle invisible until hovered/focused
         document.getElementById("sidebar-button")
-            ?.classList.toggle("sidebar-button-unobtrusive", settings.hideSidebarButton)
+            ?.classList.toggle("is-unobtrusive", settings.hideSidebarButton)
 
         // Add app info listener
         this.addStreamInfoListener()
@@ -498,6 +506,7 @@ class ViewerApp implements Component {
             const appName = data.appName
 
             document.title = `Stream: ${appName}`
+
         } else if (data.type == "connectionComplete") {
             this.sidebar.onCapabilitiesChange(data.capabilities)
 
@@ -621,7 +630,7 @@ class ViewerApp implements Component {
 
             let pin = getUnlockPin(this.hostId)
             if (askPin || (!pin && locked)) {
-                const typed = prompt(I.stream.unlockAskPin, "")
+                const typed = await askWindowsPin()
                 if (typed == null) {
                     return
                 }
@@ -693,6 +702,39 @@ class ViewerApp implements Component {
         this.renderLocalTouchCursor()
     }
 
+    /// Starlight Streams: stats on / off (Ctrl+Shift+S and the sidebar)
+    toggleStats() {
+        const stats = this.getStream()?.getStats()
+        if (stats) {
+            stats.toggle()
+            this.sidebar.onStatsChange(stats.isEnabled())
+        }
+    }
+
+    /// Starlight Streams: stops the stream and goes back (Ctrl+Shift+Q and the sidebar)
+    async exitStream() {
+        const stream = this.getStream()
+        if (stream) {
+            const success = await stream.stop()
+            if (!success) {
+                console.debug("Failed to close stream correctly")
+            }
+        }
+
+        exitStreamPage()
+    }
+
+    /// "H264 · 1080p · 60 fps" for the sidebar
+    getStreamSummary(): string {
+        const settings = this.streamSettings
+        if (!settings) {
+            return ""
+        }
+        const codec = settings.videoCodec == "auto" ? "Auto" : settings.videoCodec.toUpperCase()
+        const size = settings.videoSize == "custom" ? `${settings.videoSizeCustom.width}×${settings.videoSizeCustom.height}` : settings.videoSize
+        return `${codec} · ${size} · ${settings.fps} fps`
+    }
+
     /// Starlight Streams: the display overview (Ctrl+Shift+D), the mouse is needed to pick a display
     async toggleDisplayOverview() {
         if (this.displayOverview.isOpen()) {
@@ -725,6 +767,22 @@ class ViewerApp implements Component {
             event.stopPropagation()
             if (!event.repeat) {
                 this.setGameMouse(!this.gameMouse, true)
+            }
+            return
+        } else if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyS") {
+            // Starlight Streams: stats
+            event.preventDefault()
+            event.stopPropagation()
+            if (!event.repeat) {
+                this.toggleStats()
+            }
+            return
+        } else if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyQ") {
+            // Starlight Streams: exit the stream
+            event.preventDefault()
+            event.stopPropagation()
+            if (!event.repeat) {
+                void this.exitStream()
             }
             return
         } else if (event.ctrlKey && event.shiftKey && !event.altKey && event.code == "KeyD") {
@@ -1208,90 +1266,111 @@ class ViewerApp implements Component {
     }
 }
 
+/// Starlight Streams: the connect card (design/screens/S-Stream-States): TEST · CONNECT · PLAY,
+/// a title, the logs, and Retry when it fails.
 class ConnectionInfoModal implements Modal<void> {
 
     private eventTarget = new EventTarget()
 
-    private root = document.createElement("div")
+    private root = el("div", "sl-connect")
+    private steps = el("div", "sl-steps")
+    private stepElements: Array<HTMLElement> = []
+    private spinner = el("span", "sl-spinner sl-spinner--lg")
+    private bang = el("span", "sl-num sl-red sl-connect-bang", "!")
+    private title = el("h2", "sl-h3 sl-connect-title")
+    private subtitle = el("p", "sl-ink2 sl-connect-sub")
+    private logButton = button("sl-link sl-connect-logs", I.stream.showLogs, "terminal")
+    private log = el("pre", "sl-log")
+    private foot = el("div", "sl-connect-foot")
+    private closeButton = button("sl-btn sl-btn-quiet", I.stream.close)
+    private retryButton = button("sl-btn sl-btn-ink", I.stream.retry, "retry")
 
     private textTy: LogMessageType | null = null
-    private text = document.createElement("p")
-
-    private options = document.createElement("div")
-    private debugDetailButton = document.createElement("button")
-    private closeButton = document.createElement("button")
-
-    private debugDetail = "" // We store this seperate because line breaks don't work when the element is not mounted on the dom
-    private debugDetailDisplay = document.createElement("div")
+    private failed = false
 
     constructor() {
-        this.root.classList.add("modal-video-connect")
+        for (const name of [I.stream.stepTest, I.stream.stepConnect, I.stream.stepPlay]) {
+            const step = el("span", undefined, name)
+            this.stepElements.push(step)
+            this.steps.appendChild(step)
+        }
+        this.bang.hidden = true
+        this.log.hidden = true
+        this.retryButton.hidden = true
 
-        this.text.innerText = I.stream.connecting
-        this.root.appendChild(this.text)
-
-        this.root.appendChild(this.options)
-        this.options.classList.add("modal-video-connect-options")
-
-        this.debugDetailButton.innerText = I.stream.showLogs
-        this.debugDetailButton.addEventListener("click", this.onDebugDetailClick.bind(this))
-        this.options.appendChild(this.debugDetailButton)
-
-        this.closeButton.innerText = I.stream.close
+        this.logButton.addEventListener("click", () => this.setLogsOpen(this.log.hidden))
         this.closeButton.addEventListener("click", this.onClose.bind(this))
-        this.options.appendChild(this.closeButton)
+        this.retryButton.addEventListener("click", () => window.location.reload())
+        this.foot.append(this.closeButton, this.retryButton)
 
-        this.debugDetailDisplay.classList.add("textlike")
-        this.debugDetailDisplay.classList.add("modal-video-connect-debug")
+        this.root.append(this.steps, this.spinner, this.bang, this.title, this.subtitle, this.logButton, this.log, this.foot)
+        this.setStep(0)
     }
 
-    private onDebugDetailClick() {
-        let debugDetailCurrentlyShown = this.root.contains(this.debugDetailDisplay)
-
-        if (debugDetailCurrentlyShown) {
-            this.debugDetailButton.innerText = I.stream.showLogs
-            this.root.removeChild(this.debugDetailDisplay)
-        } else {
-            this.debugDetailButton.innerText = I.stream.hideLogs
-            this.root.appendChild(this.debugDetailDisplay)
-            this.debugDetailDisplay.innerText = this.debugDetail
+    /// 0 = testing the connection, 1 = connecting, 2 = playing
+    setStep(step: number) {
+        this.stepElements.forEach((element, index) => {
+            element.className = index < step ? "is-done" : index == step ? "is-now" : ""
+            element.textContent = (index < step ? "✓ " : "") + [I.stream.stepTest, I.stream.stepConnect, I.stream.stepPlay][index]
+        })
+        if (!this.failed) {
+            this.title.textContent = step == 0 ? I.stream.autoQualityMeasuring : I.stream.connecting
+            this.subtitle.textContent = step == 0 ? I.stream.findingQuality : this.subtitle.textContent
+        }
+    }
+    setSubtitle(text: string) {
+        if (!this.failed) {
+            this.subtitle.textContent = text
         }
     }
 
-    private debugLog(line: string) {
-        this.debugDetail += `${line}\n`
-        this.debugDetailDisplay.innerText = this.debugDetail
+    private setLogsOpen(open: boolean) {
+        this.log.hidden = !open
+        this.logButton.replaceChildren(icon("terminal"), open ? I.stream.hideLogs : I.stream.showLogs)
+        if (open) {
+            this.log.scrollTop = this.log.scrollHeight
+        }
+    }
+
+    private debugLog(line: string, type?: LogMessageType | null) {
+        const time = new Date().toTimeString().slice(0, 8)
+        const row = el("div", type == "fatal" || type == "fatalDescription" ? "err" : type == "informError" || type == "ifErrorDescription" ? "warn" : undefined)
+        row.append(el("span", "t", `${time} `), line)
+        this.log.appendChild(row)
+        this.log.scrollTop = this.log.scrollHeight
         console.info(`[Stream]: ${line}`)
+    }
+
+    private fail(message: string) {
+        this.failed = true
+        this.spinner.hidden = true
+        this.bang.hidden = false
+        this.title.textContent = I.stream.couldNotConnect
+        this.subtitle.textContent = message
+        this.retryButton.hidden = false
+        this.setLogsOpen(true)
     }
 
     onInfo(event: InfoEvent) {
         const data = event.detail
 
         if (data.type == "connectionComplete") {
-            const text = I.stream.connectionComplete
-            this.text.innerText = text
-            this.debugLog(text)
+            this.debugLog(I.stream.connectionComplete)
+            this.setStep(2)
 
             showModal(null)
         } else if (data.type == "addDebugLine") {
             const message = data.line.trim()
             if (message) {
-                this.debugLog(message)
+                this.debugLog(message, data.additional?.type)
 
                 if (!this.textTy) {
-                    this.text.innerText = message
                     this.textTy = data.additional?.type ?? null
-                } else if (data.additional?.type == "fatalDescription" || data.additional?.type == "ifErrorDescription") {
-                    if (this.text.innerText) {
-                        this.text.innerText += "\n" + message
-                    } else {
-                        this.text.innerText = message
-                    }
-                    this.textTy = data.additional.type
                 }
             }
 
             if (data.additional?.type == "fatal" || data.additional?.type == "fatalDescription") {
+                this.fail(message)
                 showModal(this)
             } else if (data.additional?.type == "informError") {
                 showNotification(data.line)
@@ -1313,81 +1392,124 @@ class ConnectionInfoModal implements Modal<void> {
         parent.appendChild(this.root)
     }
     unmount(parent: HTMLElement): void {
-        parent.removeChild(this.root)
+        if (this.root.parentElement == parent) {
+            parent.removeChild(this.root)
+        }
     }
 }
 
+/// Starlight Streams: "Type your Windows PIN" (design/screens/S-Stream-States, 05). Null when cancelled
+function askWindowsPin(): Promise<string | null> {
+    const modal = openSlModal({ title: I.stream.typePin, label: I.stream.pcLocked, size: "sm" })
+    const input = el("input", "sl-input sl-input-pin")
+    input.type = "password"
+    input.inputMode = "numeric"
+    input.autocomplete = "off"
+    input.setAttribute("aria-label", I.stream.typePin)
+    const note = el("p", "sl-help sl-pin-note")
+    note.append(icon("shield"), I.stream.savedInBrowser)
+    modal.body.append(input, note)
+
+    return new Promise(resolve => {
+        let result: string | null = null
+        const cancel = button("sl-btn sl-btn-quiet", I.modal.cancel)
+        cancel.addEventListener("click", () => modal.close())
+        const ok = el("button", "sl-btn sl-btn-ink")
+        ok.type = "button"
+        ok.append(I.modal.ok, el("span", undefined, "→"))
+        const submit = () => {
+            result = input.value
+            modal.close()
+        }
+        ok.addEventListener("click", submit)
+        input.addEventListener("keydown", event => {
+            if (event.key == "Enter") {
+                submit()
+            }
+        })
+        modal.foot.append(cancel, ok)
+        modal.closed.then(() => resolve(result))
+    })
+}
+
+/// Shown from the start (during the speed test) until the stream plays
+const CONNECT_CARD = new ConnectionInfoModal()
+
+/// Starlight Streams: the stream sidebar (design/screens/S-Sidebar)
 class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     private app: ViewerApp
 
-    private div = document.createElement("div")
+    private div = el("div", "sl-side")
 
-    private buttonDiv = document.createElement("div")
+    private title = el("span", "sl-h3 sl-side-title", I.stream.streamTitle)
+    private summary = el("span", "sl-mono sl-muted sl-side-summary")
 
-    private sendKeycodeButton = document.createElement("button")
+    private gameMouseRow = el("button", "sl-side-row sl-side-game-mouse")
+    private gameMouseState = el("span", "sl-mono sl-muted")
+    private gameMouseSwitch = el("span", "sl-switch")
 
-    private keyboardButton = document.createElement("button")
+    private statsRow: HTMLButtonElement
 
-    private lockMouseButton = document.createElement("button")
-    private fullscreenButton = document.createElement("button")
+    private mouseMode = el("select", "sl-select")
+    private touchMode = el("select", "sl-select")
 
-    private statsButton = document.createElement("button")
-    private exitStreamButton = document.createElement("button")
-
-    private mouseMode: SelectComponent
-    private touchMode: SelectComponent
-
-    private gameMouseButton = document.createElement("button")
-    private unlockButton = document.createElement("button")
-
-    private displayDiv = document.createElement("div")
     private displayButtons: Array<HTMLButtonElement> = []
-    private displayButtonRow = document.createElement("div")
+    private displayButtonRow = el("div", "sl-cells sl-cells--num")
 
     constructor(app: ViewerApp) {
         this.app = app
 
-        // -- Configure divs
-        this.div.classList.add("sidebar-stream")
+        // -- Head: what's streaming
+        const head = el("div", "sl-side-head")
+        const titles = el("div", "sl-side-titles")
+        titles.append(el("span", "sl-label", I.stream.streaming), this.title, this.summary)
+        const close = el("button", "sl-btn sl-btn-quiet sl-btn-icon sl-btn-sm")
+        close.type = "button"
+        close.setAttribute("aria-label", I.stream.closeSidebar)
+        close.appendChild(icon("chevronLeft"))
+        close.addEventListener("click", () => setSidebarExtended(false))
+        head.append(titles, close)
 
-        this.buttonDiv.classList.add("sidebar-stream-buttons")
-        this.div.appendChild(this.buttonDiv)
-
-        // Game mouse (Starlight Streams)
-        this.gameMouseButton.classList.add("sidebar-stream-game-mouse")
-        this.gameMouseButton.addEventListener("click", () => {
-            this.app.setGameMouse(!this.app.isGameMouse(), true)
-        })
-        this.div.appendChild(this.gameMouseButton)
+        // -- Game mouse
+        this.gameMouseRow.type = "button"
+        const gameMouseText = el("span", "sl-side-game-mouse-text")
+        gameMouseText.append(el("span", "title", I.stream.gameMouse), this.gameMouseState)
+        this.gameMouseSwitch.setAttribute("role", "switch")
+        this.gameMouseSwitch.setAttribute("aria-label", I.stream.gameMouse)
+        this.gameMouseRow.append(gameMouseText, this.gameMouseSwitch)
+        this.gameMouseRow.addEventListener("click", () => this.app.setGameMouse(!this.app.isGameMouse(), true))
         this.onGameMouseChange(false)
 
-        // Unlock the pc's lock screen with the Windows PIN (Starlight Streams)
-        this.unlockButton.classList.add("sidebar-stream-game-mouse")
-        this.unlockButton.innerText = I.stream.unlockButton
-        this.unlockButton.addEventListener("click", () => this.app.autoUnlock(true))
-        this.div.appendChild(this.unlockButton)
+        // -- Unlock the pc's lock screen with the Windows PIN
+        const unlock = this.row("key", I.stream.unlockButtonPlain)
+        unlock.addEventListener("click", () => this.app.autoUnlock(true))
 
-        // Display selection (Starlight Streams)
-        this.displayDiv.classList.add("sidebar-stream-displays")
-        const displayLabel = document.createElement("p")
-        displayLabel.innerText = I.stream.display
-        this.displayDiv.appendChild(displayLabel)
-
-        this.displayButtonRow.classList.add("sidebar-stream-display-buttons")
+        // -- Displays
+        const displays = el("div", "sl-side-block")
         this.renderDisplayButtons()
-        this.displayDiv.appendChild(this.displayButtonRow)
+        displays.append(el("span", "sl-label", I.stream.display), this.displayButtonRow, el("span", "sl-muted sl-side-hint", I.stream.displayHotkeyHint))
 
-        const displayHint = document.createElement("p")
-        displayHint.classList.add("sidebar-stream-display-hint")
-        displayHint.innerText = I.stream.displayHotkeyHint
-        this.displayDiv.appendChild(displayHint)
-
-        this.div.appendChild(this.displayDiv)
-        this.onDisplayChange(this.app.getCurrentDisplay())
-
-        // Send keycode
-        this.sendKeycodeButton.innerText = I.stream.sendKeycode
-        this.sendKeycodeButton.addEventListener("click", async () => {
+        // -- Actions
+        const fullscreen = this.row("fullscreen", I.stream.fullscreen, "F11")
+        fullscreen.addEventListener("click", async () => {
+            if (this.app.isFullscreen()) {
+                this.app.markManualFullscreenExitRequested()
+                await this.app.exitFullscreen()
+            } else {
+                await this.app.requestFullscreen()
+            }
+        })
+        const lockMouse = this.row("lock", I.stream.lockMouse)
+        lockMouse.addEventListener("click", async () => {
+            await this.app.requestPointerLock(true)
+        })
+        const keyboard = this.row("keyboard", I.stream.keyboard)
+        keyboard.addEventListener("click", async () => {
+            setSidebarExtended(false)
+            this.app.getScreenKeyboard().setVisible(true)
+        })
+        const sendKeycode = this.row("hash", I.stream.sendKeycode)
+        sendKeycode.addEventListener("click", async () => {
             const key = await showModal(new SendKeycodeModal())
 
             if (key == null) {
@@ -1397,100 +1519,86 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
             this.app.getStream()?.getInput().sendKey(true, key, emptyKeyModifiers())
             this.app.getStream()?.getInput().sendKey(false, key, emptyKeyModifiers())
         })
-        this.buttonDiv.appendChild(this.sendKeycodeButton)
+        this.statsRow = this.row("stats", I.stream.stats, "Ctrl Shift S")
+        this.statsRow.addEventListener("click", () => this.app.toggleStats())
 
-        // Pointer Lock
-        this.lockMouseButton.innerText = I.stream.lockMouse
-        this.lockMouseButton.addEventListener("click", async () => {
-            await this.app.requestPointerLock(true)
-        })
-        this.buttonDiv.appendChild(this.lockMouseButton)
-
-        // Screen Keyboard Buttons
-        this.keyboardButton.innerText = I.stream.keyboard
-        this.keyboardButton.addEventListener("click", async () => {
-            setSidebarExtended(false)
-            this.app.getScreenKeyboard().setVisible(true)
-        })
-        this.buttonDiv.appendChild(this.keyboardButton)
-
-        // Fullscreen
-        this.fullscreenButton.innerText = I.stream.fullscreen
-        this.fullscreenButton.addEventListener("click", async () => {
-            if (this.app.isFullscreen()) {
-                this.app.markManualFullscreenExitRequested()
-                await this.app.exitFullscreen()
-            } else {
-                await this.app.requestFullscreen()
-            }
-        })
-        this.buttonDiv.appendChild(this.fullscreenButton)
-
-        // Stats
-        this.statsButton.innerText = I.stream.stats
-        this.statsButton.addEventListener("click", () => {
-            const stats = this.app.getStream()?.getStats()
-            if (stats) {
-                stats.toggle()
-            }
-        })
-        this.buttonDiv.appendChild(this.statsButton)
-
-        // Close stream
-        this.exitStreamButton.innerText = I.stream.exit
-        this.exitStreamButton.addEventListener("click", async () => {
-            const stream = this.app.getStream()
-            if (stream) {
-                const success = await stream.stop()
-                if (!success) {
-                    console.debug("Failed to close stream correctly")
-                }
-            }
-
-            exitStreamPage()
-        })
-        this.buttonDiv.appendChild(this.exitStreamButton)
-
-        // Select Mouse Mode
-        this.mouseMode = new SelectComponent("mouseMode", [
+        // -- Mouse and touch mode
+        const modes = el("div", "sl-side-block sl-side-modes")
+        const mouseField = el("div", "sl-field")
+        mouseField.append(el("span", "sl-label", I.stream.mouseMode), this.mouseMode)
+        const touchField = el("div", "sl-field")
+        touchField.append(el("span", "sl-label", I.stream.touchMode), this.touchMode)
+        modes.append(mouseField, touchField)
+        this.fillSelect(this.mouseMode, [
             { value: "relative", name: I.stream.relative },
             { value: "follow", name: I.stream.follow },
             { value: "localCursor", name: I.stream.localCursor },
             { value: "pointAndDrag", name: I.stream.pointAndDrag }
-        ], {
-            displayName: I.stream.mouseMode,
-            preSelectedOption: this.app.getInputConfig().mouseMode
-        })
-        this.mouseMode.addChangeListener(this.onMouseModeChange.bind(this))
-        this.mouseMode.mount(this.div)
-
-        // Select Touch Mode
-        this.touchMode = new SelectComponent("touchMode", [
+        ], this.app.getInputConfig().mouseMode)
+        this.mouseMode.setAttribute("aria-label", I.stream.mouseMode)
+        this.mouseMode.addEventListener("change", this.onMouseModeChange.bind(this))
+        this.fillSelect(this.touchMode, [
             { value: "touch", name: I.stream.touch },
             { value: "mouseRelative", name: I.stream.relative },
             { value: "localCursor", name: I.stream.localCursor },
             { value: "pointAndDrag", name: I.stream.pointAndDrag }
-        ], {
-            displayName: I.stream.touchMode,
-            preSelectedOption: this.app.getInputConfig().touchMode
-        })
-        this.touchMode.addChangeListener(this.onTouchModeChange.bind(this))
-        this.touchMode.mount(this.div)
+        ], this.app.getInputConfig().touchMode)
+        this.touchMode.setAttribute("aria-label", I.stream.touchMode)
+        this.touchMode.addEventListener("change", this.onTouchModeChange.bind(this))
+
+        // -- Exit, pinned at the bottom
+        const exit = button("sl-side-row sl-side-row--exit", I.stream.exitStream, "exit")
+        exit.appendChild(el("span", "key", "Ctrl Shift Q"))
+        exit.addEventListener("click", () => this.app.exitStream())
+
+        this.div.append(head, this.gameMouseRow, unlock, displays, fullscreen, lockMouse, keyboard, sendKeycode, this.statsRow, modes, exit)
+        this.updateSummary()
+    }
+
+    private row(iconName: Parameters<typeof icon>[0], text: string, key?: string): HTMLButtonElement {
+        const row = button("sl-side-row", text, iconName)
+        row.appendChild(el("span", "key", key ?? ""))
+        return row
+    }
+
+    private fillSelect(select: HTMLSelectElement, options: Array<{ value: string, name: string }>, value: string) {
+        for (const option of options) {
+            const element = el("option", undefined, option.name)
+            element.value = option.value
+            select.appendChild(element)
+        }
+        select.value = value
+    }
+
+    /// "Gaming-PC" / the game, and "H264 · 1080p · 60 fps"
+    setTitle(title: string) {
+        this.title.textContent = title
+    }
+    updateSummary() {
+        this.summary.textContent = this.app.getStreamSummary()
+    }
+
+    onStatsChange(shown: boolean) {
+        this.statsRow.setAttribute("aria-pressed", shown ? "true" : "false")
     }
 
     onGameMouseChange(enabled: boolean) {
-        this.gameMouseButton.innerText = enabled ? I.stream.gameMouseButtonOn : I.stream.gameMouseButtonOff
-        this.gameMouseButton.classList.toggle("sidebar-stream-game-mouse-active", enabled)
+        this.gameMouseState.textContent = `${enabled ? I.stream.on : I.stream.off} · Ctrl Shift M`
+        this.gameMouseSwitch.setAttribute("aria-checked", enabled ? "true" : "false")
     }
 
     onDisplayChange(display: number) {
         this.displayButtons.forEach((button, index) => {
-            button.classList.toggle("sidebar-stream-display-active", index + 1 == display)
+            button.setAttribute("aria-pressed", index + 1 == display ? "true" : "false")
         })
     }
 
     onCapabilitiesChange(capabilities: StreamCapabilities) {
-        this.touchMode.setOptionEnabled("touch", capabilities.touch)
+        const touch = this.touchMode.querySelector<HTMLOptionElement>('option[value="touch"]')
+        if (touch) {
+            touch.disabled = !capabilities.touch
+        }
+        this.updateSummary()
     }
 
     // -- Keyboard
@@ -1502,11 +1610,12 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
         this.displayButtonRow.replaceChildren()
         this.displayButtons = []
         for (let display = 1; display <= this.app.getDisplayCount(); display++) {
-            const button = document.createElement("button")
-            button.innerText = `${display}`
-            button.addEventListener("click", () => this.app.switchDisplay(display))
-            this.displayButtonRow.appendChild(button)
-            this.displayButtons.push(button)
+            const cell = el("button", "sl-cell", `${display}`)
+            cell.type = "button"
+            cell.setAttribute("aria-label", getTranslations(getCurrentLanguage()).host.displayName(display))
+            cell.addEventListener("click", () => this.app.switchDisplay(display))
+            this.displayButtonRow.appendChild(cell)
+            this.displayButtons.push(cell)
         }
         this.onDisplayChange(this.app.getCurrentDisplay())
     }
@@ -1524,19 +1633,19 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     // -- Mouse Mode
     private onMouseModeChange() {
         const config = this.app.getInputConfig()
-        config.mouseMode = this.mouseMode.getValue() as any
+        config.mouseMode = this.mouseMode.value as any
         this.app.setInputConfig(config)
     }
 
     // -- Touch Mode
     private onTouchModeChange() {
         const config = this.app.getInputConfig()
-        config.touchMode = this.touchMode.getValue() as any
+        config.touchMode = this.touchMode.value as any
         this.app.setInputConfig(config)
     }
 
     extended(): void {
-
+        this.updateSummary()
     }
     unextend(): void {
 
