@@ -39,7 +39,7 @@ mkdir -p "$DEST/server"
 cp "$SRC/web-server" "$DEST/"
 rm -rf "$DEST/static"
 cp -r "$SRC/static" "$DEST/"
-cp "$SRC/update-pi.sh" "$SRC/uninstall-pi.sh" "$DEST/"
+cp "$SRC/update-pi.sh" "$SRC/uninstall-pi.sh" "$SRC/exitnode-panel.py" "$DEST/"
 chmod +x "$DEST/web-server" "$DEST/update-pi.sh" "$DEST/uninstall-pi.sh"
 
 # 3. Config med sluk-password (beholder resten af en eksisterende config)

@@ -10,6 +10,29 @@ fi
 REPOSITORY=petrusbering3-ship-it/Starlight-streams
 DEST=/opt/starlight-streams
 
+# The exit node page (port 8090): its own small website to switch the Tailscale exit node on and off
+ensure_exitnode_panel() {
+    [ -f "$DEST/exitnode-panel.py" ] || return 0
+    [ -f /etc/systemd/system/starlight-exitnode.service ] && return 0
+    cat > /etc/systemd/system/starlight-exitnode.service <<UNIT
+[Unit]
+Description=Starlight Streams exit node page (port 8090)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 $DEST/exitnode-panel.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+    systemctl daemon-reload
+    systemctl enable --now starlight-exitnode >/dev/null 2>&1 || true
+}
+ensure_exitnode_panel
+
 if [ "$1" = "--register" ]; then
     cat > /etc/systemd/system/starlight-streams-update.service <<UNIT
 [Unit]
@@ -67,4 +90,9 @@ rm -rf "$DEST/static"
 cp -r "$NEW/static" "$DEST/"
 cp "$NEW/update-pi.sh" "$NEW/uninstall-pi.sh" "$DEST/"
 chmod +x "$DEST/web-server" "$DEST/update-pi.sh" "$DEST/uninstall-pi.sh"
+if [ -f "$NEW/exitnode-panel.py" ]; then
+    cp "$NEW/exitnode-panel.py" "$DEST/"
+    ensure_exitnode_panel
+    systemctl restart starlight-exitnode 2>/dev/null || true
+fi
 echo "Opdateret til $LATEST."

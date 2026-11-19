@@ -4,8 +4,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exec sudo bash "$0" "$@"
 fi
 
-systemctl disable --now starlight-streams starlight-streams-update.timer 2>/dev/null
-rm -f /etc/systemd/system/starlight-streams.service \
+systemctl disable --now starlight-streams starlight-streams-update.timer starlight-exitnode 2>/dev/null
+rm -f /etc/systemd/system/starlight-streams.service /etc/systemd/system/starlight-exitnode.service \
     /etc/systemd/system/starlight-streams-update.service \
     /etc/systemd/system/starlight-streams-update.timer
 systemctl daemon-reload
