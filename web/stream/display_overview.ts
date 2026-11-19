@@ -1,21 +1,31 @@
-import { Api, apiHostDisplays, fetchApi } from "../api"
+import { Api, apiHostDisplays, apiHostSession, fetchApi } from "../api"
 import { HostDisplay } from "../api_bindings"
 import { getCachedDisplays, getDisplayCount } from "./display"
+import { getCurrentLanguage, getTranslations } from "../i18n"
+import { el, icon } from "../icons"
 
-// Starlight Streams: the display overview (Ctrl+Shift+D).
-// Shows the displays of the pc laid out like in the Windows display settings. The streamed display
-// is live, the others are screenshots that the pc takes every 1.5 seconds while the overview is
-// open. Click a display to zoom into it and stream it, Esc closes without switching.
+// Starlight Streams: the screens overview (Ctrl+Shift+D, design/screens/S-Displays + S-Displays-Motion).
+// The pc's displays laid out like in the Windows display settings. The streamed display is live
+// (mirrored from the stream, never a second stream), the others are screenshots the pc takes every
+// 1.5 s while the overview is open. Click a screen to zoom into it and stream it, Esc goes back.
 
-const FADE_MS = 250
+const FADE_MS = 220
 const ZOOM_MS = 320
+const STAGGER_MS = 40
 const THUMBNAIL_INTERVAL_MS = 1500
+const INSET = 7
 
-type Box = {
-    display: number
-    element: HTMLDivElement
+type Rect = { left: number, top: number, width: number, height: number }
+
+type Screen = {
+    display: HostDisplay
+    element: HTMLButtonElement
+    pic: HTMLDivElement
+    status: HTMLElement
+    rect: Rect
     image: HTMLImageElement | null
     imageUrl: string | null
+    updatedAt: number | null
 }
 
 /// The displays with a position; older power agents report none, then they are placed side by side
@@ -39,24 +49,39 @@ function placeholderDisplays(count: number): Array<HostDisplay> {
     }))
 }
 
+function windowRect(): Rect {
+    return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+}
+
+function place(element: HTMLElement, rect: Rect) {
+    element.style.left = `${rect.left}px`
+    element.style.top = `${rect.top}px`
+    element.style.width = `${rect.width}px`
+    element.style.height = `${rect.height}px`
+}
+
 export class DisplayOverview {
     private api: Api
     private hostId: number
     private getCurrentDisplay: () => number
-    private onPick: (display: number) => void
+    private onPick: (display: number, name: string) => void
+    private getPcName: () => string
 
     private root: HTMLDivElement | null = null
-    private boxes: Array<Box> = []
+    private screens: Array<Screen> = []
     private liveCanvas: HTMLCanvasElement | null = null
     private animationFrame: number | null = null
     private thumbnailTimer: number | null = null
-    private closing = false
+    private clockTimer: number | null = null
+    private locked = false
+    private busy = false
 
-    constructor(api: Api, hostId: number, getCurrentDisplay: () => number, onPick: (display: number) => void) {
+    constructor(api: Api, hostId: number, getCurrentDisplay: () => number, onPick: (display: number, name: string) => void, getPcName: () => string = () => "") {
         this.api = api
         this.hostId = hostId
         this.getCurrentDisplay = getCurrentDisplay
         this.onPick = onPick
+        this.getPcName = getPcName
     }
 
     isOpen(): boolean {
@@ -64,187 +89,238 @@ export class DisplayOverview {
     }
 
     async open() {
-        if (this.root) {
+        if (this.root || this.busy) {
             return
         }
-        this.closing = false
+        this.busy = true
+        const i = getTranslations(getCurrentLanguage())
 
         let displays = getCachedDisplays(this.hostId) ?? placeholderDisplays(getDisplayCount(this.hostId))
-        try {
-            const fetched = (await apiHostDisplays(this.api, { host_id: this.hostId })).displays
-            if (fetched.length > 0) {
-                displays = fetched
-            }
-        } catch (e) {
-            // keep the displays this browser knows
+        const [fetched, session] = await Promise.all([
+            apiHostDisplays(this.api, { host_id: this.hostId }).then(response => response.displays).catch(() => []),
+            apiHostSession(this.api, { host_id: this.hostId }).catch(() => null),
+        ])
+        if (fetched.length > 0) {
+            displays = fetched
         }
-        if (this.root) {
-            return
-        }
+        this.locked = session != null && (!session.logged_in || session.locked)
 
-        const root = document.createElement("div")
-        Object.assign(root.style, {
-            position: "fixed", inset: "0", zIndex: "1000",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(5, 5, 10, 0.78)", backdropFilter: "blur(6px)",
-            opacity: "0", transition: `opacity ${FADE_MS}ms ease`,
-            cursor: "default",
-        } satisfies Partial<CSSStyleDeclaration>)
+        const root = el("div", "sl sl-overview")
+        root.setAttribute("role", "dialog")
+        root.setAttribute("aria-label", i.stream.screens)
+        const backdrop = el("div", "sl-overview-backdrop")
+        root.appendChild(backdrop)
+
         // Clicks and keys here are not for the pc
         for (const type of ["mousedown", "mouseup", "mousemove", "wheel", "contextmenu", "touchstart", "touchmove", "touchend", "keydown", "keyup"]) {
             root.addEventListener(type, event => event.stopPropagation())
         }
-        root.addEventListener("click", event => {
-            event.stopPropagation()
-            if (event.target == root) {
-                this.close()
-            }
-        })
+        backdrop.addEventListener("click", () => this.close())
 
-        // Fit the whole desktop into 80% of the window
+        // Head and foot
+        const head = el("div", "sl-overview-head")
+        const titles = el("div", "sl-overview-titles")
+        const pcName = this.getPcName()
+        titles.append(el("span", "sl-label", [pcName, i.stream.displayCount(displays.length)].filter(Boolean).join(" · ")), el("h2", "sl-h2", i.stream.screens))
+        const help = el("div", "sl-overview-help")
+        const keys = el("div", "sl-overview-keys")
+        keys.append(el("span", "sl-kbd", "Ctrl"), el("span", "sl-kbd", "Shift"), el("span", "sl-kbd", "D"), el("span", undefined, i.stream.closeOverview))
+        help.append(keys, el("span", undefined, i.stream.clickScreen))
+        const foot = el("div", "sl-overview-foot")
+        foot.appendChild(el("span", "sl-label", i.stream.layoutFromWindows))
+        root.append(head, foot)
+        head.append(titles, help)
+
+        // Fit the whole desktop into 84% of the width and 52% of the height, centred
         const placed = layout(displays)
         const minX = Math.min(...placed.map(p => p.x))
         const minY = Math.min(...placed.map(p => p.y))
         const maxX = Math.max(...placed.map(p => p.x + p.display.width))
         const maxY = Math.max(...placed.map(p => p.y + p.display.height))
-        const scale = Math.min(window.innerWidth * 0.8 / (maxX - minX), window.innerHeight * 0.7 / (maxY - minY))
-        const gap = 6
-
-        const stage = document.createElement("div")
-        Object.assign(stage.style, {
-            position: "relative",
-            width: `${(maxX - minX) * scale}px`, height: `${(maxY - minY) * scale}px`,
-            transform: "scale(0.94)", transition: `transform ${FADE_MS}ms ease`,
-        } satisfies Partial<CSSStyleDeclaration>)
-        root.appendChild(stage)
+        const scale = Math.min(window.innerWidth * 0.84 / (maxX - minX), window.innerHeight * 0.52 / (maxY - minY))
+        const offsetX = (window.innerWidth - (maxX - minX) * scale) / 2
+        const offsetY = (window.innerHeight - (maxY - minY) * scale) / 2 - 20
 
         const current = this.getCurrentDisplay()
-        this.boxes = []
+        const currentPlaced = placed.find(p => p.display.index == current) ?? placed[0]
+        this.screens = []
         for (const { display, x, y } of placed) {
-            const box = document.createElement("div")
             const isCurrent = display.index == current
-            Object.assign(box.style, {
-                position: "absolute",
-                left: `${(x - minX) * scale + gap / 2}px`, top: `${(y - minY) * scale + gap / 2}px`,
-                width: `${display.width * scale - gap}px`, height: `${display.height * scale - gap}px`,
-                background: "#1b1b22", borderRadius: "8px", overflow: "hidden", cursor: "pointer",
-                boxShadow: isCurrent ? "0 0 0 3px #ff2d55, 0 10px 40px rgba(0,0,0,0.6)" : "0 0 0 1px rgba(255,255,255,0.15), 0 10px 40px rgba(0,0,0,0.6)",
-                transition: `transform ${ZOOM_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity ${FADE_MS}ms ease, box-shadow 150ms ease`,
-                transformOrigin: "center center",
-            } satisfies Partial<CSSStyleDeclaration>)
-            box.addEventListener("mouseenter", () => { if (!this.closing) box.style.transform = "scale(1.03)" })
-            box.addEventListener("mouseleave", () => { if (!this.closing) box.style.transform = "" })
-            box.addEventListener("click", event => {
-                event.stopPropagation()
-                this.pick(display.index)
-            })
+            const rect: Rect = {
+                left: offsetX + (x - minX) * scale + INSET,
+                top: offsetY + (y - minY) * scale + INSET,
+                width: display.width * scale - INSET * 2,
+                height: display.height * scale - INSET * 2,
+            }
+
+            const element = el("button", isCurrent ? "sl-screen is-current" : "sl-screen")
+            element.type = "button"
+            element.setAttribute("aria-label", `${i.host.displayName(display.index)}${display.name ? ` · ${display.name}` : ""}`)
+            const pic = el("div", "pic")
 
             let image: HTMLImageElement | null = null
             if (isCurrent) {
-                // The streamed display: live, copied from the stream every frame
-                const canvas = document.createElement("canvas")
-                Object.assign(canvas.style, { width: "100%", height: "100%", objectFit: "contain", display: "block" })
-                box.appendChild(canvas)
+                // The streamed display: mirrored from the stream every frame
+                const canvas = el("canvas")
+                Object.assign(canvas.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" })
+                pic.appendChild(canvas)
                 this.liveCanvas = canvas
+            } else if (this.locked) {
+                pic.classList.add("is-loading", "sl-screen-locked")
+                pic.append(icon("lock"), el("span", undefined, i.stream.locked))
             } else {
-                image = document.createElement("img")
-                Object.assign(image.style, { width: "100%", height: "100%", objectFit: "contain", display: "block", opacity: "0", transition: "opacity 200ms ease" })
-                image.addEventListener("load", () => image!.style.opacity = "1")
-                box.appendChild(image)
+                pic.classList.add("is-loading")
+                pic.appendChild(el("span", "sl-spinner sl-spinner--night"))
+                image = el("img")
+                image.alt = ""
+                image.style.opacity = "0"
+                image.addEventListener("load", () => {
+                    image!.style.opacity = "1"
+                    pic.classList.remove("is-loading")
+                    pic.querySelector(".sl-spinner")?.remove()
+                })
+                pic.appendChild(image)
             }
 
-            const label = document.createElement("div")
-            label.innerText = display.name ? `${display.index} · ${display.name}` : `${display.index}`
-            Object.assign(label.style, {
-                position: "absolute", left: "8px", bottom: "8px", padding: "2px 8px",
-                background: "rgba(0,0,0,0.65)", color: "white", borderRadius: "6px",
-                font: "600 13px system-ui, sans-serif", pointerEvents: "none",
-            } satisfies Partial<CSSStyleDeclaration>)
-            box.appendChild(label)
+            const cap = el("div", "sl-screen-cap")
+            const titleLine = el("span", "sl-screen-cap-title")
+            titleLine.append(el("span", "n", String(display.index).padStart(2, "0")), el("span", "name", display.name || i.host.displayName(display.index)))
+            const status = el("span", isCurrent ? "sl-label live" : "sl-label")
+            status.textContent = isCurrent ? `● ${i.stream.liveHere}` : this.locked ? i.stream.screenLocked : i.stream.loadingShot
+            cap.append(titleLine, el("span", "sl-mono res", `${display.width}×${display.height}`), status)
 
-            stage.appendChild(box)
-            this.boxes.push({ display: display.index, element: box, image, imageUrl: null })
+            element.append(pic, cap)
+            element.addEventListener("click", event => {
+                event.stopPropagation()
+                this.pick(display.index)
+            })
+            root.appendChild(element)
+
+            this.screens.push({ display, element, pic, status, rect, image, imageUrl: null, updatedAt: null })
         }
+
+        // Start: the live screen covers the window, the others wait below their slot
+        for (const screen of this.screens) {
+            const isCurrent = screen.display.index == currentPlaced.display.index
+            place(screen.element, isCurrent ? windowRect() : screen.rect)
+            if (!isCurrent) {
+                screen.element.style.opacity = "0"
+                screen.element.style.transform = "translateY(14px)"
+            }
+        }
+        root.classList.add("is-starting")
 
         document.body.appendChild(root)
         this.root = root
-
-        // Fade in
-        requestAnimationFrame(() => {
-            root.style.opacity = "1"
-            stage.style.transform = "scale(1)"
-        })
+        this.busy = false
 
         this.drawLive()
         this.refreshThumbnails()
         this.thumbnailTimer = window.setInterval(() => this.refreshThumbnails(), THUMBNAIL_INTERVAL_MS)
+        this.clockTimer = window.setInterval(() => this.updateClocks(), 1000)
+
+        // Animate in: backdrop, live screen into its slot, the others staggered by distance, captions last
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            root.classList.add("is-open")
+            const center = currentPlaced
+            const live = this.screens.find(screen => screen.display.index == center.display.index)
+            if (live) {
+                place(live.element, live.rect)
+            }
+            const others = this.screens.filter(screen => screen != live)
+                .sort((a, b) => Math.hypot(a.rect.left - (live?.rect.left ?? 0), a.rect.top - (live?.rect.top ?? 0)) - Math.hypot(b.rect.left - (live?.rect.left ?? 0), b.rect.top - (live?.rect.top ?? 0)))
+            others.forEach((screen, index) => {
+                screen.element.style.transitionDelay = `${60 + index * STAGGER_MS}ms`
+                screen.element.style.opacity = ""
+                screen.element.style.transform = ""
+            })
+            window.setTimeout(() => {
+                root.classList.remove("is-starting")
+                for (const screen of this.screens) {
+                    screen.element.style.transitionDelay = ""
+                }
+            }, ZOOM_MS + FADE_MS)
+        }))
     }
 
-    /// Zooms into the display, then streams it
+    /// Zooms into the screen, then streams it
     private pick(display: number) {
-        if (this.closing) {
+        if (!this.root || this.busy) {
             return
         }
-        const box = this.boxes.find(box => box.display == display)
-        if (!box || display == this.getCurrentDisplay()) {
+        const screen = this.screens.find(screen => screen.display.index == display)
+        if (!screen || display == this.getCurrentDisplay()) {
             this.close()
             return
         }
-        this.closing = true
+        this.busy = true
         this.stopUpdates()
 
-        const rect = box.element.getBoundingClientRect()
-        const zoom = Math.min(window.innerWidth / rect.width, window.innerHeight / rect.height)
-        const dx = window.innerWidth / 2 - (rect.left + rect.width / 2)
-        const dy = window.innerHeight / 2 - (rect.top + rect.height / 2)
-        box.element.style.zIndex = "1"
-        box.element.style.transform = `translate(${dx}px, ${dy}px) scale(${zoom})`
-        for (const other of this.boxes) {
-            if (other != box) {
+        screen.element.classList.add("is-zooming")
+        place(screen.element, windowRect())
+        for (const other of this.screens) {
+            if (other != screen) {
                 other.element.style.opacity = "0"
             }
         }
+        this.root.classList.remove("is-open")
 
         window.setTimeout(() => {
-            this.onPick(display)
+            this.onPick(display, screen.display.name)
             this.remove()
         }, ZOOM_MS)
     }
 
-    /// Closes without switching
+    /// The reverse of opening: the live screen grows back, nothing is switched
     close() {
-        if (!this.root || this.closing) {
+        if (!this.root || this.busy) {
             return
         }
-        this.closing = true
+        this.busy = true
         this.stopUpdates()
-        this.root.style.opacity = "0"
-        window.setTimeout(() => this.remove(), FADE_MS)
+
+        const live = this.screens.find(screen => screen.display.index == this.getCurrentDisplay())
+        if (live) {
+            live.element.classList.add("is-zooming")
+            place(live.element, windowRect())
+        }
+        for (const screen of this.screens) {
+            if (screen != live) {
+                screen.element.style.opacity = "0"
+                screen.element.style.transform = "translateY(14px)"
+            }
+        }
+        this.root.classList.remove("is-open")
+        window.setTimeout(() => this.remove(), ZOOM_MS)
     }
 
     private stopUpdates() {
-        if (this.animationFrame != null) {
-            cancelAnimationFrame(this.animationFrame)
-            this.animationFrame = null
-        }
         if (this.thumbnailTimer != null) {
             window.clearInterval(this.thumbnailTimer)
             this.thumbnailTimer = null
+        }
+        if (this.clockTimer != null) {
+            window.clearInterval(this.clockTimer)
+            this.clockTimer = null
         }
     }
 
     private remove() {
         this.stopUpdates()
-        for (const box of this.boxes) {
-            if (box.imageUrl) {
-                URL.revokeObjectURL(box.imageUrl)
+        if (this.animationFrame != null) {
+            cancelAnimationFrame(this.animationFrame)
+            this.animationFrame = null
+        }
+        for (const screen of this.screens) {
+            if (screen.imageUrl) {
+                URL.revokeObjectURL(screen.imageUrl)
             }
         }
-        this.boxes = []
+        this.screens = []
         this.liveCanvas = null
         this.root?.remove()
         this.root = null
-        this.closing = false
+        this.busy = false
     }
 
     private drawLive() {
@@ -263,26 +339,54 @@ export class DisplayOverview {
         this.animationFrame = requestAnimationFrame(() => this.drawLive())
     }
 
+    private updateClocks() {
+        const i = getTranslations(getCurrentLanguage()).stream
+        for (const screen of this.screens) {
+            if (screen.updatedAt != null) {
+                screen.status.textContent = i.updatedAgo(Math.max(1, Math.round((Date.now() - screen.updatedAt) / 1000)))
+            }
+        }
+    }
+
     private refreshThumbnails() {
-        for (const box of this.boxes) {
-            if (!box.image) {
+        for (const screen of this.screens) {
+            if (!screen.image) {
                 continue
             }
             fetchApi(this.api, "/host/display-thumbnail", "GET", {
                 response: "ignore",
-                query: { host_id: this.hostId, index: box.display },
-            }).then(response => response.blob()).then(blob => {
-                if (!this.root || this.closing || !box.image) {
+                query: { host_id: this.hostId, index: screen.display.index },
+            }).then(response => response.ok ? response.blob() : null).then(blob => {
+                if (!blob || !this.root || !screen.image) {
                     return
                 }
-                const old = box.imageUrl
-                box.imageUrl = URL.createObjectURL(blob)
-                box.image.src = box.imageUrl
-                if (old) {
-                    URL.revokeObjectURL(old)
-                }
+                // Cross-fade: the new picture fades in over the old one
+                const next = el("img")
+                next.alt = ""
+                next.className = "sl-screen-next"
+                const url = URL.createObjectURL(blob)
+                next.addEventListener("load", () => {
+                    const old = screen.image
+                    const oldUrl = screen.imageUrl
+                    requestAnimationFrame(() => next.style.opacity = "1")
+                    window.setTimeout(() => {
+                        old?.remove()
+                        if (oldUrl) {
+                            URL.revokeObjectURL(oldUrl)
+                        }
+                    }, 220)
+                    screen.image = next
+                    screen.imageUrl = url
+                    screen.updatedAt = Date.now()
+                    screen.pic.classList.remove("is-loading")
+                    screen.pic.querySelector(".sl-spinner")?.remove()
+                    this.updateClocks()
+                }, { once: true })
+                next.style.opacity = "0"
+                next.src = url
+                screen.pic.appendChild(next)
             }).catch(() => {
-                // the first screenshot takes a moment, or the pc can't take one (e.g. locked)
+                // the first screenshot takes a moment
             })
         }
     }

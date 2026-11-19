@@ -194,6 +194,7 @@ class ViewerApp implements Component {
     private stream: Stream
     private displaySwitcher: DisplaySwitcher
     private displayOverview: DisplayOverview
+    private pcName = ""
     private enhancer: VideoEnhancer
 
     // Starlight Streams: auto quality during the stream
@@ -232,7 +233,11 @@ class ViewerApp implements Component {
         this.api = api
         this.hostId = hostId
         this.displaySwitcher = new DisplaySwitcher(hostId)
-        this.displayOverview = new DisplayOverview(api, hostId, () => this.getCurrentDisplay(), display => this.switchDisplay(display))
+        this.displayOverview = new DisplayOverview(api, hostId, () => this.getCurrentDisplay(), (display, name) => {
+            this.switchDisplay(display)
+            const label = getTranslations(getCurrentLanguage()).host.displayName(display)
+            showNotification(name ? `${label} · ${name}` : label, "info")
+        }, () => this.pcName)
 
         const defaultSettings = getLocalStreamSettings(bootstrapRole.default_settings)
         const settings = {
@@ -256,7 +261,10 @@ class ViewerApp implements Component {
         setSidebar(this.sidebar)
 
         // The pc's name in the sidebar
-        apiGetHost(api, { host_id: hostId }).then(host => this.sidebar.setTitle(host.name)).catch(() => { })
+        apiGetHost(api, { host_id: hostId }).then(host => {
+            this.pcName = host.name
+            this.sidebar.setTitle(host.name)
+        }).catch(() => { })
 
         // The displays the pc has (the server remembers them, also between browsers)
         apiHostDisplays(api, { host_id: hostId }).then(({ displays }) => {

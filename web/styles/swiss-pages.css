@@ -200,3 +200,26 @@ body.sl.stream{background:#000;overflow:hidden}
 #modal-parent:has(> .sl-connect){max-width:380px}
 #notification-list.sl-toasts{z-index:120}
 .sl-pin-note{display:flex;align-items:center;gap:8px}
+
+/* ---------- screens overview (S-Displays) ---------- */
+.sl-overview{z-index:110;background:none}
+.sl-overview-head{position:absolute;top:40px;left:48px;right:48px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;pointer-events:none;opacity:0;transition:opacity var(--sl-base) var(--sl-ease)}
+.sl-overview.is-open .sl-overview-head,.sl-overview.is-open .sl-overview-foot{opacity:1}
+.sl-overview-head .sl-label,.sl-overview-foot .sl-label{color:var(--sl-night-grey)}
+.sl-overview-titles{display:flex;flex-direction:column;gap:8px}
+.sl-overview-help{display:flex;flex-direction:column;align-items:flex-end;gap:12px;font-size:var(--sl-fs-sm);color:var(--sl-night-text)}
+.sl-overview-keys{display:flex;align-items:center;gap:4px}
+.sl-overview-keys>span:last-child{margin-left:6px}
+.sl-overview-foot{position:absolute;left:48px;right:48px;bottom:40px;padding-top:14px;border-top:1px solid rgba(255,255,255,.18);pointer-events:none;opacity:0;transition:opacity var(--sl-base) var(--sl-ease)}
+.sl-overview .sl-screen{z-index:1}
+.sl-overview .sl-screen .pic{display:grid;place-items:center}
+.sl-overview .sl-screen .pic>*{grid-area:1/1}
+.sl-screen-next{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 200ms var(--sl-ease)}
+.sl-screen-locked{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sl-night-grey);font-size:var(--sl-fs-sm)}
+.sl-screen-cap-title{display:flex;align-items:baseline;gap:10px}
+.sl-screen-cap .name{font-weight:600;font-size:var(--sl-fs-sm)}
+.sl-screen-cap .res{font-size:11px;color:var(--sl-night-grey)}
+.sl-screen-cap .sl-label{color:var(--sl-night-grey)} .sl-screen-cap .live{color:var(--sl-red)}
+.sl-overview .sl-screen-cap{opacity:0;transition:opacity var(--sl-base) var(--sl-ease) var(--sl-base)}
+.sl-overview.is-open:not(.is-starting) .sl-screen-cap,.sl-overview.is-open.is-starting .sl-screen-cap{opacity:1}
+.sl-overview:not(.is-open) .sl-screen-cap{opacity:0;transition-delay:0s}
