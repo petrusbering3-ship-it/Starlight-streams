@@ -128,3 +128,22 @@ export class DisplaySwitcher {
         }
     }
 }
+
+/// The last stream to a pc, shown on the home page ("Last stream: Display 1 · 1080p · 60 fps · 2 h ago")
+export type LastStream = { display: number, size: string, fps: number, at: number }
+
+export function getLastStream(hostId: number): LastStream | null {
+    try {
+        const saved = JSON.parse(localStorage.getItem(`starlight-last-stream-${hostId}`) ?? "null")
+        return saved && typeof saved.display == "number" ? saved : null
+    } catch (e) {
+        return null
+    }
+}
+export function setLastStream(hostId: number, stream: LastStream) {
+    try {
+        localStorage.setItem(`starlight-last-stream-${hostId}`, JSON.stringify(stream))
+    } catch (e) {
+        // storage might be unavailable
+    }
+}

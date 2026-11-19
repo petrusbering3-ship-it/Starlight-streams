@@ -23,3 +23,74 @@
   .sl-login-form{padding:var(--sl-8) var(--sl-4);justify-content:flex-start}
   .sl-login-spacer{display:none}
 }
+
+/* ---------- shared: modals, menu, toasts ---------- */
+.sl [hidden]{display:none!important}
+#modal-overlay{z-index:90}
+#modal-parent{max-height:calc(100vh - 48px);overflow:auto}
+.sl-modal-form{display:flex;flex-direction:column;min-height:0}
+.sl-modal-body h2,.sl-modal-body h3{font-family:var(--sl-font-display);font-weight:600;font-size:var(--sl-fs-h3);line-height:1;letter-spacing:-.02em}
+.sl-message{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--sl-ink-2)}
+.sl-context-menu{position:fixed;z-index:95}
+.sl-toast-close{height:28px;width:28px;margin-right:-8px;color:inherit}
+
+/* ---------- home (S-Home) ---------- */
+.sl-app{min-height:100vh;display:flex;flex-direction:column}
+.sl-content{flex:1;min-width:0}
+.sl-header .sl-link .sl-ico{display:none}
+.sl-back .sl-ico{display:inline-block!important}
+.sl-index-label{padding-bottom:12px}
+.sl-index-rows{display:flex;flex-direction:column}
+.sl-index-add-text{font-weight:500}
+.sl-index-add{border-bottom:var(--sl-hairline)}
+.sl-index-hint{font-size:var(--sl-fs-xs);margin-top:18px;max-width:220px}
+.sl-pc-slot{display:flex;flex-direction:column;min-width:0}
+.sl-pc{display:flex;flex-direction:column;min-width:0}
+.sl-pc-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding-bottom:22px}
+.sl-pc-titles{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sl-pc-name{overflow-wrap:anywhere}
+.sl-pc-progress{margin:-12px 0 10px}
+.sl-display-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sl-last-used{display:none}
+.sl-display-row.is-last .sl-last-used{display:inline}
+.sl-display-row .model{font-size:var(--sl-fs-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sl-pc-table{border-bottom:var(--sl-rule)}
+.sl-pc[data-state="off"] .sl-num{color:var(--sl-hair)}
+.sl-pc[data-state="off"] .sl-display-row.is-last .sl-num{color:rgba(215,30,14,.35)}
+.sl-pc-foot{border-top:0}
+.sl-pc-unpaired{display:flex;align-items:flex-start;gap:var(--sl-8);padding:var(--sl-8) 0;border-bottom:var(--sl-rule)}
+.sl-pc-question{font-size:96px}
+.sl-pc-unpaired-text{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sl-3);max-width:420px}
+.sl-state{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sl-3);padding:var(--sl-6) 0}
+.sl-state-num{font-size:120px}
+/* add pc */
+.sl-add-searching{display:flex;align-items:center;gap:10px;font-size:var(--sl-fs-sm)}
+.sl-add-found{display:flex;flex-direction:column}
+.sl-add-found:empty{display:none}
+.sl-add-found .sl-index-row:last-child{border-bottom:var(--sl-hairline)}
+.sl-add-host:disabled{cursor:default;color:var(--sl-grey);padding-left:0}
+.sl-add-host-name{display:flex;flex-direction:column;min-width:0}
+.sl-add-host-name .name{font-size:15px}
+.sl-add-ip{font-size:11px}
+.sl-add-or{display:flex;align-items:center;gap:10px}
+.sl-add-or::before,.sl-add-or::after{content:"";flex:1;height:1px;background:var(--sl-hair)}
+.sl-add-manual{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:10px}
+.sl-add-submit{min-width:110px}
+/* pair + guest link */
+.sl-pair-waiting{display:flex;align-items:center;gap:10px;padding-top:var(--sl-4);border-top:var(--sl-hairline)}
+.sl-input-suffix{position:relative}
+.sl-input-suffix .suffix{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;pointer-events:none}
+.sl-copy-row{display:flex}
+.sl-copy-row .sl-input{flex:1;min-width:0;font-size:13px}
+.sl-copy-row .sl-btn{height:48px;flex:none}
+.sl-guest-note{display:flex;gap:10px;align-items:flex-start;font-size:var(--sl-fs-sm)}
+.sl-guest-note .sl-ico{margin-top:3px}
+.sl-modal-titles{display:flex;flex-direction:column;gap:6px}
+.sl-settings-view{padding:34px var(--sl-10);display:flex;flex-direction:column;gap:var(--sl-4);max-width:900px}
+@media (max-width:820px){
+  .sl-header .sl-link .txt{display:none}
+  .sl-header .sl-link .sl-ico{display:inline-block}
+  .sl-pc-unpaired{flex-direction:column;gap:var(--sl-3)}
+}
+body.sl{margin:0;min-height:100vh}
+body.sl #root{padding:0;margin:0}

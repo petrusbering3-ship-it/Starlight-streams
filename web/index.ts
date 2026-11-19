@@ -1,10 +1,12 @@
 import "./polyfill/index"
 import { Api, getApi, apiPostHost, apiPostGuest, loginFromGuestLink, apiStarlightInfo, apiStarlightUpdate, FetchError, apiLogout, apiGetUser, tryLogin, apiGetHost, apiGetRole, apiPatchRole } from "./api"
-import { AddHostModal } from "./component/host/add_modal"
+import { showAddPcDialog } from "./component/host/add_modal"
 import { HostList } from "./component/host/list"
 import { Component, ComponentEvent } from "./component/index"
 import { showNotification } from "./component/notification"
-import { showMessage, showModal, showPrompt } from "./component/modal/index"
+import { showMessage } from "./component/modal/index"
+import { confirmDialog, openSlModal } from "./component/sl_modal"
+import { button, el, icon } from "./icons"
 import { setContextMenu } from "./component/context_menu"
 import { GameList } from "./component/game/list"
 import { Host } from "./component/host/index"
@@ -84,113 +86,112 @@ class MainApp implements Component {
     private user: DetailedUser | null = null
     private role: DetailedRole | null = null
 
-    private divElement = document.createElement("div")
+    private divElement = el("div", "sl-app")
 
-    // Top Line
-    private topLine = document.createElement("div")
+    // Status bar: server ping and version
+    private statusBar = el("div", "sl-statusbar")
+    private statusText = el("span", "sl-label")
+    private versionText = el("span", "sl-label")
+    private reachable = true
 
-    private moonlightTextElement = document.createElement("h1")
-
-    private topLineActions = document.createElement("div")
-    private logoutButton = document.createElement("button")
-    // This is for the default user
-    private loginButton = document.createElement("button")
-    private adminButton = document.createElement("button")
-
-    // Actions
-    private actionElement = document.createElement("div")
-
-    private backButton: HTMLButtonElement = document.createElement("button")
-
-    private hostAddButton: HTMLButtonElement = document.createElement("button")
-    private guestLinkButton: HTMLButtonElement = document.createElement("button")
-    private updateButton: HTMLButtonElement = document.createElement("button")
+    // Header
+    private header = el("header", "sl-header")
+    private backButton = button("sl-link sl-back", "", "chevronLeft")
+    private updateButton = el("button", "sl-pill")
     private updateChecked = false
-    private settingsButton: HTMLButtonElement = document.createElement("button")
-    private saveRoleDefaultsButton: HTMLButtonElement = document.createElement("button")
+    private settingsButton = button("sl-link", "", "sliders")
+    private guestLinkButton = button("sl-link", "", "shield")
+    private adminButton = button("sl-link", "", "key")
+    private loginButton = button("sl-link", "", "arrowUp")
+    private logoutButton = button("sl-link", "", "exit")
 
     // Different submenus
     private currentDisplay: DisplayStates | null = null
+    private content = el("div", "sl-content")
 
     private hostList: HostList
     private gameList: GameList | null = null
     private settings: StreamSettingsComponent | null = null
+    private settingsView = el("div", "sl-settings-view")
+    private saveRoleDefaultsButton = button("sl-btn sl-btn-ink", "", "save")
 
     constructor(api: Api, bootstrapRole: DetailedRole) {
         this.api = api
         this.role = bootstrapRole
 
-        // Top Line
-        this.topLine.classList.add("top-line")
+        // Status bar
+        this.statusText.textContent = I.home.serverOnline
+        this.statusBar.append(this.statusText, this.versionText)
 
-        this.moonlightTextElement.innerHTML = I.index.appTitle
-        this.topLine.appendChild(this.moonlightTextElement)
+        // Header: wordmark, update, links
+        const wordmark = el("a", "sl-wordmark")
+        wordmark.href = buildUrl("/")
+        wordmark.append(el("span", "sl-mark"), I.index.appTitle)
+        wordmark.addEventListener("click", event => {
+            if (this.currentDisplay != "hosts") {
+                event.preventDefault()
+                this.setCurrentDisplay("hosts")
+            }
+        })
 
-        this.topLine.appendChild(this.topLineActions)
-        this.topLineActions.classList.add("top-line-actions")
+        this.backButton.appendChild(el("span", "txt", I.index.back))
+        this.backButton.addEventListener("click", backAppState)
+        this.backButton.hidden = true
 
+        this.updateButton.type = "button"
+        this.updateButton.hidden = true
+
+        const link = (button: HTMLButtonElement, text: string) => {
+            button.appendChild(el("span", "txt", text))
+            button.setAttribute("aria-label", text)
+        }
+        link(this.settingsButton, I.home.settings)
+        this.settingsButton.addEventListener("click", () => this.setCurrentDisplay("settings"))
+        link(this.guestLinkButton, I.index.guestLink)
+        this.guestLinkButton.addEventListener("click", this.createGuestLink.bind(this))
+        this.guestLinkButton.hidden = true
+        link(this.adminButton, I.home.admin)
+        this.adminButton.addEventListener("click", () => window.location.href = buildUrl("/admin.html"))
+        this.adminButton.hidden = true
+        link(this.loginButton, I.home.login)
+        this.loginButton.addEventListener("click", async () => {
+            if (await tryLogin(true)) {
+                window.location.reload()
+            }
+        })
+        this.loginButton.hidden = true
+        link(this.logoutButton, I.home.logout)
         this.logoutButton.addEventListener("click", async () => {
             await apiLogout(this.api)
             window.location.reload()
         })
-        this.logoutButton.classList.add("logout-button")
+        this.logoutButton.hidden = true
 
-        this.loginButton.addEventListener("click", async () => {
-            const success = await tryLogin(true)
-            if (success) {
-                window.location.reload()
-            }
-        })
-        this.loginButton.classList.add("login-button")
+        this.header.append(this.backButton, wordmark, this.updateButton, this.settingsButton, this.guestLinkButton, this.adminButton, this.loginButton, this.logoutButton)
 
-        this.adminButton.addEventListener("click", async () => {
-            window.location.href = buildUrl("/admin.html")
-        })
-        this.adminButton.classList.add("admin-button")
-
-        // Actions
-        this.actionElement.classList.add("actions-list")
-
-        // Back button
-        this.backButton.innerText = I.index.back
-        this.backButton.classList.add("button-fit-content")
-        this.backButton.addEventListener("click", backAppState)
-        this.backButton.dataset.variant = "back-button"
-
-        // Host add button
-        this.hostAddButton.classList.add("host-add")
-        this.hostAddButton.addEventListener("click", this.addHost.bind(this))
-
-        // Guest link button (admins only)
-        this.guestLinkButton.innerText = `🔗 ${I.index.guestLink}`
-        this.guestLinkButton.classList.add("button-fit-content", "guest-link-button")
-        this.guestLinkButton.addEventListener("click", this.createGuestLink.bind(this))
-
-        // Host list
+        // PCs
         this.hostList = new HostList(api)
         this.hostList.addHostOpenListener(this.onHostOpen.bind(this))
+        this.hostList.addHostAddListener(() => this.addHost())
+        const retry = button("sl-btn", I.home.tryAgain, "retry")
+        retry.addEventListener("click", () => this.forceFetch().catch(() => { }))
+        const bang = el("span", "sl-num sl-red sl-state-num", "!")
+        bang.setAttribute("aria-hidden", "true")
+        this.hostList.setErrorContent(bang, el("h2", "sl-h3", I.home.unreachable), el("p", "sl-ink2", I.home.unreachableText), retry)
 
-        // Settings Button
-        this.settingsButton.classList.add("open-settings")
-        this.settingsButton.addEventListener("click", () => this.setCurrentDisplay("settings"))
-
-        this.saveRoleDefaultsButton.innerText = I.settings.saveRoleDefaults
-        this.saveRoleDefaultsButton.classList.add("button-fit-content")
+        // Settings (moves into the side panel with the settings restyle)
+        this.saveRoleDefaultsButton.appendChild(document.createTextNode(I.settings.saveRoleDefaults))
         this.saveRoleDefaultsButton.addEventListener("click", this.onSaveRoleDefaults.bind(this))
-        this.saveRoleDefaultsButton.dataset.variant = "save-button"
-
-        // Settings
         this.settings = new StreamSettingsComponent(
             bootstrapRole.permissions,
             getLocalStreamSettings(bootstrapRole.default_settings)
         )
         this.settings.addChangeListener(this.onSettingsChange.bind(this))
 
-        // Append default elements
-        this.divElement.appendChild(this.topLine)
-        this.divElement.appendChild(this.actionElement)
+        this.divElement.append(this.statusBar, this.header, this.content)
 
         this.setCurrentDisplay("hosts")
+        this.watchServer()
 
         // Context Menu
         document.body.addEventListener("contextmenu", this.onContextMenu.bind(this), { passive: false })
@@ -206,10 +207,41 @@ class MainApp implements Component {
         }
     }
 
-    private async addHost() {
-        const modal = new AddHostModal(this.api)
+    /// Starlight Streams: the ping in the status bar, and the error state when the server can't be reached
+    private async watchServer() {
+        while (true) {
+            const start = performance.now()
+            let ok = false
+            try {
+                const info = await apiStarlightInfo(this.api)
+                ok = true
+                this.versionText.textContent = info.version == "dev" ? "dev" : info.version
+            } catch (e) {
+                ok = !(e instanceof FetchError) || e.getResponse() != null
+            }
+            const ms = Math.round(performance.now() - start)
 
-        let host = await showModal(modal);
+            if (ok) {
+                this.statusText.textContent = `${I.home.serverOnline} · ${ms} ms`
+                this.statusBar.classList.remove("sl-statusbar--error")
+                if (!this.reachable) {
+                    this.reachable = true
+                    this.hostList.setError(false)
+                    this.forceFetch().catch(() => { })
+                }
+            } else {
+                this.statusText.textContent = I.home.unreachableBar
+                this.statusBar.classList.add("sl-statusbar--error")
+                this.reachable = false
+                this.hostList.setError(true)
+            }
+
+            await new Promise(resolve => setTimeout(resolve, ok ? 10_000 : 5_000))
+        }
+    }
+
+    private async addHost() {
+        const host = await showAddPcDialog(this.api)
 
         if (host) {
             let newHost
@@ -227,6 +259,7 @@ class MainApp implements Component {
             }
 
             this.hostList.insertList(newHost.host_id, newHost)
+            this.hostList.select(newHost.host_id)
         }
     }
 
@@ -235,6 +268,7 @@ class MainApp implements Component {
             const elements = [
                 {
                     name: I.index.reload,
+                    icon: "retry" as const,
                     callback: this.forceFetch.bind(this)
                 }
             ]
@@ -245,7 +279,7 @@ class MainApp implements Component {
         }
     }
 
-    /// Starlight Streams: shows an update button when GitHub has a newer release
+    /// Starlight Streams: shows the update pill when GitHub has a newer release
     private async checkForUpdate() {
         if (this.updateChecked) {
             return
@@ -267,28 +301,33 @@ class MainApp implements Component {
                 return
             }
 
-            this.updateButton.innerText = `⬆ ${I.index.updateAvailable(latest)}`
-            this.updateButton.classList.add("button-fit-content", "update-button")
+            this.updateButton.replaceChildren(icon("arrowUp"), I.index.updateAvailable(latest))
             this.updateButton.onclick = () => this.runUpdate(info.version, latest)
-            this.topLineActions.appendChild(this.updateButton)
+            this.updateButton.hidden = false
         } catch (e) {
             console.warn("failed to check for updates", e)
         }
     }
 
     private async runUpdate(currentVersion: string, latest: string) {
-        if (!confirm(I.index.updateConfirm(latest))) {
+        const confirmed = await confirmDialog({
+            title: I.index.updateAvailable(latest),
+            text: I.index.updateConfirm(latest),
+            confirm: I.home.update,
+            icon: "arrowUp",
+        })
+        if (!confirmed) {
             return
         }
 
         const result = await apiStarlightUpdate(this.api).catch(() => null)
         if (!result?.started) {
-            await showMessage(I.index.updateFailed)
+            showNotification(I.index.updateFailed, "error")
             return
         }
 
-        this.updateButton.disabled = true
-        this.updateButton.innerText = I.index.updating
+        this.updateButton.classList.add("is-loading")
+        this.updateButton.replaceChildren(el("span", "sl-spinner"), I.index.updating)
         showNotification(I.index.updating, "info")
 
         // The server restarts with the new version, then the page is reloaded
@@ -306,43 +345,92 @@ class MainApp implements Component {
             }
         }
 
-        await showMessage(I.index.updateTimeout)
-        this.updateButton.disabled = false
+        showNotification(I.index.updateTimeout, "error")
+        this.updateButton.classList.remove("is-loading")
+        this.updateButton.replaceChildren(icon("arrowUp"), I.index.updateAvailable(latest))
     }
 
+    /// Guest link (design/screens/S-Home-Modals, 03 + 04)
     private async createGuestLink() {
-        const hoursText = await showPrompt(I.index.guestLinkHours, { defaultValue: "3" })
-        if (hoursText == null) {
-            return
+        const modal = openSlModal({ title: I.index.guestLink })
+        const field = el("div", "sl-field")
+        const label = el("label", "sl-label", I.home.validFor)
+        label.htmlFor = "sl-guest-hours"
+        const wrap = el("div", "sl-input-suffix")
+        const hoursInput = el("input", "sl-input")
+        hoursInput.id = "sl-guest-hours"
+        hoursInput.inputMode = "numeric"
+        hoursInput.value = "3"
+        wrap.append(hoursInput, el("span", "sl-mono sl-muted suffix", I.home.hours))
+        const error = el("span", "sl-error")
+        error.hidden = true
+        field.append(label, wrap, el("span", "sl-help", I.home.validForHelp), error)
+        modal.body.appendChild(field)
+
+        const cancel = button("sl-btn sl-btn-quiet", I.modal.cancel)
+        cancel.addEventListener("click", () => modal.close())
+        const create = el("button", "sl-btn sl-btn-ink")
+        create.type = "button"
+        create.append(I.home.createLink, el("span", undefined, "→"))
+        modal.foot.append(cancel, create)
+
+        const submit = async () => {
+            const hours = parseInt(hoursInput.value)
+            if (!(hours > 0 && hours <= 168)) {
+                error.textContent = I.home.hoursInvalid
+                error.hidden = false
+                hoursInput.setAttribute("aria-invalid", "true")
+                return
+            }
+            create.classList.add("is-loading")
+
+            let guest
+            try {
+                guest = await apiPostGuest(this.api, { hours })
+            } catch (e) {
+                create.classList.remove("is-loading")
+                error.textContent = I.index.guestLinkFailed
+                error.hidden = false
+                return
+            }
+
+            const link = `${window.location.origin}${window.location.pathname}#guest=${encodeURIComponent(`${guest.name}:${guest.password}`)}`
+
+            // Step 2: the link
+            modal.title.textContent = I.home.guestLinkReady
+            const linkRow = el("div", "sl-copy-row")
+            const linkInput = el("input", "sl-input sl-mono")
+            linkInput.readOnly = true
+            linkInput.value = link
+            const copy = button("sl-btn sl-btn-ink", I.home.copy, "copy")
+            copy.addEventListener("click", async () => {
+                try {
+                    await navigator.clipboard.writeText(link)
+                    showNotification(I.home.linkCopied, "ok")
+                } catch (e) {
+                    // clipboard is only available in secure contexts
+                    linkInput.select()
+                }
+            })
+            linkRow.append(linkInput, copy)
+            const note = el("p", "sl-guest-note")
+            note.append(icon("shield"), el("span", undefined, I.home.guestNote), el("span", "sl-muted", ` ${I.home.expiresIn(hours)}`))
+            modal.body.replaceChildren(linkRow, note)
+
+            const done = button("sl-btn", I.home.done)
+            done.addEventListener("click", () => modal.close())
+            modal.foot.replaceChildren(done)
+            linkInput.select()
+
+            // Hosts may have been shared with guests
+            await this.hostList.forceFetch()
         }
-        const hours = parseInt(hoursText)
-        if (!(hours > 0 && hours <= 168)) {
-            await showMessage(I.index.guestLinkFailed)
-            return
-        }
-
-        let guest
-        try {
-            guest = await apiPostGuest(this.api, { hours })
-        } catch (e) {
-            await showMessage(I.index.guestLinkFailed)
-            return
-        }
-
-        const link = `${window.location.origin}${window.location.pathname}#guest=${encodeURIComponent(`${guest.name}:${guest.password}`)}`
-
-        let copied = false
-        try {
-            await navigator.clipboard.writeText(link)
-            copied = true
-        } catch (e) {
-            // clipboard is only available in secure contexts
-        }
-
-        await showMessage(I.index.guestLinkCreated(link, hours, copied))
-
-        // Hosts may have been shared with guests
-        await this.hostList.forceFetch()
+        create.addEventListener("click", submit)
+        hoursInput.addEventListener("keydown", event => {
+            if (event.key == "Enter") {
+                submit()
+            }
+        })
     }
 
     private async onHostOpen(event: ComponentEvent<Host>) {
@@ -362,7 +450,6 @@ class MainApp implements Component {
 
         // store settings in localStorage
         setLocalStreamSettings(newSettings)
-        // apply style
 
         if (previousLanguage !== newSettings.language) {
             window.location.reload()
@@ -375,7 +462,7 @@ class MainApp implements Component {
             return
         }
 
-        this.saveRoleDefaultsButton.disabled = true
+        this.saveRoleDefaultsButton.classList.add("is-loading")
 
         try {
             const newSettings = this.settings.getStreamSettings()
@@ -392,11 +479,11 @@ class MainApp implements Component {
                 default_settings: newSettings,
             }
 
-            await showMessage(I.settings.saveRoleDefaultsSuccess)
+            showNotification(I.settings.saveRoleDefaultsSuccess, "ok")
         } catch {
             showNotification(I.settings.saveRoleDefaultsFailed)
         } finally {
-            this.saveRoleDefaultsButton.disabled = false
+            this.saveRoleDefaultsButton.classList.remove("is-loading")
         }
     }
 
@@ -440,53 +527,40 @@ class MainApp implements Component {
 
         // Unmount the current display
         if (this.currentDisplay == "hosts") {
-            this.actionElement.removeChild(this.hostAddButton)
-            this.actionElement.removeChild(this.settingsButton)
-
-            this.hostList.unmount(this.divElement)
+            this.hostList.unmount(this.content)
         } else if (this.currentDisplay == "games") {
-            this.actionElement.removeChild(this.backButton)
-            this.actionElement.removeChild(this.settingsButton)
-
-            this.gameList?.unmount(this.divElement)
+            this.gameList?.unmount(this.content)
         } else if (this.currentDisplay == "settings") {
-            this.actionElement.removeChild(this.backButton)
-            if (this.actionElement.contains(this.saveRoleDefaultsButton)) {
-                this.actionElement.removeChild(this.saveRoleDefaultsButton)
-            }
-
-            this.settings?.unmount(this.divElement)
+            this.settings?.unmount(this.settingsView)
+            this.settingsView.remove()
         }
+
+        this.backButton.hidden = display == "hosts"
+        this.settingsButton.hidden = display == "settings"
 
         // Mount the new display
         if (display == "hosts") {
-            this.actionElement.appendChild(this.hostAddButton)
-            this.actionElement.appendChild(this.settingsButton)
-
-            this.hostList.mount(this.divElement)
+            this.hostList.mount(this.content)
 
             setAppState({ display: "hosts" }, pushIntoHistory)
         } else if (display == "games" && extraInfo?.hostId != null) {
-            this.actionElement.appendChild(this.backButton)
-            this.actionElement.appendChild(this.settingsButton)
-
             if (this.gameList?.getHostId() != extraInfo?.hostId) {
                 this.gameList = new GameList(this.api, extraInfo?.hostId, extraInfo?.hostCache ?? null)
                 this.gameList.addForceReloadListener(this.forceFetch.bind(this))
             }
 
-            this.gameList.mount(this.divElement)
+            this.gameList.mount(this.content)
 
             this.refreshGameListActiveGame()
 
             setAppState({ display: "games", hostId: this.gameList?.getHostId() }, pushIntoHistory)
         } else if (display == "settings") {
-            this.actionElement.appendChild(this.backButton)
+            this.settingsView.replaceChildren()
+            this.settings?.mount(this.settingsView)
             if (this.user?.role == "Admin") {
-                this.actionElement.appendChild(this.saveRoleDefaultsButton)
+                this.settingsView.appendChild(this.saveRoleDefaultsButton)
             }
-
-            this.settings?.mount(this.divElement)
+            this.content.appendChild(this.settingsView)
 
             setAppState({ display: "settings" }, pushIntoHistory)
         }
@@ -519,45 +593,26 @@ class MainApp implements Component {
     private async refreshUserRole() {
         this.user = await apiGetUser(this.api)
 
-        if (this.topLineActions.contains(this.logoutButton)) {
-            this.topLineActions.removeChild(this.logoutButton)
-        }
-        if (this.topLineActions.contains(this.loginButton)) {
-            this.topLineActions.removeChild(this.loginButton)
-        }
-        if (this.topLineActions.contains(this.adminButton)) {
-            this.topLineActions.removeChild(this.adminButton)
-        }
-        if (this.topLineActions.contains(this.guestLinkButton)) {
-            this.topLineActions.removeChild(this.guestLinkButton)
-        }
+        this.loginButton.hidden = !this.user.is_default_user
+        this.logoutButton.hidden = this.user.is_default_user
 
-        if (this.user.is_default_user) {
-            this.topLineActions.appendChild(this.loginButton)
-        } else {
-            this.topLineActions.appendChild(this.logoutButton)
-        }
-
-        if (this.user.role == "Admin") {
+        const admin = this.user.role == "Admin"
+        this.guestLinkButton.hidden = !admin
+        this.adminButton.hidden = !admin
+        if (admin) {
             this.checkForUpdate()
-            this.topLineActions.insertBefore(this.guestLinkButton, this.topLineActions.firstChild)
-            this.topLineActions.appendChild(this.adminButton)
-            if (this.currentDisplay == "settings" && !this.actionElement.contains(this.saveRoleDefaultsButton)) {
-                this.actionElement.appendChild(this.saveRoleDefaultsButton)
+            if (this.currentDisplay == "settings" && !this.settingsView.contains(this.saveRoleDefaultsButton)) {
+                this.settingsView.appendChild(this.saveRoleDefaultsButton)
             }
-        } else if (this.actionElement.contains(this.saveRoleDefaultsButton)) {
-            this.actionElement.removeChild(this.saveRoleDefaultsButton)
+        } else {
+            this.saveRoleDefaultsButton.remove()
         }
     }
     private async refreshUserPermissions() {
         const response = await apiGetRole(this.api, { id: null })
         this.role = response.role
 
-        if (this.role.permissions.allow_add_hosts) {
-            this.hostAddButton.disabled = false
-        } else {
-            this.hostAddButton.disabled = true
-        }
+        this.hostList.setCanAddHosts(this.role.permissions.allow_add_hosts)
     }
     private async refreshGameListActiveGame() {
         const gameList = this.gameList

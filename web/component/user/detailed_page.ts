@@ -184,7 +184,7 @@ class SetDefaultUserDialog extends FormModal<boolean> {
         this.message.innerText = i.setDefaultUserDialog
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         form.appendChild(this.message)
     }
 

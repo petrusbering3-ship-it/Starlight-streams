@@ -1,14 +1,22 @@
-import { Component } from "../component/index"
-import { getCurrentLanguage, getTranslations } from "../i18n"
-import { showNotification } from "./notification"
-import { ListComponent } from "./list"
+import { icon, IconName } from "../icons"
+
+// Starlight Streams: the context menu and "⋯" menus (Swiss Console .sl-menu).
 
 document.addEventListener("click", () => removeContextMenu())
+document.addEventListener("keydown", event => {
+    if (event.key == "Escape") {
+        removeContextMenu()
+    }
+})
 
 export type ContextMenuElement = {
     name: string,
     callback(event: MouseEvent): void
+    /// "context-menu-element-red" marks a dangerous action
     classes?: string[]
+    icon?: IconName
+    /// A divider line above this element
+    separator?: boolean
 }
 
 export type ContextMenuInit = {
@@ -16,72 +24,69 @@ export type ContextMenuInit = {
 }
 
 const contextMenuElement = document.getElementById("context-menu")
-const contextMenuList = new ListComponent<ContextMenuElementComponent>([], {
-    listClasses: ["context-menu-list"]
-})
 
-export function setContextMenu(event: MouseEvent, init?: ContextMenuInit) {
-    const i = getTranslations(getCurrentLanguage()).common
+/// Opens the menu at the mouse, or under `anchor` (e.g. a "⋯" button)
+export function setContextMenu(event: MouseEvent, init?: ContextMenuInit, anchor?: HTMLElement) {
     event.preventDefault()
     event.stopPropagation()
 
     if (contextMenuElement == null) {
-        showNotification(i.missingContextMenu)
-        return;
+        return
     }
 
-    contextMenuElement.style.setProperty("left", `${event.clientX}px`)
-    contextMenuElement.style.setProperty("top", `${event.clientY}px`)
-
-    contextMenuList.clear()
-
+    contextMenuElement.replaceChildren()
     for (const element of init?.elements ?? []) {
-        contextMenuList.append(new ContextMenuElementComponent(element))
+        if (element.separator) {
+            const separator = document.createElement("div")
+            separator.className = "sl-menu-sep"
+            contextMenuElement.appendChild(separator)
+        }
+
+        const item = document.createElement("button")
+        item.type = "button"
+        item.className = "sl-menu-item"
+        item.setAttribute("role", "menuitem")
+        if (element.classes?.includes("context-menu-element-red")) {
+            item.classList.add("is-danger")
+        }
+        if (element.icon) {
+            item.appendChild(icon(element.icon))
+        }
+        item.append(element.name)
+        item.addEventListener("click", clickEvent => {
+            clickEvent.stopPropagation()
+            removeContextMenu()
+            element.callback(clickEvent)
+        })
+        // Also register right click for certain devices which make left click hard: https://github.com/MrCreativ3001/moonlight-web-stream/issues/55
+        item.addEventListener("contextmenu", clickEvent => {
+            clickEvent.preventDefault()
+            removeContextMenu()
+            element.callback(clickEvent)
+        }, { passive: false })
+        contextMenuElement.appendChild(item)
     }
 
-    contextMenuList.mount(contextMenuElement)
-    contextMenuElement.classList.remove("context-menu-disabled")
+    contextMenuElement.hidden = false
+
+    // Place it, then keep it inside the window
+    let x = event.clientX
+    let y = event.clientY
+    if (anchor) {
+        const rect = anchor.getBoundingClientRect()
+        x = rect.right - contextMenuElement.offsetWidth
+        y = rect.bottom + 4
+    }
+    x = Math.max(8, Math.min(x, window.innerWidth - contextMenuElement.offsetWidth - 8))
+    y = Math.max(8, Math.min(y, window.innerHeight - contextMenuElement.offsetHeight - 8))
+    contextMenuElement.style.left = `${x}px`
+    contextMenuElement.style.top = `${y}px`
+
+    contextMenuElement.querySelector<HTMLButtonElement>(".sl-menu-item")?.focus({ preventScroll: true })
 }
 
 export function removeContextMenu() {
-    const i = getTranslations(getCurrentLanguage()).common
-    if (contextMenuElement == null) {
-        showNotification(i.missingContextMenu)
-        return;
-    }
-
-    contextMenuElement.classList.add("context-menu-disabled")
-}
-
-class ContextMenuElementComponent implements Component {
-    private nameElement: HTMLElement = document.createElement("p")
-
-    constructor(element: ContextMenuElement) {
-        this.nameElement.innerText = element.name
-
-        this.nameElement.classList.add("context-menu-element")
-
-        this.nameElement.addEventListener("click", event => {
-            element.callback(event)
-        })
-
-        // Also register right click for certain devices which make left click hard: https://github.com/MrCreativ3001/moonlight-web-stream/issues/55
-        this.nameElement.addEventListener("contextmenu", event => {
-            event.preventDefault()
-            removeContextMenu()
-
-            element.callback(event)
-        }, { passive: false })
-
-        if (element.classes) {
-            this.nameElement.classList.add(...element.classes)
-        }
-    }
-
-    mount(parent: Element): void {
-        parent.appendChild(this.nameElement)
-    }
-    unmount(parent: Element): void {
-        parent.removeChild(this.nameElement)
+    if (contextMenuElement) {
+        contextMenuElement.hidden = true
     }
 }

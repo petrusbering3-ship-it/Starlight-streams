@@ -14,7 +14,7 @@ import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboar
 import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
-import { DisplaySwitcher, getDisplayCount, setCachedDisplays } from "./stream/display"
+import { DisplaySwitcher, getDisplayCount, setCachedDisplays, setLastStream } from "./stream/display"
 import { DisplayOverview } from "./stream/display_overview"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
@@ -508,6 +508,14 @@ class ViewerApp implements Component {
             unlocked.finally(() => setTimeout(() => this.displaySwitcher.applySaved(this.stream.getInput()), 1500))
 
             this.startQualityMonitor()
+
+            // For "Last stream: …" on the home page
+            setLastStream(this.hostId, {
+                display: this.getCurrentDisplay(),
+                size: this.streamSettings.videoSize == "custom" ? `${this.streamSettings.videoSizeCustom.width}×${this.streamSettings.videoSizeCustom.height}` : this.streamSettings.videoSize,
+                fps: this.streamSettings.fps,
+                at: Date.now(),
+            })
 
             // Game mouse stays on between streams, the mouse is captured on the first click
             if (loadGameMousePreference() && !this.gameMouse) {
@@ -1573,7 +1581,7 @@ class SendKeycodeModal extends FormModal<number> {
         })
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         this.dropdownSearch.mount(form)
     }
 

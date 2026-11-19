@@ -32,9 +32,9 @@
 
 <body class="sl stream">
     <!-- Modal -->
-    <div id="modal-overlay" class="modal-background modal-disabled">
+    <div id="modal-overlay" class="sl-scrim" hidden>
         <!-- Modal Content -->
-        <div id="modal-parent" class="modal-content">
+        <div id="modal-parent" class="sl-modal" role="dialog" aria-modal="true">
         </div>
     </div>
 
@@ -50,7 +50,7 @@
     </div>
 
     <!-- Notification -->
-    <div id="notification-list">
+    <div id="notification-list" class="sl-toasts" aria-live="polite">
     </div>
 
     <!-- A dummy element for capturing inputs -->

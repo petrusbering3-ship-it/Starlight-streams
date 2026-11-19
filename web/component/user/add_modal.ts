@@ -57,7 +57,7 @@ export class AddUserModal extends FormModal<PostUserRequest> {
         this.clientUniqueId.setPlaceholder(this.name.getValue())
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         form.appendChild(this.modalRoot)
     }
 

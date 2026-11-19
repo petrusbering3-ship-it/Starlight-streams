@@ -42,18 +42,18 @@
 
 <body class="sl">
     <!-- Modal -->
-    <div id="modal-overlay" class="modal-background modal-disabled">
+    <div id="modal-overlay" class="sl-scrim" hidden>
         <!-- Modal Content -->
-        <div id="modal-parent" class="modal-content">
+        <div id="modal-parent" class="sl-modal" role="dialog" aria-modal="true">
         </div>
     </div>
 
     <!-- Context Menu -->
-    <div id="context-menu" class="context-menu-background context-menu-disabled">
+    <div id="context-menu" class="sl-menu sl-context-menu" role="menu" hidden>
     </div>
 
     <!-- Notification -->
-    <div id="notification-list">
+    <div id="notification-list" class="sl-toasts" aria-live="polite">
     </div>
 
     <!-- Main App View -->

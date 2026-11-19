@@ -67,7 +67,7 @@ export class AddRoleModal extends FormModal<PostRoleRequest> {
         this.defaultSettings.mount(this.modalRoot)
     }
 
-    mountForm(form: HTMLFormElement): void {
+    mountForm(form: HTMLElement): void {
         form.appendChild(this.modalRoot)
     }
 

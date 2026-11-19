@@ -1,47 +1,69 @@
-import { Component } from "./index"
-import { ERROR_IMAGE, INFO_IMAGE, WARN_IMAGE } from "../resources/index"
-import { ListComponent } from "./list"
+import { icon } from "../icons"
 
-type NotificationLevel = "error" | "warn" | "info"
+// Starlight Streams: toasts (Swiss Console .sl-toast). At most 2 at a time, top centre.
+// Info and warnings hide after 3 seconds, errors stay until closed.
 
-const ERROR_REMOVAL_TIME_MS = 10000
+type NotificationLevel = "error" | "warn" | "info" | "ok"
+
+const AUTO_HIDE_MS = 3000
+const MAX_TOASTS = 2
 
 const notificationListElement = document.getElementById("notification-list")
-const notificationListComponent = new ListComponent<NotificationComponent>([], { listClasses: ["notification-list"], elementLiClasses: ["notification-element"] })
-if (notificationListElement) {
-    notificationListComponent.mount(notificationListElement)
+
+function removeToast(toast: HTMLElement) {
+    if (toast.classList.contains("is-leaving")) {
+        return
+    }
+    toast.classList.add("is-leaving")
+    setTimeout(() => toast.remove(), 220)
 }
 
-let alertedNotificationListNotFound = false
-
 export function showNotification(message: string, level: NotificationLevel = "error", errorObject?: any) {
-    console.error(message, errorObject)
+    if (level == "error") {
+        console.error(message, errorObject)
+    } else {
+        console.info(message)
+    }
 
     if (!notificationListElement) {
-        if (!alertedNotificationListNotFound) {
-            alert("couldn't find the notification element")
-            alertedNotificationListNotFound = true
-        }
         alert(message)
-        return;
+        return
     }
 
-    let error: NotificationComponent
+    const toast = document.createElement("div")
+    toast.className = "sl-toast"
     if (level == "error") {
-        error = new NotificationComponent(message, ERROR_IMAGE)
+        toast.classList.add("sl-toast--error")
+        toast.setAttribute("role", "alert")
     } else if (level == "warn") {
-        error = new NotificationComponent(message, WARN_IMAGE)
-    } else if (level = "info") {
-        error = new NotificationComponent(message, INFO_IMAGE)
-    } else {
-        error = new NotificationComponent(`Unknown notification level (\"${level}\") for message: ${message}`, ERROR_IMAGE)
+        toast.classList.add("sl-toast--warn")
+    } else if (level == "ok") {
+        toast.classList.add("sl-toast--ok")
     }
 
-    notificationListComponent.append(error)
+    const text = document.createElement("span")
+    text.textContent = message
+    toast.appendChild(text)
 
-    setTimeout(() => {
-        notificationListComponent.removeValue(error)
-    }, ERROR_REMOVAL_TIME_MS)
+    if (level == "error") {
+        const close = document.createElement("button")
+        close.type = "button"
+        close.className = "sl-btn sl-btn-quiet sl-btn-icon sl-btn-sm sl-toast-close"
+        close.setAttribute("aria-label", "Close")
+        close.appendChild(icon("close"))
+        close.addEventListener("click", () => removeToast(toast))
+        toast.appendChild(close)
+    } else {
+        setTimeout(() => removeToast(toast), AUTO_HIDE_MS)
+    }
+
+    notificationListElement.appendChild(toast)
+
+    // Only the newest ones
+    const toasts = Array.from(notificationListElement.querySelectorAll(".sl-toast:not(.is-leaving)")) as Array<HTMLElement>
+    for (const old of toasts.slice(0, Math.max(0, toasts.length - MAX_TOASTS))) {
+        removeToast(old)
+    }
 }
 
 function handleError(event: ErrorEvent) {
@@ -53,25 +75,3 @@ function handleRejection(event: PromiseRejectionEvent) {
 
 window.addEventListener("error", handleError)
 window.addEventListener("unhandledrejection", handleRejection)
-
-class NotificationComponent implements Component {
-    private messageElement: HTMLElement = document.createElement("p")
-    private imageElement: HTMLImageElement = document.createElement("img")
-
-    constructor(message: string, image: string) {
-        this.messageElement.innerText = message
-        this.messageElement.classList.add("notification-message")
-
-        this.imageElement.src = image
-        this.imageElement.classList.add("notification-image")
-    }
-
-    mount(parent: Element): void {
-        parent.appendChild(this.imageElement)
-        parent.appendChild(this.messageElement)
-    }
-    unmount(parent: Element): void {
-        parent.removeChild(this.imageElement)
-        parent.removeChild(this.messageElement)
-    }
-}
