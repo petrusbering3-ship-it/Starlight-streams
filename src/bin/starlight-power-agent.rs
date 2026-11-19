@@ -114,6 +114,16 @@ fn main() {
             .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
     {
         let _ = std::fs::write(dir.join("version.txt"), STARLIGHT_VERSION);
+
+        // Sets up (or moves older installs to) the auto update every 5 minutes
+        let script = dir.join("update-pc.ps1");
+        if cfg!(windows) && script.exists() {
+            let _ = Command::new("powershell")
+                .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+                .arg(&script)
+                .arg("-RegisterAutoUpdate")
+                .spawn();
+        }
     }
 
     let listener = TcpListener::bind(("0.0.0.0", port)).expect("failed to bind port");

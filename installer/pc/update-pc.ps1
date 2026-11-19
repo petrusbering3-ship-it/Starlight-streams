@@ -1,12 +1,26 @@
 ﻿# Starlight Streams - updates the power agent on the gaming pc to the latest release.
-# Runs as the scheduled task "Starlight Power Agent Auto Update": every night, and at the next start
-# when the pc was off at night. Only updates when there is a newer release (version.txt is written by the agent).
+# Runs as the scheduled task "Starlight Power Agent Auto Update": at start and every 5 minutes, and from the
+# Update button in Starlight Streams. Only updates when there is a newer release (version.txt is written by the agent).
+# -RegisterAutoUpdate only sets up that task (the agent does this when it starts)
+param([switch]$RegisterAutoUpdate)
 $ErrorActionPreference = "Stop"
 
 $repository = "petrusbering3-ship-it/Starlight-streams"
 $dir = Join-Path $env:ProgramFiles "Starlight Power Agent"
 $agentTask = "Starlight Power Agent"
 $displaysTask = "Starlight Display Info"
+
+if ($RegisterAutoUpdate) {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dir "update-pc.ps1")`""
+    $trigger = @(
+        (New-ScheduledTaskTrigger -AtStartup),
+        (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5))
+    )
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName "Starlight Power Agent Auto Update" -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    exit
+}
 
 Start-Transcript -Path (Join-Path $env:TEMP "starlight-update-pc.log") -Force | Out-Null
 

@@ -97,7 +97,7 @@ $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName
 
-# Opdaterer selv hver nat (kun når der er en ny version)
+# Opdaterer selv, så snart der er en ny version og ingen streamer (tjekker hvert 5. minut)
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest "update.ps1") -RegisterAutoUpdate
 
 # 5. Firewall

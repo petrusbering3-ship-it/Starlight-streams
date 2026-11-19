@@ -4,7 +4,8 @@
 # - the Update button in Starlight Streams runs it as the scheduled task "Starlight Streams Update" (-Silent)
 # - the "Opdater Starlight Streams" shortcut on the desktop
 # - Update-Starlight.bat from the latest release, also for installs that are too old to update themselves
-# - every night as the scheduled task "Starlight Streams Auto Update" (-Silent -Auto: only when there is a new version)
+# - every 5 minutes as the scheduled task "Starlight Streams Auto Update" (-Silent -Auto: only when there is a
+#   new version and nobody is streaming)
 # -RegisterAutoUpdate only sets up that nightly task (the server does this when it starts)
 param([switch]$Silent, [switch]$Auto, [switch]$RegisterAutoUpdate)
 $ErrorActionPreference = "Stop"
@@ -28,10 +29,13 @@ if (-not $dir -or -not (Test-Path (Join-Path $dir "web-server.exe"))) {
     $dir = Join-Path $env:ProgramFiles "Starlight Streams"
 }
 
-# Nightly auto update, and at the next start when the computer was off at night
+# Auto update: every 5 minutes, so a new version is installed right away when nobody is streaming
 if ($RegisterAutoUpdate) {
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dir "update.ps1")`" -Silent -Auto"
-    $trigger = New-ScheduledTaskTrigger -Daily -At "04:30"
+    $trigger = @(
+        (New-ScheduledTaskTrigger -AtStartup),
+        (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5))
+    )
     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName $autoUpdateTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
@@ -63,7 +67,7 @@ if ($Auto) {
     # Never in the middle of a stream (streams.txt is written every minute by the server while streaming)
     $streams = Get-Item (Join-Path $dir "streams.txt") -ErrorAction SilentlyContinue
     if ($streams -and ((Get-Date) - $streams.LastWriteTime).TotalMinutes -lt 3 -and [int](Get-Content $streams.FullName) -gt 0) {
-        Write-Host "Nogen streamer lige nu. Opdaterer næste nat."
+        Write-Host "Nogen streamer lige nu. Opdaterer, når streamen er slut."
         Stop-Transcript | Out-Null
         exit
     }

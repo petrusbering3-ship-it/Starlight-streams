@@ -142,7 +142,7 @@ Har du brugt laptoppen før, så afinstaller Starlight på den (`Uninstall.bat`)
 
 ## Automatiske opdateringer
 
-Starlight opdaterer sig selv hver nat kl. 4:30, men kun når der er en ny version. Det gælder laptoppen, Pi'en og alt-i-én. Gaming PC'ens sluk-program opdaterer sig selv kl. 4:40, eller næste gang PC'en tænder, hvis den var slukket om natten. Du kan stadig opdatere med det samme med **⬆ Update**.
+Starlight opdaterer sig selv, så snart der er en ny version: laptoppen, Pi'en, alt-i-én og gaming PC'ens sluk-program tjekker hvert 5. minut. Serveren venter, til ingen streamer, så en stream aldrig bliver afbrudt. Du kan stadig opdatere med det samme med **⬆ Update**.
 
 ---
 

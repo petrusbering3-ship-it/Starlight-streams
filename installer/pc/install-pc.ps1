@@ -92,11 +92,8 @@ $lockAction = New-ScheduledTaskAction -Execute "rundll32.exe" -Argument "user32.
 $lockPrincipal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
 Register-ScheduledTask -TaskName "Starlight Lock" -Action $lockAction -Principal $lockPrincipal -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) -Force | Out-Null
 
-# Opdaterer selv hver nat, eller næste gang PC'en tænder (kun når der er en ny version)
-$updateAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $dest "update-pc.ps1")`""
-$updateTrigger = New-ScheduledTaskTrigger -Daily -At "04:40"
-$updateSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "Starlight Power Agent Auto Update" -Action $updateAction -Trigger $updateTrigger -Principal $principal -Settings $updateSettings -Force | Out-Null
+# Opdaterer selv, så snart der er en ny version (tjekker hvert 5. minut)
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest "update-pc.ps1") -RegisterAutoUpdate
 
 Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow -Profile Any | Out-Null

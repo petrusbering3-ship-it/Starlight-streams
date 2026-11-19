@@ -53,7 +53,7 @@ moonlight["auto_shutdown_minutes"] = int(minutes)
 json.dump(config, open(path, "w"), indent=2)
 PY
 
-# 4. Start automatisk når Pi'en tænder, og opdater selv hver nat
+# 4. Start automatisk når Pi'en tænder, og opdater selv, så snart der er en ny version
 cat > /etc/systemd/system/starlight-streams.service <<UNIT
 [Unit]
 Description=Starlight Streams
@@ -71,32 +71,9 @@ Nice=-5
 WantedBy=multi-user.target
 UNIT
 
-cat > /etc/systemd/system/starlight-streams-update.service <<UNIT
-[Unit]
-Description=Starlight Streams auto update
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=$DEST/update-pi.sh --auto
-UNIT
-
-cat > /etc/systemd/system/starlight-streams-update.timer <<UNIT
-[Unit]
-Description=Starlight Streams auto update every night
-
-[Timer]
-OnCalendar=*-*-* 04:30
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-UNIT
-
 systemctl daemon-reload
 systemctl enable --now starlight-streams
-systemctl enable --now starlight-streams-update.timer
+"$DEST/update-pi.sh" --register
 
 # 5. Kabel-tricket: gaming PC'en sat direkte til Pi'en.
 # The pi gives the pc an address (192.168.50.x) and internet through its own Wi-Fi, and

@@ -73,15 +73,20 @@ pub fn on_startup() {
         let _ = std::fs::write(dir.join("version.txt"), STARLIGHT_VERSION);
     }
 
-    // Installs from before auto updates existed get the nightly update task here
-    if cfg!(windows)
-        && let Some(script) = update_script()
-    {
-        let _ = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(&script)
-            .arg("-RegisterAutoUpdate")
-            .spawn();
+    // Sets up (or moves older installs to) the auto update every 5 minutes
+    if let Some(script) = update_script() {
+        let _ = if cfg!(windows) {
+            std::process::Command::new("powershell")
+                .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+                .arg(&script)
+                .arg("-RegisterAutoUpdate")
+                .spawn()
+        } else {
+            std::process::Command::new("bash")
+                .arg(&script)
+                .arg("--register")
+                .spawn()
+        };
     }
 }
 
