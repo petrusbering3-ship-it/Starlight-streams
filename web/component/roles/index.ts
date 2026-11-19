@@ -35,11 +35,27 @@ export class Role implements Component {
 
     private div = document.createElement("div")
     private nameElement = document.createElement("p")
+    private subElement = document.createElement("span")
 
     constructor(api: Api, role: DetailedRole | { id: number }) {
         this.api = api
 
-        this.div.appendChild(this.nameElement)
+        // Swiss Console index row (design/screens/S-Admin-Users)
+        this.div.className = "sl-admin-row"
+        this.div.tabIndex = 0
+        this.div.setAttribute("role", "button")
+        this.nameElement.className = "name"
+        this.subElement.className = "sl-muted sub"
+        const text = document.createElement("span")
+        text.className = "sl-admin-row-text"
+        text.append(this.nameElement, this.subElement)
+        this.div.appendChild(text)
+        this.div.addEventListener("keydown", event => {
+            if (event.key == "Enter" || event.key == " ") {
+                event.preventDefault()
+                this.div.click()
+            }
+        })
         this.div.addEventListener("click", this.onClick.bind(this))
         this.div.addEventListener("contextmenu", this.onContextMenu.bind(this))
 
@@ -61,7 +77,12 @@ export class Role implements Component {
     updateCache(role: DetailedRole) {
         this.role = role
 
-        this.nameElement.innerText = formatRoleName(role)
+        this.nameElement.innerText = role.name
+        this.subElement.innerText = role.ty ?? ""
+        if (role.ty == undefined) {
+            // The list only has id + name; fetch the type for the subtitle
+            this.forceFetch()
+        }
     }
 
     private onClick() {
@@ -112,6 +133,10 @@ export class Role implements Component {
 
     getRoleId(): number {
         return this.role.id
+    }
+
+    setSelected(selected: boolean) {
+        this.div.setAttribute("aria-current", selected ? "true" : "false")
     }
 
     mount(parent: HTMLElement): void {

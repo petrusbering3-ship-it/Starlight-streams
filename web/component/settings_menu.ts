@@ -163,6 +163,8 @@ export class StreamSettingsComponent implements Component {
         // Use those as fallback
         const defaultSettings_ = globalDefaultSettings()
 
+        // A role without saved default settings has none
+        settings = settings ?? ({} as Settings)
         makeSettingsValid(permissions, defaultSettings_)
         makeSettingsValid(permissions, settings)
 

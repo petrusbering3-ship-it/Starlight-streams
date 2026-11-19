@@ -11,7 +11,7 @@ export class RoleList extends FetchListComponent<UndetailedRole, Role> {
 
     constructor(api: Api) {
         super({
-            listClasses: ["role-list"],
+            listClasses: ["sl-admin-list"],
             elementLiClasses: ["role-element"]
         })
 
@@ -86,6 +86,13 @@ export class RoleList extends FetchListComponent<UndetailedRole, Role> {
     protected getDataId(data: DetailedRole): number {
         return data.id
     }
+    /// Marks the role shown on the right
+    setSelected(id: number | null) {
+        for (const component of this.list.get()) {
+            component.setSelected(component.getRoleId() == id)
+        }
+    }
+
     protected getComponentDataId(component: Role): number {
         return component.getRoleId()
     }

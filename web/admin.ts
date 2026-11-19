@@ -16,6 +16,8 @@ import { RoleList } from "./component/roles/list"
 import { DetailedRolePage } from "./component/roles/detailed_page"
 import { AddRoleModal } from "./component/roles/add_modal"
 import { adoptRoleDefaultLanguage, getCurrentLanguage, getTranslations } from "./i18n"
+import { button, el, icon } from "./icons"
+import { apiStarlightInfo } from "./api"
 
 let I = getTranslations(getCurrentLanguage())
 
@@ -99,22 +101,14 @@ class AdminApp implements Component {
 
     private currentState: AppState | null = null
 
-    // Top Line
-    private topLine = document.createElement("div")
-
-    private moonlightTextElement = document.createElement("h1")
-
-    private topLineActions = document.createElement("div")
-    private logoutButton = document.createElement("button")
-    private userButton = document.createElement("button")
-
-    // Different tabs
-    private tabs = document.createElement("div")
-    private userTabButton = document.createElement("button")
-    private rolesTabButton = document.createElement("button")
+    // Status bar, header and tabs (design/screens/S-Admin-Users)
+    private statusText = el("span", "sl-label")
+    private versionText = el("span", "sl-label")
+    private userTabButton = el("button", "sl-tab")
+    private rolesTabButton = el("button", "sl-tab")
 
     // Content
-    private content = document.createElement("div")
+    private content = el("div", "sl-admin-content")
 
     // The actual content of the tabs
     private users: UserPanel | null = null
@@ -122,55 +116,52 @@ class AdminApp implements Component {
 
     constructor(api: Api) {
         this.api = api
+        this.root.className = "sl-app sl-admin"
 
-        // Top Line
-        this.topLine.classList.add("top-line")
+        const statusBar = el("div", "sl-statusbar")
+        statusBar.append(this.statusText, this.versionText)
+        this.statusText.textContent = I.home.serverOnline
+        this.watchServer(statusBar)
 
-        this.moonlightTextElement.innerHTML =
-            'Starlight Streams <span style="color:red; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; -webkit-text-stroke: 2px #000">Admin</span>'
-
-        this.topLine.appendChild(this.moonlightTextElement)
-
-        this.topLine.appendChild(this.topLineActions)
-        this.topLineActions.classList.add("top-line-actions")
-
-        // TODO: logout button doesn't work on default user
-        this.logoutButton.addEventListener("click", async () => {
+        const header = el("header", "sl-header")
+        const back = button("sl-link sl-back", I.index.back, "chevronLeft")
+        back.addEventListener("click", () => window.location.href = buildUrl("/"))
+        const logout = button("sl-link", I.home.logout)
+        logout.addEventListener("click", async () => {
             await apiLogout(this.api)
             window.location.reload()
         })
-        this.logoutButton.classList.add("logout-button")
-        this.topLineActions.appendChild(this.logoutButton)
+        header.append(back, el("span", "sl-h3 sl-page-title", I.home.admin), el("span", "sl-tag sl-tag--role", "Admin"), logout)
 
-        this.userButton.addEventListener("click", async () => {
-            window.location.href = buildUrl("/")
-        })
-        this.userButton.classList.add("user-button")
-        this.topLineActions.appendChild(this.userButton)
+        // Tabs
+        const tabs = el("div", "sl-tabs sl-admin-tabs")
+        tabs.setAttribute("role", "tablist")
+        for (const [tab, text, state] of [[this.userTabButton, I.admin.users, { tab: "users", user_id: null }], [this.rolesTabButton, I.admin.roles, { tab: "roles", role_id: null }]] as const) {
+            tab.type = "button"
+            tab.setAttribute("role", "tab")
+            tab.textContent = text
+            tab.addEventListener("click", () => this.setAppState(state as AppState))
+            tabs.appendChild(tab)
+        }
 
-        this.root.appendChild(this.topLine)
+        this.root.append(statusBar, header, tabs, this.content)
+    }
 
-        // Tab div
-        this.tabs.classList.add("admin-panel-tabs")
-        this.root.appendChild(this.tabs)
-
-        // Users tab
-        this.userTabButton.innerText = I.admin.users
-        this.userTabButton.addEventListener("click", () => {
-            this.setAppState({ tab: "users", user_id: null })
-        })
-        this.tabs.appendChild(this.userTabButton)
-
-        // Roles tab
-        this.rolesTabButton.innerText = I.admin.roles
-        this.rolesTabButton.addEventListener("click", () => {
-            this.setAppState({ tab: "roles", role_id: null })
-        })
-        this.tabs.appendChild(this.rolesTabButton)
-
-        // Content div
-        this.content.classList.add("admin-panel-content")
-        this.root.appendChild(this.content)
+    /// The ping in the status bar
+    private async watchServer(statusBar: HTMLElement) {
+        while (true) {
+            const start = performance.now()
+            let ok = true
+            try {
+                const info = await apiStarlightInfo(this.api)
+                this.versionText.textContent = info.version
+            } catch (e) {
+                ok = !(e instanceof FetchError) || e.getResponse() != null
+            }
+            this.statusText.textContent = ok ? `${I.home.serverOnline} · ${Math.round(performance.now() - start)} ms` : I.home.unreachableBar
+            statusBar.classList.toggle("sl-statusbar--error", !ok)
+            await new Promise(resolve => setTimeout(resolve, ok ? 10_000 : 5_000))
+        }
     }
 
     async forceFetch() {
@@ -213,6 +204,9 @@ class AdminApp implements Component {
             }
         }
 
+        this.userTabButton.setAttribute("aria-selected", state.tab == "users" ? "true" : "false")
+        this.rolesTabButton.setAttribute("aria-selected", state.tab == "roles" ? "true" : "false")
+
         // Save app state to browser history
         pushAppState(state, pushIntoHistory ?? true)
 
@@ -248,17 +242,23 @@ class UserPanel implements Component {
     private userList: UserList
 
     private userInfoPage: DetailedUserPage | null = null
+    private emptyDetail = el("p")
 
     constructor(api: Api) {
         this.api = api
 
-        this.rootDiv.classList.add("admin-panel-users")
+        this.rootDiv.classList.add("sl-admin-cols")
 
         // Select User Panel
-        this.userPanel.classList.add("user-panel")
+        this.userPanel.classList.add("sl-admin-side")
         this.rootDiv.appendChild(this.userPanel)
+        this.rootDiv.appendChild(this.emptyDetail)
+        this.emptyDetail.className = "sl-admin-empty sl-muted"
+        this.emptyDetail.textContent = I.admin.pickUser
 
-        this.addUserButton.innerText = I.admin.addUser
+        this.addUserButton.className = "sl-btn sl-btn-ink sl-admin-add"
+        this.addUserButton.type = "button"
+        this.addUserButton.replaceChildren(icon("plus"), I.admin.addUser)
         this.addUserButton.addEventListener("click", async () => {
             const addUserModal = new AddUserModal(api)
 
@@ -280,12 +280,16 @@ class UserPanel implements Component {
                 }
             }
         })
-        this.userPanel.appendChild(this.addUserButton)
-
         this.userSearch.placeholder = I.admin.searchUser
-        this.userSearch.type = "text"
+        this.userSearch.type = "search"
+        this.userSearch.className = "sl-input sl-input-sm"
+        this.userSearch.setAttribute("aria-label", I.admin.searchUser)
         this.userSearch.addEventListener("input", this.onUserSearchChange.bind(this))
-        this.userPanel.appendChild(this.userSearch)
+        const userTools = el("div", "sl-admin-tools")
+        const userSearchWrap = el("div", "sl-games-search sl-admin-search")
+        userSearchWrap.append(icon("search"), this.userSearch)
+        userTools.append(userSearchWrap, this.addUserButton)
+        this.userPanel.appendChild(userTools)
 
         this.userList = new UserList(api)
         this.userList.addUserClickedListener(this.onUserClicked.bind(this))
@@ -327,11 +331,13 @@ class UserPanel implements Component {
         }
 
         this.userInfoPage = null
+        this.emptyDetail.hidden = user != null
         if (user) {
             this.userInfoPage = new DetailedUserPage(this.api, user)
             this.userInfoPage.addDeletedListener(this.onUserDeleted.bind(this))
             this.userInfoPage.mount(this.rootDiv)
         }
+        this.userList.setSelected(user?.id ?? null)
     }
 
     private onUserDeleted(event: ComponentEvent<User>) {
@@ -361,17 +367,23 @@ class RolePanel implements Component {
     private roleList: RoleList
 
     private roleInfoPage: DetailedRolePage | null = null
+    private emptyDetail = el("p")
 
     constructor(api: Api) {
         this.api = api
 
-        this.rootDiv.classList.add("admin-panel-roles")
+        this.rootDiv.classList.add("sl-admin-cols")
 
         // Select Role Panel
-        this.rolePanel.classList.add("role-panel")
+        this.rolePanel.classList.add("sl-admin-side")
         this.rootDiv.appendChild(this.rolePanel)
+        this.rootDiv.appendChild(this.emptyDetail)
+        this.emptyDetail.className = "sl-admin-empty sl-muted"
+        this.emptyDetail.textContent = I.admin.pickRole
 
-        this.addRoleButton.innerText = I.admin.addRole
+        this.addRoleButton.className = "sl-btn sl-btn-ink sl-admin-add"
+        this.addRoleButton.type = "button"
+        this.addRoleButton.replaceChildren(icon("plus"), I.admin.addRole)
         this.addRoleButton.addEventListener("click", async () => {
             const addRoleModal = new AddRoleModal()
 
@@ -393,12 +405,16 @@ class RolePanel implements Component {
                 }
             }
         })
-        this.rolePanel.appendChild(this.addRoleButton)
-
         this.roleSearch.placeholder = I.admin.searchRole
-        this.roleSearch.type = "text"
+        this.roleSearch.type = "search"
+        this.roleSearch.className = "sl-input sl-input-sm"
+        this.roleSearch.setAttribute("aria-label", I.admin.searchRole)
         this.roleSearch.addEventListener("input", this.onRoleSearchChange.bind(this))
-        this.rolePanel.appendChild(this.roleSearch)
+        const roleTools = el("div", "sl-admin-tools")
+        const roleSearchWrap = el("div", "sl-games-search sl-admin-search")
+        roleSearchWrap.append(icon("search"), this.roleSearch)
+        roleTools.append(roleSearchWrap, this.addRoleButton)
+        this.rolePanel.appendChild(roleTools)
 
         this.roleList = new RoleList(api)
         this.roleList.addRoleClickedListener(this.onRoleClicked.bind(this))
@@ -439,11 +455,13 @@ class RolePanel implements Component {
         }
 
         this.roleInfoPage = null
+        this.emptyDetail.hidden = role != null
         if (role) {
             this.roleInfoPage = new DetailedRolePage(this.api, role)
             this.roleInfoPage.addDeletedListener(this.onRoleDeleted.bind(this))
             this.roleInfoPage.mount(this.rootDiv)
         }
+        this.roleList.setSelected(role?.id ?? null)
     }
 
     private onRoleDeleted(event: ComponentEvent<Role>) {

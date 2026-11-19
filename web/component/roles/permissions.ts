@@ -33,6 +33,7 @@ export class RolePermissionsMenu implements Component {
 
     constructor(permissions: StreamPermissions = defaultRolePermissions()) {
         const i = getTranslations(getCurrentLanguage()).admin
+        this.rootDiv.classList.add("sl-admin-perms")
         // Allow Add Hosts
         this.allowAddHosts = new InputComponent("allowAddHosts", "checkbox", i.allowAddHosts, {
             checked: permissions.allow_add_hosts,
@@ -52,6 +53,10 @@ export class RolePermissionsMenu implements Component {
         })
         this.maximumBitrateKbps.setEnabled(permissions.maximum_bitrate_kbps != null)
         this.maximumBitrateKbps.mount(this.rootDiv)
+        const hint = document.createElement("span")
+        hint.className = "sl-help sl-admin-hint"
+        hint.textContent = i.maxBitrateHint
+        this.rootDiv.appendChild(hint)
         this.maximumBitrateKbps.addChangeListener(this.onChange.bind(this))
 
         // Codecs

@@ -11,7 +11,7 @@ export class UserList extends FetchListComponent<DetailedUser, User> {
 
     constructor(api: Api) {
         super({
-            listClasses: ["user-list"],
+            listClasses: ["sl-admin-list"],
             elementLiClasses: ["user-element"]
         })
 
@@ -86,6 +86,13 @@ export class UserList extends FetchListComponent<DetailedUser, User> {
     protected getDataId(data: DetailedUser): number {
         return data.id
     }
+    /// Marks the user shown on the right
+    setSelected(id: number | null) {
+        for (const component of this.list.get()) {
+            component.setSelected(component.getUserId() == id)
+        }
+    }
+
     protected getComponentDataId(component: User): number {
         return component.getUserId()
     }

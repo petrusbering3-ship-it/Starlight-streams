@@ -8,6 +8,9 @@ export class ElementWithLabel implements Component {
 
     constructor(internalName: string, displayName?: string) {
         const i = getTranslations(getCurrentLanguage()).common
+        // Swiss Console field: small mono label above the control
+        this.div.classList.add("sl-field")
+        this.label.classList.add("sl-label")
         if (displayName) {
             this.label.htmlFor = internalName
             this.label.innerText = displayName
@@ -63,6 +66,11 @@ export class InputComponent extends ElementWithLabel {
 
         this.input.id = internalName
         this.input.type = type
+        if (type == "checkbox") {
+            this.div.classList.add("sl-field--check")
+        } else if (type != "file" && type != "range") {
+            this.input.classList.add("sl-input", "sl-input-sm")
+        }
         if (init?.defaultValue != null) {
             this.input.defaultValue = init.defaultValue
         }
@@ -102,6 +110,7 @@ export class InputComponent extends ElementWithLabel {
         if (init?.hasEnableCheckbox) {
             this.inputEnabled = document.createElement("input")
             this.inputEnabled.type = "checkbox"
+            this.inputEnabled.classList.add("sl-field-enable")
             this.inputEnabled.defaultChecked = false
 
             this.inputEnabled.addEventListener("change", () => {
@@ -257,7 +266,7 @@ export class SelectComponent extends ElementWithLabel {
             this.div.classList.add("input-div")
 
             const display = document.createElement("p")
-            display.classList.add("select-polyfill-display")
+            display.classList.add("select-polyfill-display", "sl-select")
 
             display.addEventListener("click", () => {
                 if (this.strategy.name != "polyfill") {
@@ -289,6 +298,7 @@ export class SelectComponent extends ElementWithLabel {
 
             const inputElement = document.createElement("input")
             inputElement.type = "text"
+            inputElement.classList.add("sl-input", "sl-input-sm")
             inputElement.id = internalName
             inputElement.setAttribute("list", dataListElement.id)
 
@@ -306,6 +316,7 @@ export class SelectComponent extends ElementWithLabel {
             }
         } else {
             const selectElement = document.createElement("select")
+            selectElement.classList.add("sl-select")
             selectElement.id = internalName
 
             this.div.appendChild(selectElement)

@@ -22,9 +22,11 @@ export class AddRoleModal extends FormModal<PostRoleRequest> {
 
     constructor() {
         super()
+        this.header.classList.add("sl-h3")
+        this.modalRoot.classList.add("sl-admin-add-form")
         const i = getTranslations(getCurrentLanguage()).admin
 
-        this.header.innerText = i.role
+        this.header.innerText = i.addRole
         this.modalRoot.appendChild(this.header)
 
         // Name
