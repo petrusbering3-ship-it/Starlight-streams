@@ -621,11 +621,13 @@ pub async fn webrtc_post(
         .instrument(debug_span!("moonlight stream"))
     });
 
-    // Wait for ice gathering to complete or 10 seconds to pass
+    // Wait for ice gathering to complete, but not long: the stun request out of an interface
+    // without its own internet (like Tailscale's) only fails after many seconds, and the answers
+    // from the other interfaces arrive within a few hundred milliseconds (Starlight Streams)
     select! {
         _ = handler.on_ice_gathering_finished.notified() => {},
-        _ = sleep(Duration::from_secs(4)) => {
-            warn!("Couldn't fully gather ice candidates after 4 seconds! Sending response regardless of uncomplete ice gathering state.");
+        _ = sleep(Duration::from_millis(1500)) => {
+            debug!("ice gathering not complete after 1.5 seconds, sending the answer with the candidates so far");
         }
     }
 
