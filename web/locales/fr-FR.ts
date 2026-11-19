@@ -263,6 +263,10 @@ export const frFr: Translations = {
             `Mode de support du codec serveur : ${host.server_codec_mode_support}`,
     },
     game: {
+        pickGame: "Pick a game",
+        search: "Search games",
+        remember: "We'll remember your choice.",
+        running: "Running",
         resumeSession: "Reprise de la session",
         stopCurrentSession: "Arrêt de la session",
         failedToCloseApp: "Echec de la fermeture de l'app !",

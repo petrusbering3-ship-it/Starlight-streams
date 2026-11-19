@@ -263,6 +263,10 @@ export const koKR: Translations = {
             `서버 코덱 모드 지원: ${host.server_codec_mode_support}`,
     },
     game: {
+        pickGame: "Pick a game",
+        search: "Search games",
+        remember: "We'll remember your choice.",
+        running: "Running",
         resumeSession: "세션 재개",
         stopCurrentSession: "현재 세션 중지",
         failedToCloseApp: "앱을 종료하지 못했습니다!",

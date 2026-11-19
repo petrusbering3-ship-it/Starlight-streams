@@ -263,6 +263,10 @@ export const ptBR: Translations = {
             `Suporte a Codecs do Servidor: ${host.server_codec_mode_support}`,
     },
     game: {
+        pickGame: "Pick a game",
+        search: "Search games",
+        remember: "We'll remember your choice.",
+        running: "Running",
         resumeSession: "Retomar Sessão",
         stopCurrentSession: "Encerrar Sessão Atual",
         failedToCloseApp: "Falha ao fechar o aplicativo!",

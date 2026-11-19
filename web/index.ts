@@ -97,6 +97,7 @@ class MainApp implements Component {
     // Header
     private header = el("header", "sl-header")
     private backButton = button("sl-link sl-back", "", "chevronLeft")
+    private pageTitle = el("span", "sl-h3 sl-page-title")
     private updateButton = el("button", "sl-pill")
     private updateChecked = false
     private settingsButton = button("sl-link", "", "sliders")
@@ -167,7 +168,8 @@ class MainApp implements Component {
         })
         this.logoutButton.hidden = true
 
-        this.header.append(this.backButton, wordmark, this.updateButton, this.settingsButton, this.guestLinkButton, this.adminButton, this.loginButton, this.logoutButton)
+        this.pageTitle.hidden = true
+        this.header.append(this.backButton, this.pageTitle, wordmark, this.updateButton, this.settingsButton, this.guestLinkButton, this.adminButton, this.loginButton, this.logoutButton)
 
         // PCs
         this.hostList = new HostList(api)
@@ -538,6 +540,15 @@ class MainApp implements Component {
         this.backButton.hidden = display == "hosts"
         this.settingsButton.hidden = display == "settings"
 
+        // Sub pages: "← Back" and a title instead of the wordmark and links
+        this.header.classList.toggle("is-sub", display != "hosts")
+        this.pageTitle.hidden = display == "hosts"
+        if (display == "games" && extraInfo?.hostId != null) {
+            this.pageTitle.textContent = this.hostList.getHost(extraInfo.hostId)?.getCache()?.name ?? ""
+        } else if (display == "settings") {
+            this.pageTitle.textContent = I.home.settings
+        }
+
         // Mount the new display
         if (display == "hosts") {
             this.hostList.mount(this.content)
@@ -582,6 +593,10 @@ class MainApp implements Component {
             && !this.hostList.getHost(this.gameList.getHostId())) {
             // The newly fetched list doesn't contain the hosts game view we're in -> go to hosts
             this.setCurrentDisplay("hosts")
+        }
+
+        if (this.currentDisplay == "games" && this.gameList) {
+            this.pageTitle.textContent = this.hostList.getHost(this.gameList.getHostId())?.getCache()?.name ?? ""
         }
 
         await Promise.all([

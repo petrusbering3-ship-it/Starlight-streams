@@ -263,6 +263,10 @@ export const zhCN: Translations = {
             `服务器编解码支持: ${host.server_codec_mode_support}`,
     },
     game: {
+        pickGame: "Pick a game",
+        search: "Search games",
+        remember: "We'll remember your choice.",
+        running: "Running",
         resumeSession: "恢复会话",
         stopCurrentSession: "停止当前会话",
         failedToCloseApp: "关闭应用失败！",

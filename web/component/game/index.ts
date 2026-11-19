@@ -6,6 +6,7 @@ import { setContextMenu } from "../context_menu"
 import { showMessage } from "../modal/index"
 import { APP_NO_IMAGE } from "../../resources/index"
 import { buildUrl } from "../../config_"
+import { button, el } from "../../icons"
 
 export type GameCache = App & { activeApp: number | null }
 
@@ -19,6 +20,10 @@ export class Game implements Component {
 
     private mounted: number = 0
     private divElement: HTMLDivElement = document.createElement("div")
+    private coverButton: HTMLButtonElement = document.createElement("button")
+    private titleElement: HTMLElement = el("span", "title")
+    private runningLabel: HTMLElement = el("span", "sl-label sl-red")
+    private strip: HTMLElement = el("div", "sl-game-strip")
 
     private imageBlob: Blob | null = null
     private imageBlobUrl: string | null = null
@@ -40,12 +45,27 @@ export class Game implements Component {
 
         this.forceLoadImage(false)
 
-        // Configure div
-        this.divElement.classList.add("app")
+        // Swiss Console game card (design/screens/S-Games): cover, title, and Resume / Stop when it runs
+        const i = getTranslations(getCurrentLanguage()).game
+        this.divElement.className = "sl-game"
+        this.coverButton.type = "button"
+        this.coverButton.className = "sl-game-cover"
+        this.coverButton.appendChild(this.imageElement)
+        this.coverButton.addEventListener("click", this.onClick.bind(this))
 
-        this.divElement.appendChild(this.imageElement)
+        const resume = button("sl-btn sl-btn-go sl-btn-sm", i.resumeSession, "play", true)
+        resume.addEventListener("click", () => {
+            this.startStream()
+            this.divElement.dispatchEvent(new ComponentEvent("ml-gamereload", this))
+        })
+        const stop = button("sl-btn sl-btn-danger sl-btn-sm", i.stopCurrentSession, "stop")
+        stop.addEventListener("click", () => this.stopSession())
+        this.strip.append(resume, stop)
 
-        this.divElement.addEventListener("click", this.onClick.bind(this))
+        this.runningLabel.textContent = i.running
+        const caption = el("div", "sl-game-caption")
+        caption.append(this.titleElement, this.runningLabel)
+        this.divElement.append(this.coverButton, caption, this.strip)
         this.divElement.addEventListener("contextmenu", this.onContextMenu.bind(this))
 
         this.updateCache(cache)
@@ -82,14 +102,25 @@ export class Game implements Component {
     updateCache(cache: GameCache) {
         this.cache = cache
 
-        this.divElement.classList.remove("app-inactive")
-        this.divElement.classList.remove("app-active")
+        this.titleElement.textContent = cache.title
+        this.coverButton.setAttribute("aria-label", cache.title)
+        this.divElement.classList.toggle("is-running", this.isActive())
+        this.runningLabel.hidden = !this.isActive()
+        this.strip.hidden = !this.isActive()
+    }
 
-        if (this.isActive()) {
-            this.divElement.classList.add("app-active")
-        } else if (this.cache.activeApp != null) {
-            this.divElement.classList.add("app-inactive")
+    getTitle(): string {
+        return this.cache.title
+    }
+
+    private async stopSession() {
+        const i = getTranslations(getCurrentLanguage()).game
+        const response = await apiHostCancel(this.api, { host_id: this.hostId })
+        if (!response.success) {
+            await showMessage(i.failedToCloseApp)
         }
+
+        this.divElement.dispatchEvent(new ComponentEvent("ml-gamereload", this))
     }
 
     private async onClick(event: MouseEvent) {
@@ -111,15 +142,9 @@ export class Game implements Component {
 
             elements.push({
                 name: i.stopCurrentSession,
-                callback: async () => {
-                    const response = await apiHostCancel(this.api, { host_id: this.hostId })
-                    if (!response.success) {
-                        await showMessage(i.failedToCloseApp)
-                    }
-
-                    const event = new ComponentEvent("ml-gamereload", this)
-                    this.divElement.dispatchEvent(event)
-                }
+                icon: "stop" as const,
+                classes: ["context-menu-element-red"],
+                callback: () => this.stopSession()
             })
 
             setContextMenu(event, {
@@ -162,11 +187,13 @@ export class Game implements Component {
 
         elements.push({
             name: i.showDetails,
+            icon: "info" as const,
             callback: this.showDetails.bind(this),
         })
 
         elements.push({
             name: i.open,
+            icon: "play" as const,
             callback: async () => {
                 this.startStream()
 
