@@ -161,7 +161,7 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
 
     match (method, path) {
         ("GET", "/displays" | "/session")
-        | ("POST", "/shutdown" | "/auto-shutdown" | "/sleep" | "/lock")
+        | ("POST", "/shutdown" | "/auto-shutdown" | "/sleep" | "/lock" | "/update")
             if !authorized =>
         {
             respond(&mut stream, "401 Unauthorized", "")
@@ -194,6 +194,17 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
                 eprintln!("Failed to lock: {err}");
             }
             respond(&mut stream, "200 OK", "locked")
+        }
+        ("POST", "/update") => {
+            // update-pc.ps1 as its own scheduled task: it stops and replaces this program
+            #[cfg(windows)]
+            if let Err(err) = Command::new("schtasks")
+                .args(["/run", "/tn", "Starlight Power Agent Auto Update"])
+                .status()
+            {
+                eprintln!("Failed to start the update: {err}");
+            }
+            respond(&mut stream, "200 OK", "updating")
         }
         ("POST", "/sleep") => {
             respond(&mut stream, "200 OK", "going to sleep")?;

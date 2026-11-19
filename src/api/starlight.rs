@@ -15,6 +15,7 @@ use crate::{
     },
     app::{
         App, AppError,
+        power::PowerCommand,
         user::{Admin, AuthenticatedUser},
     },
 };
@@ -96,8 +97,16 @@ pub async fn starlight_info(_user: AuthenticatedUser) -> Json<GetStarlightInfoRe
 /// latest release and starts it again)
 #[post("/starlight/update")]
 pub async fn starlight_update(
-    _admin: Admin,
+    mut admin: Admin,
 ) -> Result<Json<PostStarlightUpdateResponse>, AppError> {
+    // The gaming pcs update their power agent too (before this server restarts). A pc that is
+    // off updates itself the next time it starts.
+    if let Ok(hosts) = admin.hosts().await {
+        for host in hosts {
+            let _ = host.power_command(&mut admin, PowerCommand::Update).await;
+        }
+    }
+
     let Some(script) = update_script() else {
         return Ok(Json(PostStarlightUpdateResponse { started: false }));
     };

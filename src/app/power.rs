@@ -231,6 +231,8 @@ pub enum PowerCommand {
     Sleep,
     /// Show the lock screen
     Lock,
+    /// Update the power agent to the latest release (only when there is a newer one)
+    Update,
 }
 
 impl PowerCommand {
@@ -240,6 +242,7 @@ impl PowerCommand {
             Self::AutoShutdown => "/auto-shutdown",
             Self::Sleep => "/sleep",
             Self::Lock => "/lock",
+            Self::Update => "/update",
         }
     }
 }
