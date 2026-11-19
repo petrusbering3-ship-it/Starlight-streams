@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Starlight Streams · Swiss Console reference</title>
+<!-- Static visual reference. Open in a browser at 100% zoom. Not production code: use starlight-swiss.css for that. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.s{--paper:#f3f2ee;--white:#fbfbf9;--ink:#121212;--ink2:#3a3a38;--grey:#6b6a65;--hair:#d9d7d0;--red:#d71e0e;--go:#0f7a3d;--go-h:#0c6a35;--night:#0e0e0d;
+ --fd:'Inter Tight',sans-serif;--fu:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;--e:cubic-bezier(.2,.8,.2,1);
+ background:var(--paper);color:var(--ink);font-family:var(--fu);font-size:14px;line-height:1.45;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum","cv11","ss01"}
+.s *{box-sizing:border-box} .s h1,.s h2,.s h3,.s p{margin:0}
+.ico{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.d{font-family:var(--fd);letter-spacing:-.035em}
+.lab{font-family:var(--fm);font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--grey)}
+.mono{font-family:var(--fm);font-size:12.5px}
+.g{color:var(--grey)} .i2{color:var(--ink2)} .r{color:var(--red)}
+.rule{height:1px;background:var(--ink)} .hair{height:1px;background:var(--hair)}
+.sq{display:inline-block;width:10px;height:10px;background:var(--red)}
+/* links + buttons */
+.lnk{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 2px;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;background-image:linear-gradient(var(--ink),var(--ink));background-size:0 1px;background-position:0 26px;background-repeat:no-repeat;transition:background-size 200ms var(--e)}
+.lnk:hover{background-size:100% 1px}
+.lnk:focus-visible,.btn:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:1px solid var(--red);border-radius:999px;color:var(--red);background:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background 150ms var(--e),color 150ms}
+.pill:hover{background:var(--red);color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:42px;padding:0 20px;border:1px solid var(--ink);border-radius:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 150ms var(--e),color 150ms,transform 150ms var(--e)}
+.btn:hover{background:var(--ink);color:var(--white)}
+.btn:active{transform:translateY(1px)}
+.btn-go{background:var(--go);border-color:var(--go);color:#fff;min-width:132px;justify-content:space-between}
+.btn-go:hover{background:var(--go-h);border-color:var(--go-h)}
+.btn-go .ico{width:13px;height:13px}
+.btn-q{border-color:transparent;padding:0 10px}
+.btn-q:hover{background:none;color:var(--ink);text-decoration:underline;text-underline-offset:5px}
+.btn-red{color:var(--red);border-color:transparent;padding:0 10px}
+.btn-red:hover{background:var(--red);color:#fff}
+/* status */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600}
+.st i{width:7px;height:7px;border-radius:50%;background:var(--go);display:block}
+.st.off i{background:none;border:1.5px solid var(--grey)} .st.off{color:var(--grey)}
+.st.lock i{background:none;border:1.5px solid var(--red);border-radius:1px} .st.lock{color:var(--red)}
+/* home */
+.pcrow{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;width:100%;height:58px;padding:0 14px 0 0;border:0;border-top:1px solid var(--hair);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:padding 200ms var(--e)}
+.pcrow:hover{padding-left:6px}
+.pcrow.on{border-top:2px solid var(--ink)}
+.pcrow b{font-family:var(--fd);font-weight:600;font-size:17px;letter-spacing:-.02em}
+.trow{display:grid;grid-template-columns:96px minmax(0,1.5fr) 140px 90px minmax(0,1.2fr) 150px;align-items:center;gap:16px;border-top:1px solid var(--hair);height:96px;transition:background 200ms var(--e)}
+.trow:hover{background:var(--white)}
+.num{font-family:var(--fd);font-weight:200;font-size:76px;line-height:.8;letter-spacing:-.05em}
+.trow.last .num{color:var(--red)}
+.thead{display:grid;grid-template-columns:96px minmax(0,1.5fr) 140px 90px minmax(0,1.2fr) 150px;gap:16px;padding:0 0 10px}
+/* overview */
+.ov{position:absolute;inset:0;background:rgba(14,14,13,.9);backdrop-filter:blur(20px)}
+.mon{position:absolute;padding:0;border:0;background:#000;cursor:pointer;overflow:visible;transition:transform 260ms var(--e)}
+.mon .scr{position:absolute;inset:0;overflow:hidden;outline:1px solid rgba(255,255,255,.18);transition:outline-color 200ms}
+.mon:hover,.mon.hov{transform:translateY(-8px)}
+.mon:hover .scr,.mon.hov .scr{outline:1px solid #fff}
+.mon.cur .scr{outline:2px solid var(--red);outline-offset:3px}
+.cap{position:absolute;left:0;right:0;top:100%;padding-top:14px;display:flex;flex-direction:column;gap:3px;text-align:left;color:#f3f2ee}
+.cap .n{font-family:var(--fd);font-weight:300;font-size:30px;line-height:.9;letter-spacing:-.04em}
+.kb{display:inline-flex;align-items:center;height:22px;padding:0 7px;border:1px solid currentColor;font-family:var(--fm);font-size:10.5px}
+/* sidebar */
+.sb{position:absolute;top:0;bottom:0;left:0;width:316px;background:var(--white);border-right:1px solid var(--ink);display:flex;flex-direction:column;box-shadow:24px 0 60px rgba(0,0,0,.35)}
+.sbrow{display:flex;align-items:center;gap:12px;width:100%;height:46px;padding:0 20px;border:0;border-top:1px solid var(--hair);background:none;color:var(--ink);font:inherit;font-size:13.5px;font-weight:500;text-align:left;cursor:pointer;transition:background 150ms}
+.sbrow:hover{background:var(--paper)}
+.sbrow .k{margin-left:auto;font-family:var(--fm);font-size:10.5px;color:var(--grey)}
+.sw{position:relative;width:46px;height:26px;border:1.5px solid var(--ink);border-radius:999px;flex:none;background:var(--ink)}
+.sw::after{content:"";position:absolute;top:3px;left:23px;width:17px;height:17px;border-radius:50%;background:var(--white);transition:left 200ms var(--e)}
+.cells{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--ink)}
+.cell{height:44px;border:0;border-left:1px solid var(--ink);background:none;font-family:var(--fd);font-weight:500;font-size:18px;color:var(--ink);cursor:pointer;transition:background 150ms}
+.cell:first-child{border-left:0}
+.cell:hover{background:var(--paper)}
+.cell.on{background:var(--ink);color:var(--white)}
+.sel{display:flex;align-items:center;justify-content:space-between;width:100%;height:38px;padding:0 10px;border:1px solid var(--hair);background:var(--white);font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
+.sel:hover{border-color:var(--ink)}
+/* login */
+.fld{display:flex;flex-direction:column;gap:8px}
+.inp{height:48px;padding:0 14px;border:1px solid var(--ink);border-radius:0;background:var(--white);font:inherit;font-size:15px;color:var(--ink)}
+.inp:focus{outline:none;box-shadow:inset 0 0 0 1px var(--ink)}
+.inp.err{border-color:var(--red);box-shadow:inset 0 0 0 1px var(--red)}
+.chipk{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid var(--hair);font-family:var(--fm);font-size:10px;color:var(--grey);background:var(--white)}
+
+</style>
+</head>
+<body>
+<div class="s" style="width: 2812px; height: 2060px; display: flex; flex-direction: column">
+<header style="display: grid; grid-template-columns: 560px auto minmax(0, 1fr); gap: 56px; align-items: end; padding: 40px 40px 36px; height: 260px; border-bottom: 1px solid var(--ink)">
+<div style="display: flex; flex-direction: column; gap: 12px"><span class="lab">Direction 02 · refined</span><h1 class="d" style="font-weight: 600; font-size: 76px; line-height: .9; letter-spacing: -.05em">Swiss Console<span class="r">.</span></h1><p class="i2" style="font-size: 14.5px; max-width: 500px">Same idea, more restraint. Lighter numerals, thinner lines, one red per screen, and a dark night mode for the screen picker.</p></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><span class="lab">Colour</span><div style="display: flex; gap: 10px"><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #f3f2ee; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Paper</span><span class="mono g" style="font-size: 10.5px">#f3f2ee</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #fbfbf9; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">White</span><span class="mono g" style="font-size: 10.5px">#fbfbf9</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #121212; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Ink</span><span class="mono g" style="font-size: 10.5px">#121212</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #0e0e0d; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Night</span><span class="mono g" style="font-size: 10.5px">#0e0e0d</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #d71e0e; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Signal red</span><span class="mono g" style="font-size: 10.5px">#d71e0e</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #0f7a3d; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Go green</span><span class="mono g" style="font-size: 10.5px">#0f7a3d</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #d9d7d0; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Hairline</span><span class="mono g" style="font-size: 10.5px">#d9d7d0</span></div><div style="display: flex; flex-direction: column; gap: 6px; width: 86px"><div style="height: 52px; background: #6b6a65; outline: 1px solid rgba(18,18,18,.15)"></div><span style="font-size: 12px; font-weight: 600">Grey</span><span class="mono g" style="font-size: 10.5px">#6b6a65</span></div></div></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px"><div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #121212; padding-top: 10px"><span class="lab" style="color: #121212">Type</span><span class="i2" style="font-size: 12.5px">Inter Tight 200 for big numbers, 600 for titles. Inter for text, tabular figures. Mono only for tiny labels and specs.</span></div><div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #121212; padding-top: 10px"><span class="lab" style="color: #121212">Lines</span><span class="i2" style="font-size: 12.5px">1 px ink rules divide sections. Hairlines divide rows. No boxes inside boxes, no shadows on paper.</span></div><div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #121212; padding-top: 10px"><span class="lab" style="color: #121212">Colour</span><span class="i2" style="font-size: 12.5px">Red marks one thing per screen: where you are. Green is only Stream. Everything else is ink and paper.</span></div><div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #121212; padding-top: 10px"><span class="lab" style="color: #121212">Motion</span><span class="i2" style="font-size: 12.5px">150–260 ms, ease-out. Underlines draw in, rows nudge 6 px, screens lift 8 px.</span></div></div></header>
+<div style="display: grid; grid-template-columns: repeat(2, 1366px); gap: 56px 80px; padding-top: 40px">
+<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; gap: 12px; align-items: baseline"><span class="mono" style="font-weight: 500">01 · Home</span><span class="g" style="font-size: 12.5px">PC list as an index, displays as a timetable</span></div><div class="s" style="position: relative; width: 1366px; height: 768px; overflow: hidden; background: var(--paper); outline: 1px solid #121212"><div style="display: flex; align-items: center; justify-content: space-between; height: 30px; padding: 0 40px; background: var(--ink); color: #c9c8c2"><span class="lab" style="color: #c9c8c2">Server online · 4 ms</span><span class="lab" style="color: #c9c8c2">v2.3.1</span></div>
+<header style="display: flex; align-items: center; gap: 22px; height: 72px; padding: 0 40px; border-bottom: 1px solid var(--ink)"><span style="display: flex; align-items: center; gap: 10px"><span class="sq"></span><span class="d" style="font-weight: 700; font-size: 19px; letter-spacing: -.03em">Starlight Streams</span></span><span style="flex: 1"></span>
+<button class="pill" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Update to v2.4.0</button>
+<button class="lnk" type="button">Settings</button><button class="lnk" type="button">Guest link</button><button class="lnk" type="button">Logout</button></header>
+<div style="display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 56px; padding: 34px 40px"><div style="display: flex; flex-direction: column">
+<div class="lab" style="padding-bottom: 12px">PCs · 3</div>
+<button class="pcrow on" type="button" aria-current="true"><span class="mono g">01</span><b>Gaming-PC</b><span class="st"><i></i>Ready</span></button>
+<button class="pcrow" type="button"><span class="mono g">02</span><b>Stue-PC</b><span class="st off"><i></i>Off</span></button>
+<button class="pcrow" type="button"><span class="mono g">03</span><b>Kontor-PC</b><span class="st lock"><i></i>Not paired</span></button>
+<button class="pcrow" type="button" style="border-bottom: 1px solid var(--hair)"><span class="mono g">+</span><span style="font-weight: 500">Add PC</span><span></span></button>
+<p class="g" style="font-size: 12px; margin-top: 18px; max-width: 220px">Off PCs start when you press Stream. It takes about 45 s.</p></div><div style="display: flex; flex-direction: column; min-width: 0">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 22px">
+<div style="display: flex; flex-direction: column; gap: 8px"><span class="st"><i></i>Ready · 3 displays · 192.168.1.20</span><h1 class="d" style="font-weight: 600; font-size: 60px; line-height: .9">Gaming-PC</h1></div>
+<button class="btn btn-q" type="button" aria-label="More for Gaming-PC"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
+<div class="rule"></div>
+<div class="thead" style="padding-top: 10px"><span class="lab">No.</span><span class="lab">Display</span><span class="lab">Resolution</span><span class="lab">Refresh</span><span class="lab">Model</span><span></span></div>
+<div class="trow last"><span class="num">01</span>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 15px">Display 1<svg viewBox="0 0 24 24" role="img" aria-label="Primary display" style="width: 11px; height: 11px; fill: #121212"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.8z"/></svg></span><span class="lab r">Last used</span></div>
+<span class="mono">2560×1440</span><span class="mono">144 Hz</span><span class="i2" style="font-size: 13px">LG 27GP850</span>
+<button class="btn btn-go" type="button">Stream<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill: currentColor; stroke: none"><path d="M7 4.8v14.4c0 .8.9 1.3 1.6.8l11-7.2a1 1 0 0 0 0-1.6l-11-7.2C7.9 3.5 7 4 7 4.8z"/></svg></button></div><div class="trow"><span class="num">02</span>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 15px">Display 2</span><span class="lab" style="visibility: hidden">.</span></div>
+<span class="mono">3840×2160</span><span class="mono">60 Hz</span><span class="i2" style="font-size: 13px">DELL U2723QE</span>
+<button class="btn btn-go" type="button">Stream<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill: currentColor; stroke: none"><path d="M7 4.8v14.4c0 .8.9 1.3 1.6.8l11-7.2a1 1 0 0 0 0-1.6l-11-7.2C7.9 3.5 7 4 7 4.8z"/></svg></button></div><div class="trow"><span class="num">03</span>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 15px">Display 3</span><span class="lab" style="visibility: hidden">.</span></div>
+<span class="mono">1920×1080</span><span class="mono">60 Hz</span><span class="i2" style="font-size: 13px">Samsung C24F390</span>
+<button class="btn btn-go" type="button">Stream<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill: currentColor; stroke: none"><path d="M7 4.8v14.4c0 .8.9 1.3 1.6.8l11-7.2a1 1 0 0 0 0-1.6l-11-7.2C7.9 3.5 7 4 7 4.8z"/></svg></button></div><div class="rule"></div>
+<div style="display: flex; align-items: center; gap: 6px; padding-top: 14px"><button class="btn btn-q" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Sleep</button><button class="btn btn-red" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg>Power Off</button>
+<span class="g" style="margin-left: auto; font-size: 12px">Last stream: Display 1 · 1080p · 60 fps · 2 h ago</span></div></div></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; gap: 12px; align-items: baseline"><span class="mono" style="font-weight: 500">02 · Screens</span><span class="g" style="font-size: 12.5px">Ctrl+Shift+D over the stream, three screens side by side like your sketch</span></div><div class="s" style="position: relative; width: 1366px; height: 768px; overflow: hidden; background: #000; outline: 1px solid #121212"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs><linearGradient id="skys2bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f4a"/><stop offset=".55" stop-color="#6b2f6e"/><stop offset=".8" stop-color="#f06a4b"/></linearGradient></defs>
+<rect width="1600" height="900" fill="url(#skys2bg)"/>
+<circle cx="1050" cy="520" r="150" fill="#ffb46b" opacity=".9"/>
+<g fill="#fff" opacity=".7"><circle cx="160" cy="90" r="2"/><circle cx="420" cy="160" r="1.5"/><circle cx="700" cy="70" r="2"/><circle cx="1280" cy="120" r="1.5"/><circle cx="1460" cy="60" r="2"/><circle cx="930" cy="200" r="1.5"/></g>
+<path d="M0 640 L220 470 L360 560 L560 380 L760 600 L900 500 L1120 640 L1320 450 L1600 610 V900 H0Z" fill="#2a1840"/>
+<path d="M0 720 L300 600 L520 700 L760 590 L1000 720 L1260 620 L1600 720 V900 H0Z" fill="#160f27"/>
+<path d="M700 900 L790 700 L810 700 L900 900Z" fill="#2c2440"/>
+<path d="M797 900 L799 740 L801 740 L803 900Z" fill="#ffb46b" opacity=".6"/>
+</svg><div class="ov"></div>
+<div style="position: absolute; left: 48px; right: 48px; top: 40px; display: flex; justify-content: space-between; align-items: flex-start; color: #f3f2ee">
+<div style="display: flex; flex-direction: column; gap: 8px"><span class="lab" style="color: #9b9a94">Gaming-PC · 3 displays</span><h2 class="d" style="font-weight: 600; font-size: 40px; line-height: .95">Screens</h2></div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: 12px; color: #c9c8c2"><span style="display: flex; gap: 4px; align-items: center"><span class="kb">Ctrl</span><span class="kb">Shift</span><span class="kb">D</span><span style="margin-left: 6px">close</span></span><span>Click a screen to jump in</span></div></div>
+<button class="mon" type="button" aria-label="Switch to display 3, Samsung C24F390" style="left: 116px; top: 261px; width: 299px; height: 162px"><span class="scr"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<rect width="1600" height="900" fill="#202330"/><rect width="320" height="900" fill="#181a24"/>
+<g fill="#3a3f52"><rect x="30" y="60" width="200" height="18" rx="6"/><rect x="30" y="110" width="240" height="14" rx="6"/><rect x="30" y="146" width="210" height="14" rx="6"/><rect x="30" y="182" width="230" height="14" rx="6"/><rect x="30" y="218" width="180" height="14" rx="6"/></g>
+<g><circle cx="400" cy="140" r="26" fill="#5aa9ff"/><rect x="450" y="120" width="380" height="14" rx="6" fill="#4a5066"/><rect x="450" y="146" width="620" height="12" rx="6" fill="#3a3f52"/>
+<circle cx="400" cy="260" r="26" fill="#ff7a59"/><rect x="450" y="240" width="300" height="14" rx="6" fill="#4a5066"/><rect x="450" y="266" width="700" height="12" rx="6" fill="#3a3f52"/><rect x="450" y="290" width="520" height="12" rx="6" fill="#3a3f52"/>
+<circle cx="400" cy="400" r="26" fill="#2fd36b"/><rect x="450" y="380" width="260" height="14" rx="6" fill="#4a5066"/><rect x="450" y="406" width="560" height="200" rx="10" fill="#2c3040"/></g>
+<rect x="360" y="800" width="1200" height="56" rx="12" fill="#2c3040"/>
+</svg></span>
+<span class="cap"><span style="display: flex; align-items: baseline; gap: 10px"><span class="n">03</span><span style="font-weight: 600; font-size: 13px">Samsung C24F390</span></span><span class="mono" style="color: #9b9a94; font-size: 11px">1920×1080</span><span class="lab" style="color: #9b9a94">Updated 1 s ago</span></span></button><button class="mon cur" type="button" aria-label="Switch to display 1, LG 27GP850" style="left: 429px; top: 212px; width: 403px; height: 221px"><span class="scr"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs><linearGradient id="skys2o1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f4a"/><stop offset=".55" stop-color="#6b2f6e"/><stop offset=".8" stop-color="#f06a4b"/></linearGradient></defs>
+<rect width="1600" height="900" fill="url(#skys2o1)"/>
+<circle cx="1050" cy="520" r="150" fill="#ffb46b" opacity=".9"/>
+<g fill="#fff" opacity=".7"><circle cx="160" cy="90" r="2"/><circle cx="420" cy="160" r="1.5"/><circle cx="700" cy="70" r="2"/><circle cx="1280" cy="120" r="1.5"/><circle cx="1460" cy="60" r="2"/><circle cx="930" cy="200" r="1.5"/></g>
+<path d="M0 640 L220 470 L360 560 L560 380 L760 600 L900 500 L1120 640 L1320 450 L1600 610 V900 H0Z" fill="#2a1840"/>
+<path d="M0 720 L300 600 L520 700 L760 590 L1000 720 L1260 620 L1600 720 V900 H0Z" fill="#160f27"/>
+<path d="M700 900 L790 700 L810 700 L900 900Z" fill="#2c2440"/>
+<path d="M797 900 L799 740 L801 740 L803 900Z" fill="#ffb46b" opacity=".6"/>
+</svg></span>
+<span class="cap"><span style="display: flex; align-items: baseline; gap: 10px"><span class="n">01</span><span style="font-weight: 600; font-size: 13px">LG 27GP850</span></span><span class="mono" style="color: #9b9a94; font-size: 11px">2560×1440</span><span class="lab" style="color: var(--red); display: flex; align-items: center; gap: 6px"><i style="width: 6px; height: 6px; border-radius: 50%; background: var(--red); display: block"></i>Live · you are here</span></span></button><button class="mon hov" type="button" aria-label="Switch to display 2, DELL U2723QE" style="left: 846px; top: 222px; width: 403px; height: 221px"><span class="scr"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<rect width="1600" height="900" fill="#1d3a63"/>
+<circle cx="1200" cy="250" r="420" fill="#ffffff" opacity=".05"/>
+<rect x="140" y="110" width="760" height="520" rx="10" fill="#f1f2f5"/><rect x="140" y="110" width="760" height="44" rx="10" fill="#dfe2e8"/>
+<rect x="180" y="190" width="420" height="22" rx="4" fill="#c9cdd6"/><rect x="180" y="232" width="660" height="14" rx="4" fill="#d9dce3"/><rect x="180" y="262" width="600" height="14" rx="4" fill="#d9dce3"/><rect x="180" y="320" width="300" height="200" rx="8" fill="#c3c9d6"/>
+<rect x="960" y="300" width="500" height="360" rx="10" fill="#14161c"/><rect x="990" y="340" width="260" height="14" rx="4" fill="#2fd36b" opacity=".7"/><rect x="990" y="370" width="400" height="12" rx="4" fill="#5b6070"/><rect x="990" y="394" width="340" height="12" rx="4" fill="#5b6070"/>
+<rect x="0" y="852" width="1600" height="48" fill="#0d0f14" opacity=".92"/><g fill="#8b91a1"><rect x="700" y="866" width="20" height="20" rx="4"/><rect x="736" y="866" width="20" height="20" rx="4"/><rect x="772" y="866" width="20" height="20" rx="4"/><rect x="808" y="866" width="20" height="20" rx="4"/><rect x="844" y="866" width="20" height="20" rx="4"/></g>
+</svg></span>
+<span class="cap"><span style="display: flex; align-items: baseline; gap: 10px"><span class="n">02</span><span style="font-weight: 600; font-size: 13px">DELL U2723QE</span></span><span class="mono" style="color: #9b9a94; font-size: 11px">3840×2160</span><span class="lab" style="color: #9b9a94">Updated 1 s ago</span></span></button>
+<div style="position: absolute; left: 48px; right: 48px; bottom: 32px; height: 1px; background: rgba(243,242,238,.18)"></div>
+<div style="position: absolute; left: 48px; bottom: 12px" class="lab"><span style="color: #9b9a94">Layout from Windows display settings</span></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; gap: 12px; align-items: baseline"><span class="mono" style="font-weight: 500">03 · Stream + sidebar</span><span class="g" style="font-size: 12.5px">the sidebar is a list, shortcuts on the right</span></div><div class="s" style="position: relative; width: 1366px; height: 768px; overflow: hidden; background: #000; outline: 1px solid #121212"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs><linearGradient id="skys2s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f4a"/><stop offset=".55" stop-color="#6b2f6e"/><stop offset=".8" stop-color="#f06a4b"/></linearGradient></defs>
+<rect width="1600" height="900" fill="url(#skys2s)"/>
+<circle cx="1050" cy="520" r="150" fill="#ffb46b" opacity=".9"/>
+<g fill="#fff" opacity=".7"><circle cx="160" cy="90" r="2"/><circle cx="420" cy="160" r="1.5"/><circle cx="700" cy="70" r="2"/><circle cx="1280" cy="120" r="1.5"/><circle cx="1460" cy="60" r="2"/><circle cx="930" cy="200" r="1.5"/></g>
+<path d="M0 640 L220 470 L360 560 L560 380 L760 600 L900 500 L1120 640 L1320 450 L1600 610 V900 H0Z" fill="#2a1840"/>
+<path d="M0 720 L300 600 L520 700 L760 590 L1000 720 L1260 620 L1600 720 V900 H0Z" fill="#160f27"/>
+<path d="M700 900 L790 700 L810 700 L900 900Z" fill="#2c2440"/>
+<path d="M797 900 L799 740 L801 740 L803 900Z" fill="#ffb46b" opacity=".6"/>
+</svg>
+<aside class="sb" aria-label="Stream controls">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 20px 18px"><div style="display: flex; flex-direction: column; gap: 6px"><span class="lab">Streaming</span><span class="d" style="font-weight: 600; font-size: 24px; line-height: 1">Gaming-PC</span><span class="mono g" style="font-size: 11px">H265 · 1080p · 60 fps · 9 ms</span></div><button class="btn btn-q" type="button" aria-label="Close sidebar" style="height: 32px; padding: 0 6px"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+<div class="rule"></div>
+<button class="sbrow" type="button" style="height: 68px; border-top: 0"><span style="display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 600; font-size: 15px">Game mouse</span><span class="mono g" style="font-size: 10.5px">On · Ctrl Shift M</span></span><span class="sw" role="switch" aria-checked="true" aria-label="Game mouse" style="margin-left: auto"></span></button>
+<button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>Unlock PC</button>
+<div style="padding: 16px 20px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 10px"><span class="lab">Display</span><div class="cells"><button class="cell on" type="button" aria-pressed="true">1</button><button class="cell" type="button">2</button><button class="cell" type="button">3</button></div><span class="g" style="font-size: 11.5px">Ctrl Shift D shows all screens</span></div>
+<button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Fullscreen<span class="k">F11</span></button><button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Lock mouse<span class="k"></span></button><button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Keyboard<span class="k"></span></button><button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></svg>Send keycode<span class="k"></span></button><button class="sbrow" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Stats<span class="k">Ctrl Shift S</span></button>
+<div style="padding: 14px 20px; border-top: 1px solid var(--hair); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div class="fld" style="gap: 5px"><span class="lab">Mouse mode</span><button class="sel" type="button">Relative<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+<div class="fld" style="gap: 5px"><span class="lab">Touch mode</span><button class="sel" type="button">Drag<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
+<button class="sbrow" type="button" style="margin-top: auto; height: 54px; border-top: 1px solid var(--ink); color: var(--red); font-weight: 600"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg>Exit stream<span class="k">Ctrl Shift Q</span></button>
+</aside>
+<div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 16px; background: var(--white); border: 1px solid var(--ink); font-size: 13px; font-weight: 500"><span style="width: 7px; height: 7px; background: var(--go); border-radius: 50%; display: block"></span>Auto quality: 1080p · 60 fps · 12 Mbit/s</div></div></div>
+<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; gap: 12px; align-items: baseline"><span class="mono" style="font-weight: 500">04 · Login</span><span class="g" style="font-size: 12.5px">error state</span></div><div class="s" style="position: relative; width: 1366px; height: 768px; overflow: hidden; background: var(--paper); outline: 1px solid #121212"><div style="display: grid; grid-template-columns: minmax(0, 1fr) 520px; height: 100%">
+<div style="display: flex; flex-direction: column; justify-content: space-between; padding: 40px 48px; border-right: 1px solid var(--ink)">
+<div style="display: flex; justify-content: space-between"><span class="lab">Starlight Streams</span><span class="lab">v2.3.1 · fork of Moonlight Web</span></div>
+<h1 class="d" style="font-weight: 600; font-size: 132px; line-height: .86; letter-spacing: -.055em">Starlight<br>Streams<span class="r">.</span></h1>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; border-top: 1px solid var(--ink); padding-top: 14px">
+<div style="display: flex; flex-direction: column; gap: 4px"><span class="mono g">01</span><span style="font-weight: 600">Turn it on</span><span class="g" style="font-size: 12.5px">Wake your PC from anywhere.</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><span class="mono g">02</span><span style="font-weight: 600">Pick a screen</span><span class="g" style="font-size: 12.5px">Any display, laid out like Windows.</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><span class="mono g">03</span><span style="font-weight: 600">Play</span><span class="g" style="font-size: 12.5px">In the browser. Chromebook or phone.</span></div></div></div>
+<form style="display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 56px; background: var(--white)">
+<div style="display: flex; justify-content: flex-end; gap: 14px; margin-bottom: auto" class="lab"><span style="color: var(--ink); text-decoration: underline; text-underline-offset: 4px">EN</span><span>DA</span></div>
+<h2 class="d" style="font-weight: 600; font-size: 34px">Log in</h2>
+<div class="fld"><label class="lab" for="s2u">Username</label><input id="s2u" class="inp" type="text" value="petrus" autocomplete="username"></div>
+<div class="fld"><label class="lab" for="s2p">Password</label><input id="s2p" class="inp err" type="password" value="••••••••••" autocomplete="current-password"><span class="r" style="font-size: 12.5px; font-weight: 500">Wrong password. Try again.</span></div>
+<button class="btn" type="submit" style="height: 52px; background: var(--ink); color: var(--white); justify-content: space-between; padding: 0 20px">Log in<span aria-hidden="true">→</span></button>
+<span class="g" style="font-size: 12px; margin-top: auto">Ask the admin if you forgot your password.</span>
+</form></div></div></div>
+</div></div>
+</body>
+</html>

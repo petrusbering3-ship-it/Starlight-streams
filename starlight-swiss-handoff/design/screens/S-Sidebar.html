@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stream sidebar</title>
+<meta name="viewport" content="width=1366">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="../starlight-swiss.css">
+<style>body{margin:0;background:#f3f2ee}</style>
+</head>
+<body>
+<div class="sl" style="position: relative; width: 1366px; height: 768px; overflow: hidden; background: #000; "><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs><linearGradient id="skysb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1f4a"/><stop offset=".55" stop-color="#6b2f6e"/><stop offset=".8" stop-color="#f06a4b"/></linearGradient></defs>
+<rect width="1600" height="900" fill="url(#skysb)"/>
+<circle cx="1050" cy="520" r="150" fill="#ffb46b" opacity=".9"/>
+<g fill="#fff" opacity=".7"><circle cx="160" cy="90" r="2"/><circle cx="420" cy="160" r="1.5"/><circle cx="700" cy="70" r="2"/><circle cx="1280" cy="120" r="1.5"/><circle cx="1460" cy="60" r="2"/><circle cx="930" cy="200" r="1.5"/></g>
+<path d="M0 640 L220 470 L360 560 L560 380 L760 600 L900 500 L1120 640 L1320 450 L1600 610 V900 H0Z" fill="#2a1840"/>
+<path d="M0 720 L300 600 L520 700 L760 590 L1000 720 L1260 620 L1600 720 V900 H0Z" fill="#160f27"/>
+<path d="M700 900 L790 700 L810 700 L900 900Z" fill="#2c2440"/>
+<path d="M797 900 L799 740 L801 740 L803 900Z" fill="#ffb46b" opacity=".6"/>
+</svg><aside class="sl-sidebar" data-open="true" aria-label="Stream controls"><div style="display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 20px 18px"><div style="display: flex; flex-direction: column; gap: 6px"><span class="sl-label">Streaming</span><span class="sl-h3">Gaming-PC</span><span class="sl-mono sl-muted" style="font-size: 11px">H265 · 1080p · 60 fps · 9 ms</span></div><button class="sl-btn sl-btn-quiet sl-btn-icon sl-btn-sm" type="button" aria-label="Close sidebar"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+<div class="sl-rule"></div><button class="sl-side-row" type="button" style="min-height: 68px; border-top: 0"><span style="display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 600; font-size: 15px">Game mouse</span><span class="sl-mono sl-muted" style="font-size: 10.5px">On · Ctrl Shift M</span></span><span class="sl-switch" role="switch" aria-checked="true" aria-label="Game mouse" style="margin-left: auto"></span></button>
+<button class="sl-side-row" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>Unlock PC</button>
+<div style="padding: 16px 20px; border-top: 1px solid var(--sl-hair); display: flex; flex-direction: column; gap: 10px"><span class="sl-label">Display</span><div class="sl-cells sl-cells--num"><button class="sl-cell" type="button" aria-pressed="true">1</button><button class="sl-cell" type="button" aria-pressed="false">2</button><button class="sl-cell" type="button" aria-pressed="false">3</button></div><span class="sl-muted" style="font-size: 11.5px">Ctrl Shift D shows all screens</span></div>
+<button class="sl-side-row" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Fullscreen<span class="key">F11</span></button><button class="sl-side-row" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Lock mouse<span class="key"></span></button><button class="sl-side-row" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Keyboard<span class="key"></span></button><button class="sl-side-row" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></svg>Send keycode<span class="key"></span></button><button class="sl-side-row" type="button" aria-pressed="true"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Stats<span class="key">Ctrl Shift S</span></button>
+<div style="padding: 14px 20px; border-top: 1px solid var(--sl-hair); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px"><div class="sl-field" style="gap: 5px"><span class="sl-label">Mouse mode</span><button class="sl-select" type="button">Relative<svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div><div class="sl-field" style="gap: 5px"><span class="sl-label">Touch mode</span><button class="sl-select" type="button">Drag<svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
+<button class="sl-side-row sl-side-row--exit" type="button"><svg class="sl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg>Exit stream<span class="key">Ctrl Shift Q</span></button></aside><div style="position: absolute; top: 18px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 10"><div class="sl-toast " role="status" style="animation: none">Game mouse on · Ctrl+Shift+M to turn off</div></div></div>
+</body>
+</html>
