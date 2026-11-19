@@ -527,9 +527,7 @@ export class Host implements Component {
         // Update Elements
         this.nameElement.innerText = this.cache.name
 
-        if (this.cache.server_state != null) {
-            this.refreshDisplays()
-        }
+        this.refreshDisplays()
 
         if (this.cache.server_state == null) {
             this.imageOverlayElement.src = HOST_OVERLAY_OFFLINE

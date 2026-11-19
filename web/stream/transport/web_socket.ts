@@ -293,7 +293,7 @@ class WebSocketControlStream implements IControlStream {
         }
 
         if (this.batchSendTimeout == null) {
-            globalObject().setTimeout(this.boundSendBatchedInputs, 1)
+            this.batchSendTimeout = globalObject().setTimeout(this.boundSendBatchedInputs, 1)
         }
     }
 

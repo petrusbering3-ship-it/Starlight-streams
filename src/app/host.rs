@@ -29,6 +29,20 @@ use crate::app::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HostId(pub u32);
 
+/// The displays each pc reported last time, so every browser knows them while the pc is off
+/// (Starlight Streams)
+const DISPLAYS_CACHE_FILE: &str = "server/displays-cache.json";
+static DISPLAYS_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<u32, Vec<bindings::HostDisplay>>>,
+> = std::sync::LazyLock::new(|| {
+    std::sync::Mutex::new(
+        std::fs::read_to_string(DISPLAYS_CACHE_FILE)
+            .ok()
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default(),
+    )
+});
+
 pub struct Host {
     pub(super) app: AppRef,
     pub(super) id: HostId,
@@ -468,16 +482,31 @@ impl Host {
         let config = &app.config.moonlight;
         let token = config.power_agent_token.as_deref().unwrap_or_default();
 
-        let body = agent_request(
+        // Empty when nobody is logged in on the pc, and unreachable while it's off
+        let reported = agent_request(
             &storage.address,
             config.power_agent_port,
             token,
             "GET",
             "/displays",
         )
-        .await?;
+        .await
+        .ok()
+        .and_then(|body| serde_json::from_str::<Vec<bindings::HostDisplay>>(&body).ok())
+        .filter(|displays| !displays.is_empty());
 
-        serde_json::from_str(&body).map_err(|_| AppError::BadRequest)
+        let mut cache = DISPLAYS_CACHE.lock().expect("displays cache lock");
+        if let Some(displays) = reported {
+            if cache.get(&self.id.0) != Some(&displays) {
+                cache.insert(self.id.0, displays.clone());
+                if let Ok(json) = serde_json::to_string(&*cache) {
+                    let _ = std::fs::write(DISPLAYS_CACHE_FILE, json);
+                }
+            }
+            return Ok(displays);
+        }
+
+        Ok(cache.get(&self.id.0).cloned().unwrap_or_default())
     }
 
     /// Whether the host pc is logged in and locked, as reported by the Starlight power agent

@@ -249,7 +249,7 @@ pub struct DetailedUser {
     pub client_unique_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
 pub struct HostDisplay {
     /// 1 based, in the order Sunshine switches displays

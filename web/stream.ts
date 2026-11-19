@@ -1,4 +1,4 @@
-import { Api, apiGetRole, getApi } from "./api"
+import { Api, apiGetRole, apiHostDisplays, getApi } from "./api"
 import { DetailedRole, StreamKeys } from "./api_bindings"
 import { Component } from "./component/index"
 import { SelectComponent } from "./component/input"
@@ -14,7 +14,7 @@ import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboar
 import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
-import { DisplaySwitcher, getDisplayCount } from "./stream/display"
+import { DisplaySwitcher, getDisplayCount, setCachedDisplays } from "./stream/display"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { VideoEnhancer } from "./stream/video/enhancer"
@@ -246,6 +246,18 @@ class ViewerApp implements Component {
         // Configure sidebar
         this.sidebar = new ViewerSidebar(this)
         setSidebar(this.sidebar)
+
+        // The displays the pc has (the server remembers them, also between browsers)
+        apiHostDisplays(api, { host_id: hostId }).then(({ displays }) => {
+            if (displays.length > 0 && displays.length != this.getDisplayCount()) {
+                setCachedDisplays(hostId, displays)
+                this.sidebar.renderDisplayButtons()
+            } else if (displays.length > 0) {
+                setCachedDisplays(hostId, displays)
+            }
+        }).catch(() => {
+            // keep the displays this browser knows
+        })
 
         // Configure stats element
         this.statsDiv.hidden = true
@@ -1308,6 +1320,7 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
     private displayDiv = document.createElement("div")
     private displayButtons: Array<HTMLButtonElement> = []
+    private displayButtonRow = document.createElement("div")
 
     constructor(app: ViewerApp) {
         this.app = app
@@ -1338,16 +1351,9 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
         displayLabel.innerText = I.stream.display
         this.displayDiv.appendChild(displayLabel)
 
-        const displayButtonRow = document.createElement("div")
-        displayButtonRow.classList.add("sidebar-stream-display-buttons")
-        for (let display = 1; display <= this.app.getDisplayCount(); display++) {
-            const button = document.createElement("button")
-            button.innerText = `${display}`
-            button.addEventListener("click", () => this.app.switchDisplay(display))
-            displayButtonRow.appendChild(button)
-            this.displayButtons.push(button)
-        }
-        this.displayDiv.appendChild(displayButtonRow)
+        this.displayButtonRow.classList.add("sidebar-stream-display-buttons")
+        this.renderDisplayButtons()
+        this.displayDiv.appendChild(this.displayButtonRow)
 
         const displayHint = document.createElement("p")
         displayHint.classList.add("sidebar-stream-display-hint")
@@ -1469,6 +1475,20 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
     onText(event: TextEvent) {
         this.app.getStream()?.getInput().sendText(event.detail.text)
     }
+    /// One button per display of the pc
+    renderDisplayButtons() {
+        this.displayButtonRow.replaceChildren()
+        this.displayButtons = []
+        for (let display = 1; display <= this.app.getDisplayCount(); display++) {
+            const button = document.createElement("button")
+            button.innerText = `${display}`
+            button.addEventListener("click", () => this.app.switchDisplay(display))
+            this.displayButtonRow.appendChild(button)
+            this.displayButtons.push(button)
+        }
+        this.onDisplayChange(this.app.getCurrentDisplay())
+    }
+
     onKeyDown(event: KeyboardEvent) {
         this.app.getStream()?.getInput().onKeyDown(event)
     }
