@@ -106,12 +106,12 @@ async function startApp() {
     let options = parseSettingsFromQuery(queryParams)
     const effectiveSettings = { ...getLocalStreamSettings(bootstrapRole.role.default_settings), ...options }
     if (effectiveSettings.autoQuality) {
+        // (no card or message: the page stays black until the picture comes, see the connection dot)
         CONNECT_CARD.setStep(0)
-        showModal(CONNECT_CARD)
         const auto = await measureAutoQuality(api)
         if (auto) {
             options = { ...options, ...auto.settings }
-            showNotification(I.stream.autoQualityResult(auto.settings.videoSize ?? "", auto.settings.fps ?? 0, auto.settings.bitrate ?? 0, auto.mbps), "ok")
+            console.info(I.stream.autoQualityResult(auto.settings.videoSize ?? "", auto.settings.fps ?? 0, auto.settings.bitrate ?? 0, auto.mbps))
         }
     }
     CONNECT_CARD.setStep(effectiveSettings.autoQuality ? 1 : 1)
@@ -412,9 +412,9 @@ class ViewerApp implements Component {
         this.addStreamInfoListener()
 
         // Create connection info modal
+        // (the card only shows when it fails; the page stays black until the picture comes)
         const connectionInfoListener = this.connectionInfoModal.onInfo.bind(this.connectionInfoModal)
         this.stream.addInfoListener(connectionInfoListener)
-        showModal(this.connectionInfoModal)
 
         // Start animation frame loop
         this.onTouchUpdate()
@@ -1699,7 +1699,11 @@ class ConnectionInfoModal implements Modal<void> {
             const overlay = document.getElementById("modal-overlay")
             const visible = overlay != null && !overlay.hidden && this.root.isConnected
             const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-            if (visible && !reduced) {
+            if (!visible) {
+                // No card on screen (the normal start): just fade the picture in
+                this.onLaunched?.()
+                showModal(null)
+            } else if (!reduced) {
                 this.root.classList.add("is-launching")
                 overlay.classList.add("is-launching")
                 this.onLaunched?.()

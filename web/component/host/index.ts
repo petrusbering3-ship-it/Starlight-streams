@@ -9,6 +9,7 @@ import { buildUrl } from "../../config_"
 import { DEFAULT_DISPLAY_COUNT, getCachedDisplays, getLastStream, getPreferredDisplay, setCachedDisplays, setPreferredDisplay } from "../../stream/display"
 import { button, el, icon, starIcon } from "../../icons"
 import { confirmDialog, openSlModal } from "../sl_modal"
+import { launchTransition } from "../launch_transition"
 
 // Starlight Streams: one PC on the home page (design/screens/S-Home): a row in the PC index on
 // the left, and the detail with the display table on the right when it's selected.
@@ -573,6 +574,10 @@ export class Host implements Component {
 
             if (lastAppId) {
                 const query = new URLSearchParams({ hostId: `${this.getHostId()}`, appId: lastAppId })
+                // The row glides away and a black box grows into the stream
+                button.classList.remove("is-loading")
+                const row = Array.from(this.rows.children).find(row => (row as HTMLElement).dataset.display == `${display}`) as HTMLElement | undefined
+                await launchTransition(row ?? null, String(display).padStart(2, "0"))
                 // Same tab: opening a new tab after waiting would be blocked as a popup
                 window.location.href = buildUrl(`/stream.html?${query}`)
             } else {

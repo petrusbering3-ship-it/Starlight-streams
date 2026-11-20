@@ -7,6 +7,7 @@ import { showMessage } from "../modal/index"
 import { APP_NO_IMAGE } from "../../resources/index"
 import { buildUrl } from "../../config_"
 import { button, el } from "../../icons"
+import { launchTransition } from "../launch_transition"
 
 export type GameCache = App & { activeApp: number | null }
 
@@ -159,7 +160,7 @@ export class Game implements Component {
             this.divElement.dispatchEvent(event)
         }
     }
-    private startStream() {
+    private async startStream() {
         // Starlight Streams: remembered for "Power On & Play"
         try {
             localStorage.setItem(`starlight-last-app-${this.getHostId()}`, `${this.getAppId()}`)
@@ -175,6 +176,7 @@ export class Game implements Component {
         if (window.matchMedia('(display-mode: standalone)').matches) {
             // If we're in a pwa: open in the current tab
             // If we don't do this we might get a url bar at the top
+            await launchTransition(this.divElement)
             window.location.href = buildUrl(`/stream.html?${query}`)
         } else {
             window.open(buildUrl(`/stream.html?${query}`), "_blank")
