@@ -129,10 +129,18 @@ fn main() {
     let listener = TcpListener::bind(("0.0.0.0", port)).expect("failed to bind port");
     println!("Starlight power agent listening on port {port}");
 
+    // Each request on its own thread: one slow or stuck connection must not hold up the others
+    // (the display overview asks for several screenshots at once)
+    let token = std::sync::Arc::new(token);
+    let displays_file = std::sync::Arc::new(displays_file);
     for stream in listener.incoming().flatten() {
-        if let Err(err) = handle(stream, &token, &displays_file) {
-            eprintln!("Request failed: {err}");
-        }
+        let token = token.clone();
+        let displays_file = displays_file.clone();
+        thread::spawn(move || {
+            if let Err(err) = handle(stream, &token, &displays_file) {
+                eprintln!("Request failed: {err}");
+            }
+        });
     }
 }
 
@@ -462,6 +470,7 @@ fn write_displays_forever(path: &PathBuf) -> ! {
 
         // Screenshots only while somebody has the display overview open in a stream
         if is_fresh(&thumbnails_request_file(path), THUMBNAILS_REQUEST_TIMEOUT) {
+            let started = std::time::Instant::now();
             for display in list_displays() {
                 if let Some(jpeg) = capture_display(&display) {
                     let file = thumbnail_file(path, display.index);
@@ -471,9 +480,11 @@ fn write_displays_forever(path: &PathBuf) -> ! {
                     }
                 }
             }
-            thread::sleep(THUMBNAILS_INTERVAL);
+            // The interval counts from the start of the round, so slow captures don't add up
+            thread::sleep(THUMBNAILS_INTERVAL.saturating_sub(started.elapsed()));
         } else {
-            thread::sleep(Duration::from_millis(500));
+            // Checks often, so the first screenshots are ready right after the overview opens
+            thread::sleep(Duration::from_millis(100));
         }
     }
 }
@@ -481,7 +492,7 @@ fn write_displays_forever(path: &PathBuf) -> ! {
 // -- Display overview screenshots
 
 /// Screenshots are taken this often while the overview is open
-const THUMBNAILS_INTERVAL: Duration = Duration::from_millis(1500);
+const THUMBNAILS_INTERVAL: Duration = Duration::from_millis(1000);
 /// The overview asks for screenshots at least this often while it's open
 const THUMBNAILS_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 

@@ -12,7 +12,11 @@ import { el, icon } from "../icons"
 const FADE_MS = 220
 const ZOOM_MS = 320
 const STAGGER_MS = 40
-const THUMBNAIL_INTERVAL_MS = 1500
+const THUMBNAIL_INTERVAL_MS = 1000
+/// Until a screen has its first screenshot it is asked for this often
+const THUMBNAIL_FIRST_INTERVAL_MS = 300
+/// The overview opens after this at the latest, also when the pc is slow to answer
+const OPEN_WAIT_MS = 350
 const INSET = 7
 
 type Rect = { left: number, top: number, width: number, height: number }
@@ -26,6 +30,7 @@ type Screen = {
     image: HTMLImageElement | null
     imageUrl: string | null
     updatedAt: number | null
+    loading: boolean
 }
 
 /// The displays with a position; older power agents report none, then they are placed side by side
@@ -96,14 +101,27 @@ export class DisplayOverview {
         const i = getTranslations(getCurrentLanguage())
 
         let displays = getCachedDisplays(this.hostId) ?? placeholderDisplays(getDisplayCount(this.hostId))
+        // Ask for the screenshots right away (the pc starts taking them on the first request), and don't
+        // wait long for the pc: the displays are cached, the lock state can come in later
+        this.requestThumbnails()
+        const displaysRequest = apiHostDisplays(this.api, { host_id: this.hostId }).then(response => response.displays).catch(() => [])
+        const sessionRequest = apiHostSession(this.api, { host_id: this.hostId }).catch(() => null)
+        const timeout = new Promise<null>(resolve => window.setTimeout(() => resolve(null), OPEN_WAIT_MS))
         const [fetched, session] = await Promise.all([
-            apiHostDisplays(this.api, { host_id: this.hostId }).then(response => response.displays).catch(() => []),
-            apiHostSession(this.api, { host_id: this.hostId }).catch(() => null),
+            Promise.race([displaysRequest, timeout]),
+            Promise.race([sessionRequest, timeout]),
         ])
-        if (fetched.length > 0) {
+        if (fetched && fetched.length > 0) {
             displays = fetched
         }
         this.locked = session != null && (!session.logged_in || session.locked)
+        if (session == null) {
+            sessionRequest.then(late => {
+                if (late && (!late.logged_in || late.locked)) {
+                    this.showLocked()
+                }
+            })
+        }
 
         const root = el("div", "sl sl-overview")
         root.setAttribute("role", "dialog")
@@ -196,7 +214,7 @@ export class DisplayOverview {
             })
             root.appendChild(element)
 
-            this.screens.push({ display, element, pic, status, rect, image, imageUrl: null, updatedAt: null })
+            this.screens.push({ display, element, pic, status, rect, image, imageUrl: null, updatedAt: null, loading: false })
         }
 
         // Start: the live screen covers the window, the others wait below their slot
@@ -215,8 +233,7 @@ export class DisplayOverview {
         this.busy = false
 
         this.drawLive()
-        this.refreshThumbnails()
-        this.thumbnailTimer = window.setInterval(() => this.refreshThumbnails(), THUMBNAIL_INTERVAL_MS)
+        this.scheduleThumbnails(0)
         this.clockTimer = window.setInterval(() => this.updateClocks(), 1000)
 
         // Animate in: backdrop, live screen into its slot, the others staggered by distance, captions last
@@ -296,7 +313,7 @@ export class DisplayOverview {
 
     private stopUpdates() {
         if (this.thumbnailTimer != null) {
-            window.clearInterval(this.thumbnailTimer)
+            window.clearTimeout(this.thumbnailTimer)
             this.thumbnailTimer = null
         }
         if (this.clockTimer != null) {
@@ -348,15 +365,56 @@ export class DisplayOverview {
         }
     }
 
-    private refreshThumbnails() {
+    /// Wakes the screenshot taker on the pc before the overview is even drawn
+    private requestThumbnails() {
+        fetchApi(this.api, "/host/display-thumbnail", "GET", {
+            response: "ignore",
+            query: { host_id: this.hostId, index: 1 },
+        }).catch(() => { })
+    }
+
+    /// Fast until every screen has its first screenshot, then once a second
+    private scheduleThumbnails(delay: number) {
+        this.thumbnailTimer = window.setTimeout(() => {
+            if (!this.root) {
+                return
+            }
+            this.refreshThumbnails()
+            const waiting = this.screens.some(screen => screen.image && screen.updatedAt == null)
+            this.scheduleThumbnails(waiting ? THUMBNAIL_FIRST_INTERVAL_MS : THUMBNAIL_INTERVAL_MS)
+        }, delay)
+    }
+
+    /// The pc turned out to be locked: no screenshots, a lock instead
+    private showLocked() {
+        if (!this.root || this.locked) {
+            return
+        }
+        this.locked = true
+        const i = getTranslations(getCurrentLanguage())
         for (const screen of this.screens) {
-            if (!screen.image) {
+            if (!screen.image || screen.updatedAt != null) {
                 continue
             }
+            screen.image = null
+            screen.pic.replaceChildren(icon("lock"), el("span", undefined, i.stream.locked))
+            screen.pic.classList.add("is-loading", "sl-screen-locked")
+            screen.status.textContent = i.stream.screenLocked
+        }
+    }
+
+    private refreshThumbnails() {
+        for (const screen of this.screens) {
+            // One request per screen at a time: slow answers must not pile up
+            if (!screen.image || screen.loading) {
+                continue
+            }
+            screen.loading = true
             fetchApi(this.api, "/host/display-thumbnail", "GET", {
                 response: "ignore",
                 query: { host_id: this.hostId, index: screen.display.index },
             }).then(response => response.ok ? response.blob() : null).then(blob => {
+                screen.loading = false
                 if (!blob || !this.root || !screen.image) {
                     return
                 }
@@ -387,6 +445,7 @@ export class DisplayOverview {
                 screen.pic.appendChild(next)
             }).catch(() => {
                 // the first screenshot takes a moment
+                screen.loading = false
             })
         }
     }
