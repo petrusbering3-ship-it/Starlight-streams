@@ -93,7 +93,7 @@ export class DetailedRolePage implements Component {
         this.defaultSettingsHeader.innerText = i.defaultSettings
         this.formRoot.appendChild(this.defaultSettingsHeader)
 
-        this.defaultSettings = new StreamSettingsComponent(role.permissions, role.default_settings)
+        this.defaultSettings = new StreamSettingsComponent(role.permissions, role.default_settings, false)
         this.defaultSettings.mount(this.defaultSettingsSlot)
         this.formRoot.appendChild(this.defaultSettingsSlot)
 
@@ -129,7 +129,7 @@ export class DetailedRolePage implements Component {
 
         this.defaultSettings.unmount(this.defaultSettingsSlot)
 
-        this.defaultSettings = new StreamSettingsComponent(this.permissions.getPermissions(), currentSettings)
+        this.defaultSettings = new StreamSettingsComponent(this.permissions.getPermissions(), currentSettings, false)
         this.defaultSettings.mount(this.defaultSettingsSlot)
     }
 
@@ -153,7 +153,7 @@ export class DetailedRolePage implements Component {
         this.permissions.mount(this.permissionsSlot)
 
         this.defaultSettings.unmount(this.defaultSettingsSlot)
-        this.defaultSettings = new StreamSettingsComponent(this.role.permissions, this.role.default_settings)
+        this.defaultSettings = new StreamSettingsComponent(this.role.permissions, this.role.default_settings, false)
         this.defaultSettings.mount(this.defaultSettingsSlot)
     }
 

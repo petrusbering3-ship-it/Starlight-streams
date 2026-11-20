@@ -26,6 +26,8 @@ use crate::{
 #[derive(Default)]
 pub(super) struct HostActivity {
     hosts: Mutex<HashMap<HostId, ActivityEntry>>,
+    /// Connections to the host's Sunshine that are still open (also while they shut down)
+    sessions: Mutex<HashMap<HostId, u32>>,
 }
 
 struct ActivityEntry {
@@ -43,6 +45,85 @@ impl HostActivity {
         {
             entry.relock = true;
         }
+    }
+}
+
+/// A connection to the host's Sunshine is open while this guard lives (it's dropped after the
+/// connection is fully closed)
+pub struct HostSessionGuard {
+    app: AppRef,
+    host_id: HostId,
+}
+
+impl HostSessionGuard {
+    pub(super) fn new(app: AppRef, host_id: HostId) -> Result<Self, AppError> {
+        let inner = app.access()?;
+        *inner
+            .host_activity
+            .sessions
+            .lock()
+            .expect("host session lock")
+            .entry(host_id)
+            .or_insert(0) += 1;
+        drop(inner);
+
+        Ok(Self { app, host_id })
+    }
+}
+
+impl Drop for HostSessionGuard {
+    fn drop(&mut self) {
+        let Ok(inner) = self.app.access() else {
+            return;
+        };
+        let mut sessions = inner
+            .host_activity
+            .sessions
+            .lock()
+            .expect("host session lock");
+        if let Some(count) = sessions.get_mut(&self.host_id) {
+            *count = count.saturating_sub(1);
+        }
+    }
+}
+
+/// Sunshine streams to one client at a time: a new stream right after another one (auto quality,
+/// reconnect, settings change) waits until the old connection is closed, or the host refuses it
+/// and the screen stays black.
+pub(super) async fn wait_for_previous_session(app: &AppRef, host_id: HostId) {
+    const MAX_WAIT: Duration = Duration::from_secs(8);
+
+    let started = Instant::now();
+    loop {
+        let open = match app.access() {
+            Ok(inner) => inner
+                .host_activity
+                .sessions
+                .lock()
+                .expect("host session lock")
+                .get(&host_id)
+                .copied()
+                .unwrap_or(0),
+            Err(_) => return,
+        };
+        if open == 0 {
+            if started.elapsed() > Duration::from_millis(100) {
+                // Sunshine needs a moment after the old connection closed
+                sleep(Duration::from_millis(500)).await;
+                info!(
+                    "previous stream to host {host_id:?} closed after {:?}",
+                    started.elapsed()
+                );
+            }
+            return;
+        }
+        if started.elapsed() > MAX_WAIT {
+            warn!(
+                "previous stream to host {host_id:?} still open after {MAX_WAIT:?}, starting anyway"
+            );
+            return;
+        }
+        sleep(Duration::from_millis(100)).await;
     }
 }
 

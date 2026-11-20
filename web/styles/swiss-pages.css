@@ -287,3 +287,94 @@ body.sl.stream{background:#000;overflow:hidden}
 .sl-admin-perms>.sl-admin-hint{grid-column:1/-1;margin:-4px 0 10px}
 .sl-admin-perms>.sl-field:not(.sl-field--check){margin:6px 0}
 .sl-admin-settings{margin-top:4px}
+
+/* ---------- frozen picture while the stream is replaced or reconnects ---------- */
+.sl-freeze{position:fixed;inset:0;z-index:40;background:#000;pointer-events:none;transition:opacity .3s var(--sl-ease)}
+.sl-freeze canvas{position:absolute;display:block;transition:filter .4s var(--sl-ease),transform .4s var(--sl-ease)}
+.sl-freeze.is-blurred canvas{filter:blur(14px) brightness(.55);transform:scale(1.02)}
+.sl-freeze.is-leaving{opacity:0}
+.sl-freeze-label{position:absolute;left:50%;bottom:32px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(17,17,17,.82);color:#fff;font:500 12px var(--sl-font-mono);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.sl-freeze.is-blurred .sl-freeze-label{bottom:50%;transform:translate(-50%,50%);padding:14px 22px}
+.sl-freeze-label .sl-spinner{width:14px;height:14px}
+/* options this device can't play (settings) */
+.sl-cell.is-unsupported{color:var(--sl-grey);background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.05) 6px 7px);text-decoration:line-through;text-decoration-thickness:1px}
+.sl-unsupported{display:block;margin-top:6px;color:var(--sl-grey)}
+.sl-unsupported::before{content:"Not on this device · ";font-family:var(--sl-font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+
+/* ---------- connection dot in the stream ---------- */
+.sl-conn{position:fixed;top:12px;right:12px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.sl-conn-dot{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;cursor:pointer;opacity:.75;transition:opacity var(--sl-base) var(--sl-ease)}
+.sl-conn-dot::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--sl-night-grey);box-shadow:0 0 0 2px rgba(0,0,0,.45);transition:background-color .4s var(--sl-ease)}
+.sl-conn:hover .sl-conn-dot,.sl-conn.is-open .sl-conn-dot{opacity:1}
+.sl-conn[data-level="good"] .sl-conn-dot::after{background:#2fb36b}
+.sl-conn[data-level="ok"] .sl-conn-dot::after{background:#e0a100}
+.sl-conn[data-level="bad"] .sl-conn-dot::after{background:var(--sl-red);animation:sl-conn-pulse 1.2s ease-in-out infinite}
+@keyframes sl-conn-pulse{50%{box-shadow:0 0 0 2px rgba(0,0,0,.45),0 0 0 6px rgba(215,30,14,.35)}}
+.sl-conn-panel{min-width:180px;padding:12px 14px;background:rgba(14,14,13,.92);color:var(--sl-night-text);border:1px solid #2a2a28;display:flex;flex-direction:column;gap:6px;opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity var(--sl-base) var(--sl-ease),transform var(--sl-base) var(--sl-ease)}
+.sl-conn-panel .sl-label{color:var(--sl-night-grey);margin-bottom:2px}
+.sl-conn:hover .sl-conn-panel,.sl-conn.is-open .sl-conn-panel{opacity:1;transform:none}
+.sl-conn-row{display:flex;justify-content:space-between;gap:16px;font-size:13px}
+.sl-conn-row .k{color:var(--sl-night-grey)}
+.sl-conn-row .v{font-family:var(--sl-font-mono);font-size:12px}
+
+/* ======================= animations (ideas 11, 12, 13, 15) ======================= */
+
+/* 13: a PC starting up: steps under the line, a red line running through its row */
+.sl-pc-steps{margin:10px 0 2px;flex-wrap:wrap}
+.sl-pc-steps .is-now{animation:sl-blink 1.4s ease-in-out infinite}
+@keyframes sl-blink{50%{opacity:.45}}
+.sl-pc-progress i{position:relative;overflow:hidden;transition:width .9s var(--sl-ease)}
+.sl-pc-progress i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-100%);animation:sl-shine 1.6s ease-in-out infinite}
+@keyframes sl-shine{to{transform:translateX(100%)}}
+.sl-index-row{position:relative}
+.sl-index-row.is-starting{overflow:hidden}
+.sl-index-row.is-starting::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:30%;background:var(--sl-red);animation:sl-run 1.3s cubic-bezier(.6,0,.4,1) infinite}
+@keyframes sl-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+.sl-status--starting{font-variant-numeric:tabular-nums}
+/* ready again: the display numbers come up one after another */
+.sl-pc.is-just-ready .sl-display-row .sl-num{animation:sl-count-in .5s var(--sl-ease) both}
+.sl-pc.is-just-ready .sl-display-row:nth-child(2) .sl-num{animation-delay:.06s}
+.sl-pc.is-just-ready .sl-display-row:nth-child(3) .sl-num{animation-delay:.12s}
+.sl-pc.is-just-ready .sl-display-row:nth-child(4) .sl-num{animation-delay:.18s}
+@keyframes sl-count-in{from{opacity:0;transform:translateY(18px)}}
+
+/* 11: stream start, the display number grows out of the card into the picture */
+.sl-connect-launch{display:none;position:absolute;inset:0;place-items:center;font-family:var(--sl-font-display);font-weight:200;font-size:132px;letter-spacing:-.05em;color:var(--sl-red);pointer-events:none}
+.sl-connect.is-launching{position:relative}
+.sl-connect.is-launching .sl-connect-launch{display:grid;animation:sl-launch .55s cubic-bezier(.5,0,.2,1) forwards}
+.sl-connect.is-launching>*:not(.sl-connect-launch){animation:sl-fade-out .25s var(--sl-ease) forwards}
+@keyframes sl-launch{0%{opacity:0;transform:scale(.6)}35%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(7)}}
+#modal-overlay.is-launching{animation:sl-fade-out .55s var(--sl-ease) forwards;animation-delay:.2s}
+.sl-video-enter{animation:sl-video-in .7s var(--sl-ease) both}
+@keyframes sl-video-in{from{opacity:0;filter:blur(10px);scale:1.03}}
+
+/* 12: switching displays, the old picture slides out the way the monitors sit */
+.sl-slide-snap{position:fixed;z-index:35;pointer-events:none;transition:transform .42s cubic-bezier(.6,0,.2,1),opacity .42s var(--sl-ease)}
+
+/* 15: smoother details */
+.sl-menu .sl-menu-item,.sl-context-menu>*{animation:sl-in var(--sl-base) var(--sl-ease) both}
+.sl-context-menu>*:nth-child(2){animation-delay:20ms}.sl-context-menu>*:nth-child(3){animation-delay:40ms}
+.sl-context-menu>*:nth-child(4){animation-delay:60ms}.sl-context-menu>*:nth-child(5){animation-delay:80ms}
+.sl-context-menu>*:nth-child(6){animation-delay:100ms}.sl-context-menu>*:nth-child(n+7){animation-delay:120ms}
+.sl-index-rows>*,.sl-pc-rows>*,.sl-games-grid>*{animation:sl-pop .4s var(--sl-ease) both}
+.sl-index-rows>*:nth-child(2),.sl-pc-rows>*:nth-child(2),.sl-games-grid>*:nth-child(2){animation-delay:40ms}
+.sl-index-rows>*:nth-child(3),.sl-pc-rows>*:nth-child(3),.sl-games-grid>*:nth-child(3){animation-delay:80ms}
+.sl-index-rows>*:nth-child(4),.sl-pc-rows>*:nth-child(4),.sl-games-grid>*:nth-child(4){animation-delay:120ms}
+.sl-index-rows>*:nth-child(n+5),.sl-pc-rows>*:nth-child(n+5),.sl-games-grid>*:nth-child(n+5){animation-delay:160ms}
+.sl-display-row .sl-num{display:inline-block;transition:transform var(--sl-base) var(--sl-ease),color var(--sl-base) var(--sl-ease)}
+.sl-display-row:hover .sl-num{transform:translateX(6px)}
+.sl-index-row .sl-mono{transition:color var(--sl-base) var(--sl-ease)}
+.sl-index-row:hover .sl-mono{color:var(--sl-ink)}
+.sl-cell{transition:background-color var(--sl-fast) var(--sl-ease),color var(--sl-fast) var(--sl-ease),transform 80ms var(--sl-ease)}
+.sl-cell:active:not(:disabled){transform:scale(.97)}
+.sl-btn:active:not(:disabled){transform:translateY(1px)}
+.sl-toast.is-leaving{animation:sl-toast-out .26s var(--sl-ease) forwards}
+@keyframes sl-toast-out{to{opacity:0;transform:translateY(-10px) scale(.98)}}
+.sl-panel{animation:sl-panel-in .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes sl-panel-in{from{transform:translateX(40px);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  .sl-index-rows>*,.sl-pc-rows>*,.sl-games-grid>*,.sl-context-menu>*,.sl-panel,.sl-video-enter,.sl-pc.is-just-ready .sl-num{animation:none!important}
+  .sl-index-row.is-starting::after,.sl-pc-progress i::after{animation:none}
+  .sl-slide-snap{transition:none}
+}

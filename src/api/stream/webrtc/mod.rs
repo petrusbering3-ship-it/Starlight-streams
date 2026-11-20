@@ -294,6 +294,8 @@ pub async fn webrtc_post(
     // Get host
     let mut host = user.host(host_id).await?;
     let stream_activity = host.stream_activity()?;
+    // Starlight Streams: an earlier stream (auto quality, reconnect) must be closed first
+    let host_session = host.open_session().await?;
     let host = host.use_host(&mut user).await?;
 
     if !host.is_paired().await? {
@@ -591,6 +593,8 @@ pub async fn webrtc_post(
         let handler = handler.clone();
 
         async move {
+            // Open until the connection to Sunshine is closed (moonlight_stream is dropped in the loop)
+            let _host_session = host_session;
             if let Err(err) = webrtc_loop(
                 moonlight_stream,
                 &*peer,

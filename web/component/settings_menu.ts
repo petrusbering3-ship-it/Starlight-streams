@@ -44,6 +44,7 @@ export type StreamCodec = "h264" | "auto" | "h265" | "av1"
 export type TransportType = "auto" | "webrtc" | "websocket"
 
 import DEFAULT_SETTINGS from "../default_settings"
+import { DeviceCaps, getDeviceCaps } from "../stream/device_caps"
 
 /// You should use the role default settings instead!
 export function globalDefaultSettings(): Settings {
@@ -157,8 +158,11 @@ export class StreamSettingsComponent implements Component {
     private divElement: HTMLDivElement = document.createElement("div")
     /// Re-renders the controls that depend on other values (preset tiles, custom size, ...)
     private refreshers: Array<() => void> = []
+    /// Starlight Streams: options this device can't play are turned off (true: a setting was changed)
+    private capabilityChecks: Array<(caps: DeviceCaps) => boolean> = []
 
-    constructor(permissions: StreamPermissions, settings: Settings) {
+    /// checkDevice: grey out what this device can't play (not for role defaults, which are for everybody)
+    constructor(permissions: StreamPermissions, settings: Settings, checkDevice = true) {
         // Sometimes the normal settings object doesn't have some values, because they change between versions.
         // Use those as fallback
         const defaultSettings_ = globalDefaultSettings()
@@ -207,8 +211,8 @@ export class StreamSettingsComponent implements Component {
         const sizes = this.stackRow(video, i.videoSize)
         this.cells(sizes, [
             { value: "720p", name: "720p" }, { value: "1080p", name: "1080p" }, { value: "1440p", name: "1440p" },
-            { value: "4k", name: "4K" }, { value: "native", name: i.native }, { value: "custom", name: i.custom },
-        ], () => this.state.videoSize, value => this.state.videoSize = value as Settings["videoSize"])
+            { value: "4k", name: "4K", unsupported: caps => caps.decode4k ? null : i.no4k }, { value: "native", name: i.native }, { value: "custom", name: i.custom },
+        ], () => this.state.videoSize, value => this.state.videoSize = value as Settings["videoSize"], () => "1440p")
         const custom = el("div", "sl-settings-pair")
         custom.append(
             this.numberInput(() => this.state.videoSizeCustom.width, value => this.state.videoSizeCustom.width = value, "W", i.videoWidth),
@@ -223,7 +227,10 @@ export class StreamSettingsComponent implements Component {
             fpsOptions.push(this.state.fps)
             fpsOptions.sort((a, b) => a - b)
         }
-        this.cells(fpsRow, fpsOptions.map(fps => ({ value: `${fps}`, name: `${fps}` })), () => `${this.state.fps}`, value => this.state.fps = parseInt(value))
+        // More fps than the screen shows only costs bandwidth: offered up to the screen's refresh rate
+        const tooFast = (fps: number, caps: DeviceCaps) => caps.refreshRate >= 50 && fps > caps.refreshRate + 5 ? i.screenMaxFps(caps.refreshRate) : null
+        this.cells(fpsRow, fpsOptions.map(fps => ({ value: `${fps}`, name: `${fps}`, unsupported: (caps: DeviceCaps) => tooFast(fps, caps) })), () => `${this.state.fps}`, value => this.state.fps = parseInt(value),
+            caps => `${fpsOptions.filter(fps => !tooFast(fps, caps)).pop() ?? 60}`)
 
         const bitrateRow = this.stackRow(video, i.bitrateTitle, i.bitrateHelp)
         const maxBitrate = this.permissions.maximum_bitrate_kbps ?? 100000
@@ -232,10 +239,10 @@ export class StreamSettingsComponent implements Component {
         const codecRow = this.stackRow(video, i.videoCodec)
         this.cells(codecRow, [
             { value: "auto", name: i.auto },
-            { value: "h264", name: "H264", disabled: !this.permissions.allow_codec_h264 },
-            { value: "h265", name: "H265", disabled: !this.permissions.allow_codec_h265 },
-            { value: "av1", name: "AV1", disabled: !this.permissions.allow_codec_av1 },
-        ], () => this.state.videoCodec, value => this.state.videoCodec = value as StreamCodec)
+            { value: "h264", name: "H264", disabled: !this.permissions.allow_codec_h264, unsupported: caps => caps.h264 ? null : i.noCodec("H264") },
+            { value: "h265", name: "H265", disabled: !this.permissions.allow_codec_h265, unsupported: caps => caps.h265 ? null : i.noCodec("H265") },
+            { value: "av1", name: "AV1", disabled: !this.permissions.allow_codec_av1, unsupported: caps => caps.av1 ? null : i.noCodec("AV1") },
+        ], () => this.state.videoCodec, value => this.state.videoCodec = value as StreamCodec, () => "auto")
 
         const sharpeningRow = this.stackRow(video, i.sharpening)
         this.cells(sharpeningRow, [
@@ -243,7 +250,8 @@ export class StreamSettingsComponent implements Component {
             { value: "medium", name: i.sharpeningMedium }, { value: "high", name: i.sharpeningHigh },
         ], () => this.state.sharpening, value => this.state.sharpening = value as SharpeningMode)
 
-        this.switchRow(video, i.enableHdr, i.hdrHelp, () => this.state.hdr, value => this.state.hdr = value, !this.permissions.allow_hdr)
+        this.switchRow(video, i.enableHdr, i.hdrHelp, () => this.state.hdr, value => this.state.hdr = value, !this.permissions.allow_hdr,
+            caps => !caps.hdrScreen ? i.noHdrScreen : !caps.decode10bit ? i.noHdrDecode : null)
 
         // Advanced renderer options, nested
         const advanced = this.section(i.advancedRenderer, false, true)
@@ -305,6 +313,21 @@ export class StreamSettingsComponent implements Component {
         this.switchRow(other, i.useCustomDropdown, null, () => this.state.useSelectElementPolyfill, value => this.state.useSelectElementPolyfill = value)
 
         this.refresh()
+
+        if (checkDevice) {
+            getDeviceCaps().then(caps => {
+                let changed = false
+                for (const check of this.capabilityChecks) {
+                    changed = check(caps) || changed
+                }
+                if (changed) {
+                    // A saved setting this device can't play was turned off
+                    this.changed()
+                } else {
+                    this.refresh()
+                }
+            })
+        }
     }
 
     // -- building blocks
@@ -355,7 +378,7 @@ export class StreamSettingsComponent implements Component {
         return row
     }
 
-    private switchRow(parent: HTMLElement, title: string, help: string | null, get: () => boolean, set: (value: boolean) => void, disabled = false) {
+    private switchRow(parent: HTMLElement, title: string, help: string | null, get: () => boolean, set: (value: boolean) => void, disabled = false, unsupported?: (caps: DeviceCaps) => string | null) {
         const row = this.row(parent, title, help)
         const toggle = el("button", "sl-switch")
         toggle.type = "button"
@@ -368,11 +391,62 @@ export class StreamSettingsComponent implements Component {
         })
         this.refreshers.push(() => toggle.setAttribute("aria-checked", get() ? "true" : "false"))
         row.appendChild(toggle)
+
+        if (unsupported) {
+            this.capabilityChecks.push(caps => {
+                const reason = unsupported(caps)
+                if (reason) {
+                    toggle.disabled = true
+                    toggle.title = reason
+                    this.addUnsupportedNote(row, [reason])
+                    if (get()) {
+                        set(false)
+                        return true
+                    }
+                }
+                return false
+            })
+        }
     }
 
-    private cells(parent: HTMLElement, options: Array<{ value: string, name: string, disabled?: boolean }>, get: () => string, set: (value: string) => void) {
+    /// "Not on this device: …" under a row
+    private addUnsupportedNote(row: HTMLElement, reasons: Array<string>) {
+        const text = row.querySelector(".txt") ?? row
+        const note = el("span", "sl-help sl-unsupported", reasons.join(" "))
+        text.appendChild(note)
+    }
+
+    private cells(parent: HTMLElement, options: Array<{ value: string, name: string, disabled?: boolean, unsupported?: (caps: DeviceCaps) => string | null }>, get: () => string, set: (value: string) => void, fallback?: (caps: DeviceCaps) => string) {
         const cells = el("div", "sl-cells")
         cells.setAttribute("role", "group")
+        const elements: Array<HTMLButtonElement> = []
+        if (options.some(option => option.unsupported)) {
+            this.capabilityChecks.push(caps => {
+                const reasons: Array<string> = []
+                let changed = false
+                options.forEach((option, index) => {
+                    const reason = option.unsupported?.(caps)
+                    if (!reason) {
+                        return
+                    }
+                    const cell = elements[index]
+                    cell.disabled = true
+                    cell.title = reason
+                    cell.classList.add("is-unsupported")
+                    if (!reasons.includes(reason)) {
+                        reasons.push(reason)
+                    }
+                    if (get() == option.value && fallback) {
+                        set(fallback(caps))
+                        changed = true
+                    }
+                })
+                if (reasons.length > 0) {
+                    this.addUnsupportedNote(parent, reasons)
+                }
+                return changed
+            })
+        }
         for (const option of options) {
             const cell = el("button", "sl-cell", option.name)
             cell.type = "button"
@@ -383,6 +457,7 @@ export class StreamSettingsComponent implements Component {
             })
             this.refreshers.push(() => cell.setAttribute("aria-pressed", get() == option.value ? "true" : "false"))
             cells.appendChild(cell)
+            elements.push(cell)
         }
         parent.appendChild(cells)
     }

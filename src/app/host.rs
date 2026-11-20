@@ -20,8 +20,8 @@ use crate::app::{
     AppError, AppInner, AppRef, RequestClient,
     guest::guest_expiry,
     power::{
-        PowerCommand, StreamActivityGuard, agent_request, agent_request_bytes, send_magic_packet,
-        send_power_command,
+        HostSessionGuard, PowerCommand, StreamActivityGuard, agent_request, agent_request_bytes,
+        send_magic_packet, send_power_command, wait_for_previous_session,
     },
     storage::{StorageHost, StorageHostModify, StorageHostPairInfo},
     user::{AuthenticatedUser, RoleType, UserId},
@@ -574,6 +574,13 @@ impl Host {
     /// Marks this host as streaming until the returned guard is dropped (used for auto shutdown).
     pub fn stream_activity(&self) -> Result<StreamActivityGuard, AppError> {
         StreamActivityGuard::new(self.app.clone(), self.id)
+    }
+
+    /// Waits until an earlier stream to this host is closed, then marks a new one as open until the
+    /// returned guard is dropped (keep it alive as long as the connection to Sunshine).
+    pub async fn open_session(&self) -> Result<HostSessionGuard, AppError> {
+        wait_for_previous_session(&self.app, self.id).await;
+        HostSessionGuard::new(self.app.clone(), self.id)
     }
 
     pub async fn list_apps(&mut self, user: &mut AuthenticatedUser) -> Result<Vec<App>, AppError> {

@@ -150,6 +150,9 @@ async fn handle_ws(
     let host_id = HostId(stream_request.host_id);
     let mut host = user.host(host_id).await?;
     let _stream_activity = host.stream_activity()?;
+    // Starlight Streams: an earlier stream (auto quality, reconnect) must be closed first; open
+    // until this function returns, after the connection to Sunshine is dropped
+    let _session = host.open_session().await?;
 
     let host = host.use_host(&mut user).await?;
 

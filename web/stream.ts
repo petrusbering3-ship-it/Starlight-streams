@@ -6,7 +6,7 @@ import { SelectComponent } from "./component/input"
 import { FormModal } from "./component/modal/form"
 import { getModalBackground, Modal, showMessage, showModal } from "./component/modal/index"
 import { showNotification } from "./component/notification"
-import { getLocalStreamSettings, Settings, TransportType } from "./component/settings_menu"
+import { getLocalStreamSettings, setLocalStreamSettings, Settings, TransportType } from "./component/settings_menu"
 import { getSidebarRoot, setSidebar, setSidebarExtended, setSidebarStyle, Sidebar } from "./component/sidebar/index"
 import { adoptRoleDefaultLanguage, getCurrentLanguage, getTranslations, Language, normalizeLanguage } from "./i18n"
 import { requestKeyboardLock } from "./iframe"
@@ -15,10 +15,11 @@ import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboar
 import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
-import { DisplaySwitcher, getDisplayCount, setCachedDisplays, setLastStream } from "./stream/display"
+import { DisplaySwitcher, getCachedDisplays, getDisplayCount, setCachedDisplays, setLastStream } from "./stream/display"
 import { DisplayOverview } from "./stream/display_overview"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
+import { ConnectionDot } from "./stream/connection_dot"
 import { VideoEnhancer } from "./stream/video/enhancer"
 import { QualityLevel, QualityMonitor, stepDown, stepUp } from "./stream/quality_monitor"
 import { LogMessageType } from "./stream/log"
@@ -206,6 +207,15 @@ class ViewerApp implements Component {
     private lastQualityUpAt = 0
     private qualityUpBlockedUntil = 0
     private restartingStream = false
+    // Starlight Streams: reconnect by itself when the stream is lost
+    private everConnected = false
+    private reconnectAttempts = 0
+    private reconnectTimer: number | null = null
+    private freeze: FrozenFrame | null = null
+    private triedWorkingSettings = false
+    private pendingFallback: { changes: Partial<RiskySettings>, names: Array<string> } | null = null
+    private connectionDot = new ConnectionDot(() => this.stream.getTransportStats())
+    private bootstrapDefaults: Settings
     private unlocking = false
     private unlockTried = false
     private hostId: number
@@ -234,7 +244,8 @@ class ViewerApp implements Component {
         this.hostId = hostId
         this.displaySwitcher = new DisplaySwitcher(hostId)
         this.displayOverview = new DisplayOverview(api, hostId, () => this.getCurrentDisplay(), (display, name) => {
-            this.switchDisplay(display)
+            // The overview has its own zoom animation
+            this.switchDisplay(display, false)
             const label = getTranslations(getCurrentLanguage()).host.displayName(display)
             showNotification(name ? `${label} · ${name}` : label, "info")
         }, () => this.pcName)
@@ -321,6 +332,7 @@ class ViewerApp implements Component {
         this.stream = new Stream(this.api, hostId, appId, settings, [browserWidth, browserHeight], bootstrapRole.permissions)
         this.appId = appId
         this.permissions = bootstrapRole.permissions
+        this.bootstrapDefaults = bootstrapRole.default_settings
         this.streamSettings = settings
 
         // Picture sharpening; HDR would lose its colors in the 8 bit canvas
@@ -377,6 +389,17 @@ class ViewerApp implements Component {
     }
 
     private async startStream(settings: Settings) {
+        // Stream start animation: the picture fades in while the display number grows out of the card
+        // (on the video elements: a filter on their container would move them, they're position: fixed)
+        this.connectionInfoModal.setLaunch(this.getCurrentDisplay(), () => {
+            for (const video of Array.from(this.div.querySelectorAll<HTMLElement>(".video-stream"))) {
+                video.classList.remove("sl-video-enter")
+                void video.offsetWidth
+                video.classList.add("sl-video-enter")
+                video.addEventListener("animationend", () => video.classList.remove("sl-video-enter"), { once: true })
+            }
+        })
+
         setSidebarStyle({
             edge: settings.sidebarEdge,
         })
@@ -467,26 +490,65 @@ class ViewerApp implements Component {
     }
 
     /// Replaces the stream with one of another quality. The game keeps running on the pc, and
-    /// fullscreen and the captured mouse stay, because the page isn't reloaded.
+    /// fullscreen and the captured mouse stay, because the page isn't reloaded. The last picture
+    /// stays on screen until the new stream shows its first one.
     private async restartStreamWithQuality(level: QualityLevel, direction: "down" | "up") {
         if (this.restartingStream) {
             return
         }
+        const message = `${level.videoSize} · ${level.fps} fps · ${(level.bitrate / 1000).toFixed(1)} Mbit/s`
+        showNotification(direction == "down" ? I.stream.qualityLowered(message) : I.stream.qualityRaised(message), "info")
+
+        this.streamSettings = { ...this.streamSettings, ...level }
+        await this.replaceStream(I.stream.changingQuality, false)
+    }
+
+    /// The stream was lost: the last picture stays (blurred) and it connects again by itself,
+    /// on the same display with the same settings. Gives up after a few tries.
+    private reconnect() {
+        if (this.reconnectTimer != null || this.restartingStream) {
+            return
+        }
+        const delays = [1000, 2000, 3000, 5000, 8000]
+        if (this.reconnectAttempts >= delays.length) {
+            this.reconnectAttempts = 0
+            this.freeze?.remove()
+            this.freeze = null
+            this.connectionInfoModal.setQuiet(false)
+            this.connectionInfoModal.showFailure(I.stream.reconnectFailed)
+            return
+        }
+        const delay = delays[this.reconnectAttempts]
+        this.reconnectAttempts += 1
+        this.connectionInfoModal.setQuiet(true)
+
+        this.freeze ??= FrozenFrame.capture(this.div)
+        this.freeze.show(I.stream.reconnecting(this.reconnectAttempts), true)
+
+        this.reconnectTimer = window.setTimeout(() => {
+            this.reconnectTimer = null
+            this.replaceStream(I.stream.reconnecting(this.reconnectAttempts), true)
+        }, delay)
+    }
+
+    private async replaceStream(label: string, blur: boolean) {
+        if (this.restartingStream) {
+            return
+        }
         this.restartingStream = true
+        this.connectionInfoModal.setQuiet(true)
 
         try {
             this.qualityMonitor?.stop()
             this.qualityMonitor = null
 
-            const message = `${level.videoSize} · ${level.fps} fps · ${(level.bitrate / 1000).toFixed(1)} Mbit/s`
-            showNotification(direction == "down" ? I.stream.qualityLowered(message) : I.stream.qualityRaised(message), "info")
+            this.freeze ??= FrozenFrame.capture(this.div)
+            this.freeze.show(label, blur)
 
             const old = this.stream
             old.getInput().raiseAllKeys()
             await old.stop()
             old.unmount(this.div)
-
-            this.streamSettings = { ...this.streamSettings, ...level }
 
             const browserWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
             const browserHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0)
@@ -518,6 +580,27 @@ class ViewerApp implements Component {
         } else if (data.type == "connectionComplete") {
             this.sidebar.onCapabilitiesChange(data.capabilities)
 
+            // These settings work on this device
+            saveWorkingSettings(this.streamSettings)
+            if (this.pendingFallback) {
+                // It worked after going back: turn the setting that didn't work off for good
+                setLocalStreamSettings({ ...getLocalStreamSettings(this.bootstrapDefaults), ...this.pendingFallback.changes })
+                showNotification(I.stream.settingsTurnedOff(this.pendingFallback.names.join(", ")), "warn")
+                this.pendingFallback = null
+            }
+
+            this.connectionDot.reset()
+            this.connectionDot.mount(document.body)
+
+            // Connected (again): the frozen picture goes once the new one is there
+            this.everConnected = true
+            this.reconnectAttempts = 0
+            this.connectionInfoModal.setQuiet(false)
+            // (after the switch back to the saved display, 1.5 s after connecting, when it isn't display 1)
+            const freeze = this.freeze
+            this.freeze = null
+            freeze?.fadeOut(this.getCurrentDisplay() != 1 ? 2000 : 700)
+
             // Unlock the pc first (once per page), then go back to the display that was streamed last time
             const firstConnection = !this.unlockTried
             this.unlockTried = true
@@ -541,8 +624,33 @@ class ViewerApp implements Component {
             }
 
             this.armFullscreenOnNextInteraction()
+        } else if (data.type == "connectionLost") {
+            // Worked before (or a replaced stream): connect again instead of showing the error
+            if (this.everConnected) {
+                this.reconnect()
+            } else if (this.triedWorkingSettings) {
+                // Also failed with the settings that work: show the error
+                this.connectionInfoModal.setQuiet(false)
+                this.freeze?.remove()
+                this.freeze = null
+            } else {
+                // Never connected: maybe a setting this device can't do. Go back to what worked
+                this.triedWorkingSettings = true
+                const fallback = workingFallback(this.streamSettings)
+                if (fallback.names.length > 0) {
+                    this.connectionInfoModal.setQuiet(true)
+                    this.connectionInfoModal.setSubtitle(I.stream.tryingWorkingSettings)
+
+                    this.streamSettings = { ...this.streamSettings, ...fallback.changes }
+                    // Kept only when it works with them (it may have failed for another reason)
+                    this.pendingFallback = fallback
+                    this.replaceStream(I.stream.tryingWorkingSettings, false)
+                }
+            }
         } else if (data.type == "streamEnded") {
-            if (data.graceful) {
+            if (!data.graceful && this.everConnected) {
+                this.reconnect()
+            } else if (data.graceful) {
                 await showMessage(data.message ?? "The stream was gracefully closed!")
 
                 exitStreamPage()
@@ -699,8 +807,12 @@ class ViewerApp implements Component {
     getCurrentDisplay(): number {
         return this.displaySwitcher.getCurrent()
     }
-    switchDisplay(display: number) {
+    switchDisplay(display: number, animate = true) {
+        const from = this.getCurrentDisplay()
         this.displaySwitcher.switchTo(this.stream.getInput(), display)
+        if (animate && from != display) {
+            this.slideToDisplay(from, display)
+        }
         this.sidebar.onDisplayChange(display)
     }
     setInputConfig(config: StreamInputConfig) {
@@ -741,6 +853,65 @@ class ViewerApp implements Component {
         const codec = settings.videoCodec == "auto" ? "Auto" : settings.videoCodec.toUpperCase()
         const size = settings.videoSize == "custom" ? `${settings.videoSizeCustom.width}×${settings.videoSizeCustom.height}` : settings.videoSize
         return `${codec} · ${size} · ${settings.fps} fps`
+    }
+
+    /// Starlight Streams: switching displays slides the old picture out the way the monitors sit
+    /// (to the display on the right: the picture moves left, like turning your head)
+    private slideToDisplay(from: number, to: number) {
+        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            return
+        }
+        const displays = getCachedDisplays(this.hostId)
+        const a = displays?.find(display => display.index == from)
+        const b = displays?.find(display => display.index == to)
+        let dx = to > from ? 1 : -1
+        let dy = 0
+        if (a && b && (a.x != 0 || a.y != 0 || b.x != 0 || b.y != 0)) {
+            const ddx = (b.x + b.width / 2) - (a.x + a.width / 2)
+            const ddy = (b.y + b.height / 2) - (a.y + a.height / 2)
+            if (Math.abs(ddy) > Math.abs(ddx)) {
+                dx = 0
+                dy = Math.sign(ddy)
+            } else {
+                dx = Math.sign(ddx) || dx
+            }
+        }
+
+        const video = Array.from(this.div.querySelectorAll<HTMLVideoElement | HTMLCanvasElement>("video.video-stream, canvas.video-stream"))
+            .find(element => !element.classList.contains("video-enhancer") && element.getBoundingClientRect().width > 0)
+        if (!video) {
+            return
+        }
+        const rect = video.getBoundingClientRect()
+        const width = video instanceof HTMLVideoElement ? video.videoWidth : video.width
+        const height = video instanceof HTMLVideoElement ? video.videoHeight : video.height
+        if (width <= 0 || height <= 0) {
+            return
+        }
+        const snap = document.createElement("canvas")
+        snap.className = "sl-slide-snap"
+        snap.width = width
+        snap.height = height
+        try {
+            snap.getContext("2d")?.drawImage(video, 0, 0, width, height)
+        } catch {
+            return
+        }
+        Object.assign(snap.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` })
+        document.body.appendChild(snap)
+
+        // The pc needs a moment to switch: then the old picture slides out and the new one comes in
+        window.setTimeout(() => {
+            snap.style.transform = `translate(${-dx * 100}vw, ${-dy * 100}vh)`
+            snap.style.opacity = "0.6"
+            for (const element of Array.from(this.div.querySelectorAll<HTMLElement>(".video-stream"))) {
+                element.animate([
+                    { translate: `${dx * 35}% ${dy * 35}%`, opacity: 0.2 },
+                    { translate: "0 0", opacity: 1 },
+                ], { duration: 420, easing: "cubic-bezier(.6,0,.2,1)" })
+            }
+            window.setTimeout(() => snap.remove(), 450)
+        }, 380)
     }
 
     /// Starlight Streams: the display overview (Ctrl+Shift+D), the mouse is needed to pick a display
@@ -1299,6 +1470,118 @@ class ViewerApp implements Component {
     }
 }
 
+// -- Starlight Streams: settings that worked on this device
+
+/// The settings that can stop a stream from starting on a device
+const RISKY_KEYS = ["videoCodec", "hdr", "fps", "videoSize", "videoSizeCustom", "dataTransport", "forceVideoElementRenderer", "canvasRenderer", "canvasVsync"] as const
+type RiskySettings = Pick<Settings, typeof RISKY_KEYS[number]>
+
+/// Used when nothing worked on this device yet
+const SAFE_SETTINGS: Partial<RiskySettings> = {
+    videoCodec: "h264", hdr: false, fps: 60, videoSize: "1080p", dataTransport: "auto",
+    forceVideoElementRenderer: false, canvasRenderer: false, canvasVsync: false,
+}
+
+function loadWorkingSettings(): Partial<RiskySettings> | null {
+    try {
+        return JSON.parse(localStorage.getItem("starlight-working-settings") ?? "null")
+    } catch {
+        return null
+    }
+}
+function saveWorkingSettings(settings: Settings) {
+    const working: Partial<RiskySettings> = {}
+    for (const key of RISKY_KEYS) {
+        (working as any)[key] = settings[key]
+    }
+    try {
+        localStorage.setItem("starlight-working-settings", JSON.stringify(working))
+    } catch {
+        // storage might be unavailable
+    }
+}
+
+/// The risky settings that differ from the ones that worked (or the safe ones), with those values
+function workingFallback(settings: Settings): { changes: Partial<RiskySettings>, names: Array<string> } {
+    const working = { ...SAFE_SETTINGS, ...(loadWorkingSettings() ?? {}) }
+    const changes: Partial<RiskySettings> = {}
+    const names: Array<string> = []
+    for (const key of RISKY_KEYS) {
+        const value = (working as any)[key]
+        if (value !== undefined && JSON.stringify(value) != JSON.stringify(settings[key])) {
+            (changes as any)[key] = value
+            names.push(settingLabel(key, settings))
+        }
+    }
+    return { changes, names }
+}
+
+function settingLabel(key: typeof RISKY_KEYS[number], settings: Settings): string {
+    switch (key) {
+        case "videoCodec": return settings.videoCodec.toUpperCase()
+        case "hdr": return "HDR"
+        case "fps": return `${settings.fps} fps`
+        case "videoSize": return settings.videoSize == "custom" ? `${settings.videoSizeCustom.width}×${settings.videoSizeCustom.height}` : settings.videoSize
+        case "videoSizeCustom": return `${settings.videoSizeCustom.width}×${settings.videoSizeCustom.height}`
+        case "dataTransport": return settings.dataTransport
+        default: return key
+    }
+}
+
+/// Starlight Streams: the last picture of the stream, kept on screen while the stream is replaced
+/// (quality change) or reconnects (blurred), so it never goes black.
+class FrozenFrame {
+    private root = el("div", "sl-freeze")
+    private label = el("div", "sl-freeze-label")
+    private text = el("span")
+
+    private constructor(source: HTMLVideoElement | HTMLCanvasElement | null) {
+        if (source) {
+            const rect = source.getBoundingClientRect()
+            const canvas = el("canvas")
+            const width = source instanceof HTMLVideoElement ? source.videoWidth : source.width
+            const height = source instanceof HTMLVideoElement ? source.videoHeight : source.height
+            if (width > 0 && height > 0 && rect.width > 0) {
+                canvas.width = width
+                canvas.height = height
+                try {
+                    canvas.getContext("2d")?.drawImage(source, 0, 0, width, height)
+                } catch {
+                    // nothing to copy: black
+                }
+                Object.assign(canvas.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` })
+                this.root.appendChild(canvas)
+            }
+        }
+        this.label.append(el("span", "sl-spinner sl-spinner--night"), this.text)
+        this.root.appendChild(this.label)
+        document.body.appendChild(this.root)
+    }
+
+    static capture(parent: HTMLElement): FrozenFrame {
+        const sources = Array.from(parent.querySelectorAll<HTMLVideoElement | HTMLCanvasElement>("video.video-stream, canvas.video-stream"))
+            .filter(element => !element.classList.contains("video-enhancer") && element.getBoundingClientRect().width > 0)
+        return new FrozenFrame(sources[0] ?? null)
+    }
+
+    show(text: string, blur: boolean) {
+        this.text.textContent = text
+        this.root.classList.toggle("is-blurred", blur)
+        this.root.classList.remove("is-leaving")
+    }
+
+    fadeOut(delay: number) {
+        window.setTimeout(() => {
+            this.root.classList.add("is-leaving")
+            window.setTimeout(() => this.remove(), 300)
+        }, delay)
+    }
+
+    remove() {
+        this.root.remove()
+    }
+}
+
 /// Starlight Streams: the connect card (design/screens/S-Stream-States): TEST · CONNECT · PLAY,
 /// a title, the logs, and Retry when it fails.
 class ConnectionInfoModal implements Modal<void> {
@@ -1317,9 +1600,14 @@ class ConnectionInfoModal implements Modal<void> {
     private foot = el("div", "sl-connect-foot")
     private closeButton = button("sl-btn sl-btn-quiet", I.stream.close)
     private retryButton = button("sl-btn sl-btn-ink", I.stream.retry, "retry")
+    /// Starlight Streams: the display number that grows into the picture when the stream starts
+    private launch = el("div", "sl-connect-launch", "01")
+    private onLaunched: (() => void) | null = null
 
     private textTy: LogMessageType | null = null
     private failed = false
+    /// While the page reconnects by itself, errors are only logged
+    private quiet = false
 
     constructor() {
         for (const name of [I.stream.stepTest, I.stream.stepConnect, I.stream.stepPlay]) {
@@ -1336,7 +1624,7 @@ class ConnectionInfoModal implements Modal<void> {
         this.retryButton.addEventListener("click", () => window.location.reload())
         this.foot.append(this.closeButton, this.retryButton)
 
-        this.root.append(this.steps, this.spinner, this.bang, this.title, this.subtitle, this.logButton, this.log, this.foot)
+        this.root.append(this.steps, this.spinner, this.bang, this.title, this.subtitle, this.logButton, this.log, this.foot, this.launch)
         this.setStep(0)
     }
 
@@ -1374,6 +1662,21 @@ class ConnectionInfoModal implements Modal<void> {
         console.info(`[Stream]: ${line}`)
     }
 
+    /// The display that will be shown, and what to do when the card has grown into the picture
+    setLaunch(display: number, onLaunched: () => void) {
+        this.launch.textContent = String(display).padStart(2, "0")
+        this.onLaunched = onLaunched
+    }
+
+    setQuiet(quiet: boolean) {
+        this.quiet = quiet
+    }
+
+    showFailure(message: string) {
+        this.fail(message)
+        showModal(this)
+    }
+
     private fail(message: string) {
         this.failed = true
         this.spinner.hidden = true
@@ -1390,8 +1693,24 @@ class ConnectionInfoModal implements Modal<void> {
         if (data.type == "connectionComplete") {
             this.debugLog(I.stream.connectionComplete)
             this.setStep(2)
+            this.failed = false
 
-            showModal(null)
+            // The card is on screen: the display number grows into the picture, then it's gone
+            const overlay = document.getElementById("modal-overlay")
+            const visible = overlay != null && !overlay.hidden && this.root.isConnected
+            const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+            if (visible && !reduced) {
+                this.root.classList.add("is-launching")
+                overlay.classList.add("is-launching")
+                this.onLaunched?.()
+                window.setTimeout(() => {
+                    showModal(null)
+                    this.root.classList.remove("is-launching")
+                    overlay.classList.remove("is-launching")
+                }, 650)
+            } else {
+                showModal(null)
+            }
         } else if (data.type == "addDebugLine") {
             const message = data.line.trim()
             if (message) {
@@ -1402,7 +1721,9 @@ class ConnectionInfoModal implements Modal<void> {
                 }
             }
 
-            if (data.additional?.type == "fatal" || data.additional?.type == "fatalDescription") {
+            if (this.quiet) {
+                // reconnecting: only logged
+            } else if (data.additional?.type == "fatal" || data.additional?.type == "fatalDescription") {
                 this.fail(message)
                 showModal(this)
             } else if (data.additional?.type == "informError") {

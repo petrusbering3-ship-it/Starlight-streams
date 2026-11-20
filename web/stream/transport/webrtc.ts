@@ -363,6 +363,7 @@ export class WebRTCTransport implements Transport {
 
     private lastTotalDecodeTime = 0
     private lastFramesDecoded = 0
+    private lastVideoBytes: { bytes: number, time: number } | null = null
     async getStats(): Promise<Record<string, StatValue>> {
         const out: Record<string, StatValue> = {}
 
@@ -372,7 +373,12 @@ export class WebRTCTransport implements Transport {
         const stats = await this.peer.getStats()
 
         for (const [_key, value] of stats) {
-            console.debug(value)
+            // Starlight Streams: round trip of the connection in use (for the connection dot)
+            if (value.type == "candidate-pair" && value.nominated && value.state == "succeeded"
+                && typeof value.currentRoundTripTime == "number"
+            ) {
+                out.roundTripMs = value.currentRoundTripTime * 1000
+            }
 
             // Video Stream
             if ("type" in value && "kind" in value
@@ -401,6 +407,17 @@ export class WebRTCTransport implements Transport {
                 }
 
                 out.currentFps = value?.framesPerSecond
+
+                // Starlight Streams: received video bitrate
+                if (typeof value.bytesReceived == "number" && typeof value.timestamp == "number") {
+                    const last = this.lastVideoBytes
+                    if (last && value.timestamp - last.time >= 250) {
+                        out.videoMbps = (value.bytesReceived - last.bytes) * 8 / (value.timestamp - last.time) / 1000
+                        this.lastVideoBytes = { bytes: value.bytesReceived, time: value.timestamp }
+                    } else if (!last) {
+                        this.lastVideoBytes = { bytes: value.bytesReceived, time: value.timestamp }
+                    }
+                }
             }
             if ("type" in value && "mimeType" in value && typeof value.mimeType == "string"
                 && value.type == "codec" && value.mimeType.startsWith("video/")

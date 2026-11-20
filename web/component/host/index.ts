@@ -1,5 +1,5 @@
 import { DetailedHost, DetailedUser, HostDisplay, UndetailedHost } from "../../api_bindings"
-import { Api, apiDeleteHost, apiGetHost, isDetailedHost, apiPostPair, apiWakeUp, apiShutDown, apiSleep, apiHostDisplays, apiGetUser, apiPatchHost } from "../../api"
+import { Api, apiDeleteHost, apiGetHost, isDetailedHost, apiPostPair, apiWakeUp, apiShutDown, apiSleep, apiHostDisplays, apiGetUser, apiPatchHost, apiHostSession } from "../../api"
 import { Component, ComponentEvent } from "../index"
 import { getCurrentLanguage, getTranslations } from "../../i18n"
 import { setContextMenu } from "../context_menu"
@@ -66,6 +66,9 @@ export class Host implements Component {
 
     private poweringOn = false
     private startingSeconds: number | null = null
+    /// Starlight Streams: 0 wake sent, 1 pc on, 2 logged in, 3 ready
+    private startStage = 0
+    private startSteps = el("div", "sl-steps sl-pc-steps")
     private displaysFetchedAt = 0
 
     constructor(api: Api, hostId: number, host: UndetailedHost | DetailedHost | null) {
@@ -91,6 +94,7 @@ export class Host implements Component {
         head.append(titles, this.moreButton)
         this.progress.appendChild(this.progressBar)
         this.progress.hidden = true
+        this.startSteps.hidden = true
 
         // The display timetable
         const tableHead = el("div", "sl-table-head")
@@ -117,7 +121,7 @@ export class Host implements Component {
         this.powerOffButton.addEventListener("click", () => this.shutDown())
         this.foot.append(this.sleepButton, this.powerOffButton, this.note)
 
-        this.detail.append(head, this.progress, el("div", "sl-rule"), this.table, this.unpaired, this.foot)
+        this.detail.append(head, this.progress, this.startSteps, el("div", "sl-rule"), this.table, this.unpaired, this.foot)
         this.detail.addEventListener("contextmenu", event => {
             if ((event.target as HTMLElement).closest(".sl-pc-head")) {
                 this.onContextMenu(event)
@@ -311,6 +315,7 @@ export class Host implements Component {
         this.statusLine.className = statusClass
         this.statusLine.textContent = long
         this.detail.dataset.state = state
+        this.indexRow.classList.toggle("is-starting", starting)
 
         // Not paired: pair first instead of the table
         const showUnpaired = !off && !paired && !starting
@@ -323,10 +328,15 @@ export class Host implements Component {
             row.classList.toggle("is-last", Number(row.dataset.display) == preferred)
         }
 
-        // Starting progress
+        // Starting progress: time, but never behind the steps that are done
         this.progress.hidden = !starting
+        this.startSteps.hidden = !starting
         if (starting) {
-            this.progressBar.style.width = `${Math.min(95, this.startingSeconds! / TYPICAL_START_SECONDS * 100)}%`
+            const byTime = this.startingSeconds! / TYPICAL_START_SECONDS * 100
+            this.progressBar.style.width = `${Math.min(95, Math.max(byTime, this.startStage * 25 + 5))}%`
+            const names = [i.stageWake, i.stagePcOn, i.stageLogin, i.stageReady]
+            this.startSteps.replaceChildren(...names.map((name, index) =>
+                el("span", index < this.startStage ? "is-done" : index == this.startStage ? "is-now" : undefined, `${index < this.startStage ? "✓ " : ""}${name}`)))
         }
 
         // Guests may not turn off the pc
@@ -511,17 +521,41 @@ export class Host implements Component {
                 }
 
                 const start = Date.now()
-                while (this.cache?.server_state == null) {
-                    const seconds = Math.round((Date.now() - start) / 1000)
-                    if (seconds > 180) {
-                        await showMessage(i.startTimeout)
-                        return
-                    }
-                    this.startingSeconds = seconds
+                this.startStage = 1
+                this.startingSeconds = 0
+                this.render()
+                // The seconds count every second, the pc is asked every 3
+                const ticker = window.setInterval(() => {
+                    this.startingSeconds = Math.round((Date.now() - start) / 1000)
                     this.render()
+                }, 1000)
+                try {
+                    while (this.cache?.server_state == null) {
+                        if ((Date.now() - start) / 1000 > 180) {
+                            await showMessage(i.startTimeout)
+                            return
+                        }
 
-                    await new Promise(resolve => setTimeout(resolve, 3000))
-                    await this.forceFetch().catch(() => { })
+                        await new Promise(resolve => setTimeout(resolve, 3000))
+                        // The power agent answers once Windows runs, then says if somebody is logged in
+                        const session = await Promise.race([
+                            apiHostSession(this.api, { host_id: this.getHostId() }).catch(() => null),
+                            new Promise<null>(resolve => setTimeout(() => resolve(null), 2500)),
+                        ])
+                        if (session) {
+                            this.startStage = Math.max(this.startStage, session.logged_in ? 3 : 2)
+                        }
+                        await this.forceFetch().catch(() => { })
+                        this.render()
+                    }
+                    // Ready: all steps done for a moment, the display numbers come up
+                    this.startStage = 4
+                    this.render()
+                    this.detail.classList.add("is-just-ready")
+                    window.setTimeout(() => this.detail.classList.remove("is-just-ready"), 1200)
+                    await new Promise(resolve => setTimeout(resolve, 600))
+                } finally {
+                    window.clearInterval(ticker)
                 }
             }
 
@@ -547,6 +581,7 @@ export class Host implements Component {
         } finally {
             this.poweringOn = false
             this.startingSeconds = null
+            this.startStage = 0
             button.classList.remove("is-loading")
             this.render()
         }

@@ -34,6 +34,9 @@ export type InfoEvent = CustomEvent<
     { type: "connectionComplete", capabilities: StreamCapabilities } |
     { type: "videoReady" } |
     { type: "streamEnded", graceful: boolean, message: string | null } |
+    // Starlight Streams: the connection failed (wasConnected: it worked before it was lost); sent
+    // before the fatal log line, so the page can reconnect instead of showing the error
+    { type: "connectionLost", wasConnected: boolean } |
     { type: "addDebugLine", line: string, additional?: LogMessageInfo }
 >
 export type InfoEventListener = (event: InfoEvent) => void
@@ -183,9 +186,12 @@ export class Stream implements Component {
             shutdownReason = await this.tryWebSocketTransport()
         }
 
-        if (shutdownReason == "disconnect") {
+        if (shutdownReason == "disconnect" || this.stopped) {
             return
         }
+        this.eventTarget.dispatchEvent(new CustomEvent("stream-info", {
+            detail: { type: "connectionLost", wasConnected: shutdownReason == "failed" }
+        }) as InfoEvent)
         this.debugLog(shutdownReason == "failed"
             ? "The stream connection was lost"
             : "Tried all configured transport options but no connection was possible", { type: "fatal" })
@@ -567,7 +573,11 @@ export class Stream implements Component {
         return (await this.transport?.getStats()) ?? null
     }
 
+    /// Set once stop() was called: a stream stopped on purpose doesn't report a lost connection
+    private stopped = false
+
     async stop(): Promise<boolean> {
+        this.stopped = true
         // Stop transport
         await this.transport?.close()
         this.transport = null
