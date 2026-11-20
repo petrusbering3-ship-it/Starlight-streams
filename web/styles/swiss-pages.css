@@ -379,11 +379,11 @@ body.sl.stream{background:#000;overflow:hidden}
   .sl-slide-snap{transition:none}
 }
 
-/* ---------- starting a stream: a black box enters the row, fills it, grows to the window ---------- */
+/* ---------- starting a stream: the row slides right into a black box; on the stream page the
+   saved home page stays with a hole (the box) that grows over the live picture ---------- */
 .sl-launch{position:fixed;inset:0;z-index:200;cursor:progress}
-.sl-launch-reveal{position:fixed;inset:0;background:#000;clip-path:inset(50% 0 50% 100%);will-change:clip-path}
-.sl-launch-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-
-/* the stream page keeps the screenshot until the live picture is there */
-.sl-freeze img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.sl-launch-box{position:fixed;background:#000}
 .sl-launch-clone{position:fixed;margin:0;box-sizing:border-box;background:var(--sl-white);pointer-events:none}
+.sl-launch-backdrop{position:fixed;inset:0;z-index:50;overflow:hidden;background:var(--sl-paper);cursor:progress}
+.sl-launch-page{position:absolute;left:0;top:0;width:100%}
+.sl-launch-backdrop *{animation:none!important;transition:none!important}

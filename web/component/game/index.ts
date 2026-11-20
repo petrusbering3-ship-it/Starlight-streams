@@ -176,7 +176,7 @@ export class Game implements Component {
         if (window.matchMedia('(display-mode: standalone)').matches) {
             // If we're in a pwa: open in the current tab
             // If we don't do this we might get a url bar at the top
-            await launchTransition(this.divElement)
+            await launchTransition(this.divElement, Number(this.getHostId()))
             window.location.href = buildUrl(`/stream.html?${query}`)
         } else {
             window.open(buildUrl(`/stream.html?${query}`), "_blank")

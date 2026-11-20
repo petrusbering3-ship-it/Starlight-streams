@@ -20,7 +20,7 @@ import { DisplayOverview } from "./stream/display_overview"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { ConnectionDot } from "./stream/connection_dot"
-import { takeLaunchShot } from "./component/launch_transition"
+import { LaunchReveal } from "./component/launch_transition"
 import { VideoEnhancer } from "./stream/video/enhancer"
 import { QualityLevel, QualityMonitor, stepDown, stepUp } from "./stream/quality_monitor"
 import { LogMessageType } from "./stream/log"
@@ -214,6 +214,7 @@ class ViewerApp implements Component {
     private reconnectTimer: number | null = null
     private freeze: FrozenFrame | null = null
     private triedWorkingSettings = false
+    private launchReveal: LaunchReveal | null = null
     private pendingFallback: { changes: Partial<RiskySettings>, names: Array<string> } | null = null
     private connectionDot = new ConnectionDot(() => this.stream.getTransportStats())
     private bootstrapDefaults: Settings
@@ -390,11 +391,9 @@ class ViewerApp implements Component {
     }
 
     private async startStream(settings: Settings) {
-        // Started from the home page's animation: its screenshot stays until the live picture is there
-        const shot = takeLaunchShot(this.hostId)
-        if (shot && shot.display == this.getCurrentDisplay()) {
-            this.freeze = FrozenFrame.fromImage(shot.image)
-        }
+        // Started from the home page's animation: the home page stays with the black box until the
+        // live picture is ready, then the box grows over it
+        this.launchReveal = LaunchReveal.take(this.hostId)
 
         // Stream start animation: the picture fades in while the display number grows out of the card
         // (on the video elements: a filter on their container would move them, they're position: fixed)
@@ -607,6 +606,12 @@ class ViewerApp implements Component {
             const freeze = this.freeze
             this.freeze = null
             freeze?.fadeOut(this.getCurrentDisplay() != 1 ? 2000 : 700)
+            // The start animation: the black box grows to show the live picture (of the right display)
+            const launch = this.launchReveal
+            this.launchReveal = null
+            if (launch) {
+                window.setTimeout(() => launch.reveal(), this.getCurrentDisplay() != 1 ? 1900 : 500)
+            }
 
             // Unlock the pc first (once per page), then go back to the display that was streamed last time
             const firstConnection = !this.unlockTried
@@ -638,6 +643,8 @@ class ViewerApp implements Component {
             } else if (this.triedWorkingSettings) {
                 // Also failed with the settings that work: show the error
                 this.connectionInfoModal.setQuiet(false)
+                this.launchReveal?.remove()
+                this.launchReveal = null
                 this.freeze?.remove()
                 this.freeze = null
             } else {
@@ -656,6 +663,8 @@ class ViewerApp implements Component {
                     // Nothing to try: the error card shows, without the start screenshot behind it
                     this.freeze?.remove()
                     this.freeze = null
+                    this.launchReveal?.remove()
+                    this.launchReveal = null
                 }
             }
         } else if (data.type == "streamEnded") {
