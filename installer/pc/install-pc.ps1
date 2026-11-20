@@ -179,6 +179,20 @@ if ($sunshineService) {
     Write-Warning "Sunshine kører ikke som en Windows-tjeneste. Geninstaller Sunshine, så den starter før login."
 }
 
+# Cable trick: the cable to the Pi (192.168.50.x) is only for the Pi (streaming, wake up). The internet goes
+# through Wi-Fi: Windows prefers cables, so that cable gets the lowest priority. Without Wi-Fi it's still used.
+try {
+    $piAddresses = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -like "192.168.50.*" }
+    foreach ($address in $piAddresses) {
+        $interface = Get-NetIPInterface -InterfaceIndex $address.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
+        if ($interface -and ($interface.AutomaticMetric -ne "Disabled" -or $interface.InterfaceMetric -ne 9000)) {
+            Set-NetIPInterface -InterfaceIndex $address.InterfaceIndex -AddressFamily IPv4 -AutomaticMetric Disabled -InterfaceMetric 9000 -ErrorAction SilentlyContinue
+        }
+    }
+} catch {
+    # not important enough to stop for
+}
+
 # 7. Vis PC'ens adresse
 # Prefer the cable network card: Wake-on-LAN goes to the card the pc is added with
 $configs = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" }
