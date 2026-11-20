@@ -1,8 +1,8 @@
 import { Api, fetchApi } from "../api"
 import { el } from "../icons"
 
-// Starlight Streams: starting a stream (the user's drawings). A black box slides into the clicked row
-// from the right, fills the row, then grows to the whole window. The box is a window onto the PC's
+// Starlight Streams: starting a stream (the user's drawings). The clicked display row slides to the right
+// and turns into a black box, the box stretches back over the row, then grows to the whole window. The box is a window onto the PC's
 // screen: it shows that part of a screenshot of the display, and more of it as it grows. ~2 s.
 // The screenshot is handed to the stream page, which keeps it until the live picture is there.
 
@@ -77,11 +77,18 @@ export async function launchTransition(source: HTMLElement | null, options?: Lau
     const image = el("img", "sl-launch-shot")
     image.alt = ""
     reveal.appendChild(image)
-    layer.appendChild(reveal)
+    // The row itself, on top: it slides right and fades into the box
+    const clone = source.cloneNode(true) as HTMLElement
+    clone.classList.add("sl-launch-clone")
+    clone.removeAttribute("id")
+    Object.assign(clone.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` })
+    layer.append(reveal, clone)
     document.body.appendChild(layer)
+    source.style.visibility = "hidden"
     window.addEventListener("pageshow", event => {
         if (event.persisted) {
             layer.remove()
+            source.style.visibility = ""
         }
     }, { once: true })
 
@@ -105,15 +112,29 @@ export async function launchTransition(source: HTMLElement | null, options?: Lau
     // inset(top right bottom left) of the window
     const box = (left: number, top: number, right: number, bottom: number) =>
         `inset(${top}px ${vw - right}px ${vh - bottom}px ${left}px)`
-    const rowRight = rect.right
+    // 1. The row slides right and becomes the box
+    const shift = Math.min(rect.width * 0.6, vw - rect.left - 80)
+    const slideEnd = 0.3
+    clone.animate([
+        { transform: "translateX(0)", opacity: 1, offset: 0 },
+        { transform: `translateX(${shift}px)`, opacity: 0, offset: slideEnd },
+        { transform: `translateX(${shift}px)`, opacity: 0, offset: 1 },
+    ], { duration: DURATION_MS, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" })
+    const moved = (left: number) => box(left, rect.top, Math.min(vw, rect.right + shift), rect.bottom)
     const animation = reveal.animate([
-        // enters the row from its right end
-        { clipPath: box(rowRight, rect.top, rowRight, rect.bottom), offset: 0, easing: "cubic-bezier(.3,0,.2,1)" },
-        { clipPath: box(rowRight - rect.width * 0.35, rect.top, rowRight, rect.bottom), offset: 0.26, easing: "cubic-bezier(.5,0,.2,1)" },
-        // fills the row
-        { clipPath: box(rect.left, rect.top, rowRight, rect.bottom), offset: 0.48, easing: "cubic-bezier(.7,0,.15,1)" },
-        // grows to the whole window
-        { clipPath: box(0, 0, vw, vh), offset: 1 },
+        { clipPath: box(rect.left, rect.top, rect.right, rect.bottom), opacity: 0, offset: 0, easing: "cubic-bezier(.5,0,.2,1)" },
+        { clipPath: moved(rect.left + shift), opacity: 1, offset: slideEnd, easing: "cubic-bezier(.6,0,.2,1)" },
+        // 2. stretches back over the whole row
+        { clipPath: moved(rect.left), opacity: 1, offset: 0.5, easing: "cubic-bezier(.7,0,.15,1)" },
+        // 3. grows to the whole window
+        { clipPath: box(0, 0, vw, vh), opacity: 1, offset: 1 },
+    ], { duration: DURATION_MS, fill: "forwards" })
+    // The box is black first; the screen fades in while it stretches and grows
+    image.animate([
+        { opacity: 0, offset: 0 },
+        { opacity: 0, offset: 0.32 },
+        { opacity: 1, offset: 0.7 },
+        { opacity: 1, offset: 1 },
     ], { duration: DURATION_MS, fill: "forwards" })
     await animation.finished.catch(() => { })
 
