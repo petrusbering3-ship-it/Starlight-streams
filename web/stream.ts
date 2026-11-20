@@ -20,6 +20,7 @@ import { DisplayOverview } from "./stream/display_overview"
 import { getUnlockPin, needsUnlock, setUnlockPin, unlockPc } from "./stream/auto_unlock"
 import { measureAutoQuality } from "./stream/auto_quality"
 import { ConnectionDot } from "./stream/connection_dot"
+import { takeLaunchShot } from "./component/launch_transition"
 import { VideoEnhancer } from "./stream/video/enhancer"
 import { QualityLevel, QualityMonitor, stepDown, stepUp } from "./stream/quality_monitor"
 import { LogMessageType } from "./stream/log"
@@ -389,6 +390,12 @@ class ViewerApp implements Component {
     }
 
     private async startStream(settings: Settings) {
+        // Started from the home page's animation: its screenshot stays until the live picture is there
+        const shot = takeLaunchShot(this.hostId)
+        if (shot && shot.display == this.getCurrentDisplay()) {
+            this.freeze = FrozenFrame.fromImage(shot.image)
+        }
+
         // Stream start animation: the picture fades in while the display number grows out of the card
         // (on the video elements: a filter on their container would move them, they're position: fixed)
         this.connectionInfoModal.setLaunch(this.getCurrentDisplay(), () => {
@@ -645,6 +652,10 @@ class ViewerApp implements Component {
                     // Kept only when it works with them (it may have failed for another reason)
                     this.pendingFallback = fallback
                     this.replaceStream(I.stream.tryingWorkingSettings, false)
+                } else {
+                    // Nothing to try: the error card shows, without the start screenshot behind it
+                    this.freeze?.remove()
+                    this.freeze = null
                 }
             }
         } else if (data.type == "streamEnded") {
@@ -1558,6 +1569,17 @@ class FrozenFrame {
         document.body.appendChild(this.root)
     }
 
+    /// The screenshot from the start animation on the home page, until the live picture is there
+    static fromImage(url: string): FrozenFrame {
+        const frame = new FrozenFrame(null)
+        const image = el("img")
+        image.alt = ""
+        image.src = url
+        frame.root.insertBefore(image, frame.label)
+        frame.show("", false)
+        return frame
+    }
+
     static capture(parent: HTMLElement): FrozenFrame {
         const sources = Array.from(parent.querySelectorAll<HTMLVideoElement | HTMLCanvasElement>("video.video-stream, canvas.video-stream"))
             .filter(element => !element.classList.contains("video-enhancer") && element.getBoundingClientRect().width > 0)
@@ -1566,6 +1588,7 @@ class FrozenFrame {
 
     show(text: string, blur: boolean) {
         this.text.textContent = text
+        this.label.hidden = text == ""
         this.root.classList.toggle("is-blurred", blur)
         this.root.classList.remove("is-leaving")
     }

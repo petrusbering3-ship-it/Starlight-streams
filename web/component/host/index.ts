@@ -9,7 +9,7 @@ import { buildUrl } from "../../config_"
 import { DEFAULT_DISPLAY_COUNT, getCachedDisplays, getLastStream, getPreferredDisplay, setCachedDisplays, setPreferredDisplay } from "../../stream/display"
 import { button, el, icon, starIcon } from "../../icons"
 import { confirmDialog, openSlModal } from "../sl_modal"
-import { launchTransition } from "../launch_transition"
+import { launchTransition, prepareLaunchShot } from "../launch_transition"
 
 // Starlight Streams: one PC on the home page (design/screens/S-Home): a row in the PC index on
 // the left, and the detail with the display table on the right when it's selected.
@@ -69,6 +69,7 @@ export class Host implements Component {
     private startingSeconds: number | null = null
     /// Starlight Streams: 0 wake sent, 1 pc on, 2 logged in, 3 ready
     private startStage = 0
+    private shotPreparedAt = 0
     private startSteps = el("div", "sl-steps sl-pc-steps")
     private displaysFetchedAt = 0
 
@@ -242,6 +243,13 @@ export class Host implements Component {
 
             const row = el("div", "sl-display-row")
             row.dataset.display = `${display}`
+            // Wakes the screenshot taker on the pc, for the start animation
+            row.addEventListener("pointerenter", () => {
+                if (this.cache?.server_state != null && Date.now() - this.shotPreparedAt > 4000) {
+                    this.shotPreparedAt = Date.now()
+                    prepareLaunchShot(this.api, this.getHostId(), display)
+                }
+            })
 
             const titleCell = el("div", "sl-display-title")
             const title = el("span", "title", i.displayName(display))
@@ -577,7 +585,7 @@ export class Host implements Component {
                 // The row glides away and a black box grows into the stream
                 button.classList.remove("is-loading")
                 const row = Array.from(this.rows.children).find(row => (row as HTMLElement).dataset.display == `${display}`) as HTMLElement | undefined
-                await launchTransition(row ?? null, String(display).padStart(2, "0"))
+                await launchTransition(row ?? null, { api: this.api, hostId: this.getHostId(), display })
                 // Same tab: opening a new tab after waiting would be blocked as a popup
                 window.location.href = buildUrl(`/stream.html?${query}`)
             } else {

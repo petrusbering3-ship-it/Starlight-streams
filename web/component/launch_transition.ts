@@ -1,13 +1,66 @@
+import { Api, fetchApi } from "../api"
 import { el } from "../icons"
 
-// Starlight Streams: starting a stream. The clicked row glides to the right and shows a black box
-// behind it; the box grows to fill the window, and the stream page opens black into it. ~2 s.
+// Starlight Streams: starting a stream (the user's drawings). A black box slides into the clicked row
+// from the right, fills the row, then grows to the whole window. The box is a window onto the PC's
+// screen: it shows that part of a screenshot of the display, and more of it as it grows. ~2 s.
+// The screenshot is handed to the stream page, which keeps it until the live picture is there.
 
-const SLIDE_MS = 650
-const GROW_MS = 1000
-const HOLD_MS = 250
+const DURATION_MS = 1900
+const HOLD_MS = 150
+/// Read by the stream page (same tab)
+export const LAUNCH_SHOT_KEY = "starlight-launch-shot"
 
-export async function launchTransition(source: HTMLElement | null, number?: string): Promise<void> {
+export type LaunchShot = { hostId: number, display: number, image: string, at: number }
+
+export type LaunchOptions = {
+    api: Api
+    hostId: number
+    display: number
+}
+
+/// Wakes the screenshot taker on the pc, so a screenshot is ready when Stream is clicked
+export function prepareLaunchShot(api: Api, hostId: number, display: number) {
+    fetchApi(api, "/host/display-thumbnail", "GET", {
+        response: "ignore",
+        query: { host_id: hostId, index: display },
+    }).catch(() => { })
+}
+
+/// A screenshot of the display, tried for a moment (the pc may only start taking them now)
+async function fetchShot(options: LaunchOptions, until: number): Promise<Blob | null> {
+    while (Date.now() < until) {
+        try {
+            const response = await fetchApi(options.api, "/host/display-thumbnail", "GET", {
+                response: "ignore",
+                query: { host_id: options.hostId, index: options.display },
+            })
+            if (response.ok) {
+                return await response.blob()
+            }
+        } catch {
+            // not there yet
+        }
+        await new Promise(resolve => setTimeout(resolve, 250))
+    }
+    return null
+}
+
+function toDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+    })
+}
+
+export async function launchTransition(source: HTMLElement | null, options?: LaunchOptions): Promise<void> {
+    try {
+        sessionStorage.removeItem(LAUNCH_SHOT_KEY)
+    } catch {
+        // storage might be unavailable
+    }
     if (!source || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         return
     }
@@ -15,43 +68,69 @@ export async function launchTransition(source: HTMLElement | null, number?: stri
     if (rect.width == 0 || rect.height == 0) {
         return
     }
+    const vw = window.innerWidth
+    const vh = window.innerHeight
 
+    // The whole window shows the display; the clip path is the black box
     const layer = el("div", "sl-launch")
-    const box = el("div", "sl-launch-box")
-    if (number) {
-        box.appendChild(el("span", "sl-launch-num", number))
-    }
-    const clone = source.cloneNode(true) as HTMLElement
-    clone.classList.add("sl-launch-clone")
-    clone.removeAttribute("id")
-    for (const element of [box, clone]) {
-        Object.assign(element.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` })
-    }
-    layer.append(box, clone)
+    const reveal = el("div", "sl-launch-reveal")
+    const image = el("img", "sl-launch-shot")
+    image.alt = ""
+    reveal.appendChild(image)
+    layer.appendChild(reveal)
     document.body.appendChild(layer)
-    source.style.visibility = "hidden"
-    // Back from the stream (page from the back/forward cache): as it was
     window.addEventListener("pageshow", event => {
         if (event.persisted) {
             layer.remove()
-            source.style.visibility = ""
         }
     }, { once: true })
 
-    // 1. The row glides out to the right, the black box stays
-    const slide = clone.animate([
-        { transform: "translateX(0)", opacity: 1 },
-        { transform: `translateX(${Math.max(window.innerWidth - rect.left, rect.width) + 40}px)`, opacity: 0 },
-    ], { duration: SLIDE_MS, easing: "cubic-bezier(.6,0,.2,1)", fill: "forwards" })
-    await slide.finished.catch(() => { })
+    // The screenshot comes in while the box moves
+    if (options) {
+        fetchShot(options, Date.now() + DURATION_MS - 300).then(async blob => {
+            if (!blob || !layer.isConnected) {
+                return
+            }
+            image.src = URL.createObjectURL(blob)
+            image.addEventListener("load", () => image.classList.add("is-loaded"), { once: true })
+            try {
+                const shot: LaunchShot = { hostId: options.hostId, display: options.display, image: await toDataUrl(blob), at: Date.now() }
+                sessionStorage.setItem(LAUNCH_SHOT_KEY, JSON.stringify(shot))
+            } catch {
+                // storage might be unavailable: the stream page starts black
+            }
+        })
+    }
 
-    // 2. The box grows to the whole window
-    const grow = box.animate([
-        { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` },
-        { left: "0px", top: "0px", width: `${window.innerWidth}px`, height: `${window.innerHeight}px` },
-    ], { duration: GROW_MS, easing: "cubic-bezier(.7,0,.15,1)", fill: "forwards" })
-    await grow.finished.catch(() => { })
+    // inset(top right bottom left) of the window
+    const box = (left: number, top: number, right: number, bottom: number) =>
+        `inset(${top}px ${vw - right}px ${vh - bottom}px ${left}px)`
+    const rowRight = rect.right
+    const animation = reveal.animate([
+        // enters the row from its right end
+        { clipPath: box(rowRight, rect.top, rowRight, rect.bottom), offset: 0, easing: "cubic-bezier(.3,0,.2,1)" },
+        { clipPath: box(rowRight - rect.width * 0.35, rect.top, rowRight, rect.bottom), offset: 0.26, easing: "cubic-bezier(.5,0,.2,1)" },
+        // fills the row
+        { clipPath: box(rect.left, rect.top, rowRight, rect.bottom), offset: 0.48, easing: "cubic-bezier(.7,0,.15,1)" },
+        // grows to the whole window
+        { clipPath: box(0, 0, vw, vh), offset: 1 },
+    ], { duration: DURATION_MS, fill: "forwards" })
+    await animation.finished.catch(() => { })
 
-    // 3. A moment of black, then the stream page (it starts black too)
     await new Promise(resolve => setTimeout(resolve, HOLD_MS))
+}
+
+/// For the stream page: the screenshot from the launch, if it's for this stream and fresh
+export function takeLaunchShot(hostId: number): LaunchShot | null {
+    try {
+        const json = sessionStorage.getItem(LAUNCH_SHOT_KEY)
+        sessionStorage.removeItem(LAUNCH_SHOT_KEY)
+        const shot = json ? JSON.parse(json) as LaunchShot : null
+        if (shot && shot.hostId == hostId && Date.now() - shot.at < 30_000) {
+            return shot
+        }
+    } catch {
+        // storage might be unavailable
+    }
+    return null
 }
