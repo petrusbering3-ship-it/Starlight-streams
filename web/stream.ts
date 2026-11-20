@@ -765,7 +765,11 @@ class ViewerApp implements Component {
             }
 
             let pin = getUnlockPin(this.hostId)
-            if (askPin || (!pin && locked)) {
+            // Only asked from the menu (Unlock PC), never by itself when a stream starts
+            if (!pin && !askPin) {
+                return
+            }
+            if (askPin) {
                 const typed = await askWindowsPin()
                 if (typed == null) {
                     return

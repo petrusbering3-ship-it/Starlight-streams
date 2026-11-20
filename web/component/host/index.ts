@@ -577,7 +577,7 @@ export class Host implements Component {
                 // The row glides away and a black box grows into the stream
                 button.classList.remove("is-loading")
                 const row = Array.from(this.rows.children).find(row => (row as HTMLElement).dataset.display == `${display}`) as HTMLElement | undefined
-                await launchTransition(row ?? null, this.getHostId())
+                await launchTransition(button, row ?? null, this.getHostId())
                 // Same tab: opening a new tab after waiting would be blocked as a popup
                 window.location.href = buildUrl(`/stream.html?${query}`)
             } else {

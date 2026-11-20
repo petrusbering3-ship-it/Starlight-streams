@@ -25,50 +25,38 @@ type LaunchState = {
     at: number
 }
 
-/// Home page: the row slides right and becomes the black box; then the page is saved for the stream page
-export async function launchTransition(source: HTMLElement | null, hostId?: number): Promise<void> {
+/// Home page: the Stream button turns yellow with a loading icon and stays where it is; then the page
+/// is saved for the stream page (which keeps showing it until the live picture is ready)
+export async function launchTransition(button: HTMLElement | null, row: HTMLElement | null, hostId?: number): Promise<void> {
     try {
         sessionStorage.removeItem(LAUNCH_KEY)
     } catch {
         // storage might be unavailable
     }
-    if (!source || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (!button || !row || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         return
     }
-    const rect = source.getBoundingClientRect()
+    const rect = button.getBoundingClientRect()
+    const rowRect = row.getBoundingClientRect()
     if (rect.width == 0 || rect.height == 0) {
         return
     }
     const vw = window.innerWidth
     const vh = window.innerHeight
-    const shift = Math.max(0, Math.min(rect.width * 0.55, vw - rect.left - 80))
-    const box: Box = { left: rect.left + shift, top: rect.top, right: Math.min(vw, rect.right + shift), bottom: rect.bottom }
+    const box: Box = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }
 
-    const layer = el("div", "sl-launch")
-    const black = el("div", "sl-launch-box")
-    Object.assign(black.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.right - box.left}px`, height: `${box.bottom - box.top}px` })
-    const clone = source.cloneNode(true) as HTMLElement
-    clone.classList.add("sl-launch-clone")
-    clone.removeAttribute("id")
-    Object.assign(clone.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` })
-    layer.append(black, clone)
-    document.body.appendChild(layer)
-    source.style.visibility = "hidden"
+    button.classList.add("is-launching")
+    if (!button.querySelector(".sl-launch-spinner")) {
+        button.appendChild(el("span", "sl-launch-spinner"))
+    }
     window.addEventListener("pageshow", event => {
         if (event.persisted) {
-            layer.remove()
-            source.style.visibility = ""
+            button.classList.remove("is-launching")
+            button.querySelector(".sl-launch-spinner")?.remove()
         }
     }, { once: true })
-
-    clone.animate([
-        { transform: "translateX(0)", opacity: 1 },
-        { transform: `translateX(${shift}px)`, opacity: 0 },
-    ], { duration: SLIDE_MS, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" })
-    await black.animate([
-        { opacity: 0, transform: `translateX(${-shift * 0.6}px)` },
-        { opacity: 1, transform: "translateX(0)" },
-    ], { duration: SLIDE_MS, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" }).finished.catch(() => { })
+    // the colour change, then the stream page
+    await new Promise(resolve => setTimeout(resolve, SLIDE_MS / 2))
 
     // The page as it looks now (the row is hidden, the box is drawn by the stream page)
     if (hostId == null) {
@@ -89,7 +77,7 @@ export async function launchTransition(source: HTMLElement | null, hostId?: numb
         scrollY: window.scrollY,
         viewport: { width: vw, height: vh },
         box,
-        row: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+        row: { left: rowRect.left, top: rowRect.top, right: rowRect.right, bottom: rowRect.bottom },
         at: Date.now(),
     }
     try {
@@ -108,7 +96,6 @@ export class LaunchReveal {
         page.innerHTML = state.html
         page.style.transform = `translateY(${-state.scrollY}px)`
         this.root.appendChild(page)
-        this.root.style.clipPath = this.hole(state.box)
         document.body.appendChild(this.root)
     }
 
@@ -139,7 +126,8 @@ export class LaunchReveal {
     /// The live picture is there: the box stretches left over the row (slowly), then grows to the window
     async reveal() {
         const { box, row } = this.state
-        const stretched: Box = { left: row.left, top: box.top, right: box.right, bottom: box.bottom }
+        // the live picture replaces the yellow button, moves left over the row, then grows
+        const stretched: Box = { left: row.left, top: row.top, right: box.right, bottom: row.bottom }
         const full: Box = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }
         const animation = this.root.animate([
             { clipPath: this.hole(box), offset: 0, easing: "cubic-bezier(.45,0,.2,1)" },

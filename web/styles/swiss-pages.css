@@ -387,3 +387,8 @@ body.sl.stream{background:#000;overflow:hidden}
 .sl-launch-backdrop{position:fixed;inset:0;z-index:50;overflow:hidden;background:var(--sl-paper);cursor:progress}
 .sl-launch-page{position:absolute;left:0;top:0;width:100%}
 .sl-launch-backdrop *{animation:none!important;transition:none!important}
+/* the Stream button while the stream gets ready: yellow, with a loading icon */
+.sl-btn.is-launching{background:#f2c200!important;border-color:#f2c200!important;color:var(--sl-ink)!important;transition:background-color .3s var(--sl-ease)}
+.sl-btn.is-launching{color:transparent!important}
+.sl-btn.is-launching{position:relative}
+.sl-launch-spinner{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid rgba(18,18,18,.25);border-top-color:var(--sl-ink);animation:sl-spin .7s linear infinite!important}
