@@ -12,6 +12,9 @@ import { el, icon } from "../icons"
 const FADE_MS = 220
 const ZOOM_MS = 320
 const STAGGER_MS = 40
+/// After picking, the zoomed screenshot stays this long, so the stream has switched when it's gone
+const SWITCH_HOLD_MS = 450
+const SWITCH_FADE_MS = 160
 const THUMBNAIL_INTERVAL_MS = 1000
 /// Until a screen has its first screenshot it is asked for this often
 const THUMBNAIL_FIRST_INTERVAL_MS = 300
@@ -273,6 +276,9 @@ export class DisplayOverview {
         this.busy = true
         this.stopUpdates()
 
+        // Switch right away: the pc changes the streamed display while the picture zooms in
+        this.onPick(display, screen.display.name)
+
         screen.element.classList.add("is-zooming")
         place(screen.element, windowRect())
         for (const other of this.screens) {
@@ -282,10 +288,13 @@ export class DisplayOverview {
         }
         this.root.classList.remove("is-open")
 
+        // Then the screenshot fades out over the switched stream
+        const root = this.root
         window.setTimeout(() => {
-            this.onPick(display, screen.display.name)
-            this.remove()
-        }, ZOOM_MS)
+            root.style.transition = `opacity ${SWITCH_FADE_MS}ms ease`
+            root.style.opacity = "0"
+            window.setTimeout(() => this.remove(), SWITCH_FADE_MS)
+        }, ZOOM_MS + SWITCH_HOLD_MS)
     }
 
     /// The reverse of opening: the live screen grows back, nothing is switched

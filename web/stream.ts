@@ -1089,11 +1089,33 @@ class ViewerApp implements Component {
 
             setSidebarExtended(false)
 
+            // Chrome refuses the lock for about a second after the user left it (e.g. with Esc):
+            // try once more after that instead of showing an error
+            const lockQuietly = (options?: PointerLockOptions) => {
+                try {
+                    Promise.resolve(inputElement.requestPointerLock(options)).catch(error => {
+                        if (error instanceof Error && error.name == "SecurityError" && !document.pointerLockElement) {
+                            window.setTimeout(() => {
+                                if (!document.pointerLockElement) {
+                                    try {
+                                        Promise.resolve(inputElement.requestPointerLock()).catch(() => { })
+                                    } catch {
+                                        // not possible right now; the next click captures the mouse
+                                    }
+                                }
+                            }, 1100)
+                        }
+                    })
+                } catch {
+                    // older browsers throw instead of rejecting
+                }
+            }
+
             const onLockError = () => {
                 document.removeEventListener("pointerlockerror", onLockError)
 
                 // Fallback: try to request pointer lock without options
-                inputElement.requestPointerLock()
+                lockQuietly()
             }
 
             document.addEventListener("pointerlockerror", onLockError, { once: true })
@@ -1106,13 +1128,16 @@ class ViewerApp implements Component {
                 if (promise) {
                     await promise
                 } else {
-                    inputElement.requestPointerLock()
+                    lockQuietly()
                 }
             } catch (error) {
                 // Some platforms do not support unadjusted movement. If you
                 // would like PointerLock anyway, request again.
                 if (error instanceof Error && error.name == "NotSupportedError") {
-                    inputElement.requestPointerLock()
+                    lockQuietly()
+                } else if (error instanceof Error && error.name == "SecurityError") {
+                    // Too soon after leaving the lock: retried quietly
+                    lockQuietly({ unadjustedMovement: true })
                 } else {
                     throw error
                 }
