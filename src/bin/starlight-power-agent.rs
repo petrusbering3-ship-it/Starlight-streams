@@ -129,6 +129,17 @@ fn main() {
     let listener = TcpListener::bind(("0.0.0.0", port)).expect("failed to bind port");
     println!("Starlight power agent listening on port {port}");
 
+    // Keeps the display helper in the user's session running (displays, activity, screenshots)
+    {
+        let displays_file = displays_file.clone();
+        thread::spawn(move || {
+            loop {
+                ensure_helper(&displays_file);
+                thread::sleep(Duration::from_secs(20));
+            }
+        });
+    }
+
     // Each request on its own thread: one slow or stuck connection must not hold up the others
     // (the display overview asks for several screenshots at once)
     let token = std::sync::Arc::new(token);
@@ -183,8 +194,14 @@ fn handle(mut stream: TcpStream, token: &str, displays_file: &PathBuf) -> std::i
         if !authorized {
             return respond(&mut stream, "401 Unauthorized", "");
         }
-        // Tells the copy in the user's session to take screenshots for a few seconds
-        let _ = std::fs::write(thumbnails_request_file(displays_file), "");
+        // Tells the copy in the user's session to take screenshots for a few seconds. The time is
+        // written in the file: re-writing an empty file doesn't always change its modified time
+        let _ = std::fs::write(
+            thumbnails_request_file(displays_file),
+            unix_now().to_string(),
+        );
+        // ... and makes sure that copy is running
+        ensure_helper(displays_file);
 
         let index: u32 = index.parse().unwrap_or(0);
         let file = thumbnail_file(displays_file, index);
@@ -450,12 +467,19 @@ fn write_displays_forever(path: &PathBuf) -> ! {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
 
+    // Only one copy per session (the logon task and the agent may both start one)
+    if !single_helper_instance() {
+        std::process::exit(0);
+    }
+
     let activity = activity_file(path);
+    let heartbeat = helper_heartbeat_file(path);
     let mut last = String::new();
     let mut last_update: Option<std::time::Instant> = None;
     loop {
         if last_update.is_none_or(|time| time.elapsed() >= DISPLAYS_UPDATE_INTERVAL) {
             last_update = Some(std::time::Instant::now());
+            let _ = std::fs::write(&heartbeat, unix_now().to_string());
 
             let json = serde_json::to_string(&list_displays()).unwrap_or_else(|_| "[]".into());
             if json != last && std::fs::write(path, &json).is_ok() {
@@ -469,7 +493,7 @@ fn write_displays_forever(path: &PathBuf) -> ! {
         }
 
         // Screenshots only while somebody has the display overview open in a stream
-        if is_fresh(&thumbnails_request_file(path), THUMBNAILS_REQUEST_TIMEOUT) {
+        if thumbnails_requested(&thumbnails_request_file(path)) {
             let started = std::time::Instant::now();
             for display in list_displays() {
                 if let Some(jpeg) = capture_display(&display) {
@@ -501,8 +525,150 @@ fn thumbnails_request_file(displays_file: &std::path::Path) -> PathBuf {
     displays_file.with_file_name("thumbnails-request")
 }
 
+/// Written by the copy in the user's session while it runs
+fn helper_heartbeat_file(displays_file: &std::path::Path) -> PathBuf {
+    displays_file.with_file_name("helper-alive")
+}
+
+/// The helper writes its heartbeat this often (with the displays); older than this, it's not running
+const HELPER_STALE: Duration = Duration::from_secs(45);
+
+fn helper_alive(displays_file: &std::path::Path) -> bool {
+    std::fs::read_to_string(helper_heartbeat_file(displays_file))
+        .ok()
+        .and_then(|text| text.trim().parse::<u64>().ok())
+        .is_some_and(|alive| unix_now().saturating_sub(alive) < HELPER_STALE.as_secs())
+}
+
+/// Starts the copy in the user's session when it isn't running (e.g. after an auto update, the
+/// logon task only starts it at the next logon). At most every 30 s.
+fn ensure_helper(displays_file: &std::path::Path) {
+    static LAST_TRY: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+    if helper_alive(displays_file) || !session_state().0 {
+        return;
+    }
+    {
+        let Ok(mut last_try) = LAST_TRY.lock() else {
+            return;
+        };
+        if last_try.is_some_and(|time| time.elapsed() < Duration::from_secs(30)) {
+            return;
+        }
+        *last_try = Some(std::time::Instant::now());
+    }
+    if !start_helper_in_user_session(displays_file) {
+        eprintln!("Couldn't start the display helper in the user's session");
+    }
+}
+
+/// Runs "starlight-power-agent --write-displays PATH" as the user on the pc's screen
+#[cfg(windows)]
+fn start_helper_in_user_session(displays_file: &std::path::Path) -> bool {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, HANDLE},
+        System::{
+            RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken},
+            Threading::{
+                CREATE_NO_WINDOW, CreateProcessAsUserW, PROCESS_INFORMATION, STARTUPINFOW,
+            },
+        },
+    };
+
+    let Ok(exe) = std::env::current_exe() else {
+        return false;
+    };
+    let command = format!(
+        "\"{}\" --write-displays \"{}\"",
+        exe.display(),
+        displays_file.display()
+    );
+    let mut command: Vec<u16> = command.encode_utf16().chain(Some(0)).collect();
+    let mut desktop: Vec<u16> = "winsta0\\default".encode_utf16().chain(Some(0)).collect();
+
+    unsafe {
+        let session = WTSGetActiveConsoleSessionId();
+        if session == u32::MAX {
+            return false;
+        }
+        let mut token: HANDLE = std::ptr::null_mut();
+        if WTSQueryUserToken(session, &mut token) == 0 {
+            return false;
+        }
+
+        let mut startup: STARTUPINFOW = std::mem::zeroed();
+        startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+        startup.lpDesktop = desktop.as_mut_ptr();
+        let mut process: PROCESS_INFORMATION = std::mem::zeroed();
+
+        let started = CreateProcessAsUserW(
+            token,
+            std::ptr::null(),
+            command.as_mut_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+            CREATE_NO_WINDOW,
+            std::ptr::null(),
+            std::ptr::null(),
+            &startup,
+            &mut process,
+        ) != 0;
+
+        if started {
+            CloseHandle(process.hThread);
+            CloseHandle(process.hProcess);
+        }
+        CloseHandle(token);
+        started
+    }
+}
+
+#[cfg(not(windows))]
+fn start_helper_in_user_session(_displays_file: &std::path::Path) -> bool {
+    false
+}
+
+/// false when another helper already runs in this session
+#[cfg(windows)]
+fn single_helper_instance() -> bool {
+    use windows_sys::Win32::{
+        Foundation::{ERROR_ALREADY_EXISTS, GetLastError},
+        System::Threading::CreateMutexW,
+    };
+
+    let name: Vec<u16> = "Local\\StarlightDisplayHelper"
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    unsafe {
+        // Kept open (leaked) for as long as this process runs
+        let mutex = CreateMutexW(std::ptr::null(), 0, name.as_ptr());
+        !mutex.is_null() && GetLastError() != ERROR_ALREADY_EXISTS
+    }
+}
+
+#[cfg(not(windows))]
+fn single_helper_instance() -> bool {
+    true
+}
+
 fn thumbnail_file(displays_file: &std::path::Path, index: u32) -> PathBuf {
     displays_file.with_file_name(format!("thumbnail-{index}.jpg"))
+}
+
+/// Whether somebody asked for screenshots in the last few seconds (the time is in the file;
+/// older agents wrote an empty file, then its modified time counts)
+fn thumbnails_requested(path: &std::path::Path) -> bool {
+    match std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| text.trim().parse::<u64>().ok())
+    {
+        Some(requested) => {
+            unix_now().saturating_sub(requested) < THUMBNAILS_REQUEST_TIMEOUT.as_secs()
+        }
+        None => is_fresh(path, THUMBNAILS_REQUEST_TIMEOUT),
+    }
 }
 
 fn is_fresh(path: &std::path::Path, max_age: Duration) -> bool {
@@ -517,9 +683,9 @@ fn is_fresh(path: &std::path::Path, max_age: Duration) -> bool {
 #[cfg(windows)]
 fn capture_display(display: &Display) -> Option<Vec<u8>> {
     use windows_sys::Win32::Graphics::Gdi::{
-        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CAPTUREBLT, CreateCompatibleBitmap,
-        CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, HALFTONE,
-        ReleaseDC, SRCCOPY, SelectObject, SetStretchBltMode, StretchBlt,
+        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleBitmap, CreateCompatibleDC,
+        DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, HALFTONE, ReleaseDC, SRCCOPY,
+        SelectObject, SetStretchBltMode, StretchBlt,
     };
 
     const THUMBNAIL_WIDTH: i32 = 384;
@@ -554,7 +720,8 @@ fn capture_display(display: &Display) -> Option<Vec<u8>> {
             display.y,
             width,
             height,
-            SRCCOPY | CAPTUREBLT,
+            // No CAPTUREBLT: it's slow and makes the mouse flicker (the desktop is composed anyway)
+            SRCCOPY,
         ) != 0;
 
         let mut info: BITMAPINFO = std::mem::zeroed();
